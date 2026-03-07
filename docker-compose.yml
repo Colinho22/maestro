@@ -1,0 +1,10 @@
+services:
+  maestro:
+    build: .
+    container_name: maestro
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    # Override default command for interactive use
+    # command: python -m maestro

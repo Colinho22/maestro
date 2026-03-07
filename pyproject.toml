@@ -1,0 +1,31 @@
+[project]
+name = "maestro"
+version = "0.1.0"
+description = "MAESTRO – Multi-Agent Evaluation for Structured Relational Output. Thesis artifact comparing orchestration frameworks for relational visualization."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11,<3.12"
+authors = [
+    { name = "Colin Bolli", email = "colin.bolli@stud.fhgr.ch" }
+]
+keywords = ["multi-agent", "llm", "visualization", "orchestration", "thesis"]
+
+dependencies = [
+    # Core
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/maestro"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
