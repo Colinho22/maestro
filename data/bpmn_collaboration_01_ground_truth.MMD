@@ -1,0 +1,29 @@
+flowchart LR
+  subgraph Pool["Pool 1"]
+    direction LR
+    SE1([Start Event 1]) --> T1[Task 1] --> T2[Task 2] --> EE1([End Event 1])
+  end
+
+  subgraph Pool2["Pool 2"]
+    direction LR
+    subgraph Lane1["Lane 1"]
+      direction LR
+      SE2([Start Event 2]) --> T3[Task 3]
+      T3 --> ESP1
+      subgraph ESP1["Expanded Sub-Process 1"]
+        SE3([Start Event 3]) --> T4[Task 4] --> EE3([End Event 3])
+      end
+      ESP1 --> T5[Task 5] --> EE2([End Event 2])
+    end
+    subgraph Lane2["Lane 2"]
+      direction LR
+      subgraph ESP2["Expanded Sub-Process 2"]
+        SE4([Start Event 4]) --> T6[Task 6] --> EE4([End Event 4])
+      end
+      ESP2 --> EE5([End Event 5])
+    end
+    T3 --> ESP2
+  end
+
+  T1 -.->|Message Flow 1| T3
+  T5 -.->|Message Flow 2| T2

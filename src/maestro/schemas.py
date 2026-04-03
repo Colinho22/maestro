@@ -1,0 +1,141 @@
+# ---------------------------------------------------------------------------
+# Core data schema
+# All models use Pydantic v2 for validation and serialization
+# ---------------------------------------------------------------------------
+
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import Optional
+from uuid import UUID, uuid4
+
+from pydantic import BaseModel, Field, computed_field
+
+
+# ---------------------------------------------------------------------------
+# Enums — constrain experiment dimensions to valid values
+# ---------------------------------------------------------------------------
+
+class Strategy(str, Enum):
+    SINGLE_AGENT = "single_agent"
+    SOP_BASED    = "sop_based"
+    CREW_AI      = "crew_ai"
+    LANG_GRAPH   = "lang_graph"
+
+
+class Tier(int, Enum):
+    # Complexity tiers based on entity count
+    SIMPLE       = 1   # < 10 entities
+    INTERMEDIATE = 2   # 10–25 entities
+    COMPLEX      = 3   # 25+ entities
+
+
+# ---------------------------------------------------------------------------
+# InputFile — describes one diagram generation task
+# ---------------------------------------------------------------------------
+
+class InputFile(BaseModel):
+    """
+    Represents a single benchmark input: a JSON file with relational data
+    and its associated ground truth diagram code.
+    """
+
+    example_id:          str        # Human-readable ID, e.g. "er_diagram_01"
+    tier:                Tier       # Complexity tier (1–3)
+    entity_count:        int        # Number of entities in the input
+    file_path:           Path       # Path to the JSON input file on disk
+    ground_truth_path:   Path       # Path to the reference diagram code file
+    description:         Optional[str] = None  # Optional human note about this input
+
+
+# ---------------------------------------------------------------------------
+# RunConfig — captures the full experimental context of one run
+# ---------------------------------------------------------------------------
+
+class RunConfig(BaseModel):
+    """
+    Groups all the dimensions of a single experiment run.
+    run_id is the unique key; all other fields allow grouping/filtering.
+    """
+
+    run_id:      UUID     = Field(default_factory=uuid4)
+    strategy:    Strategy
+    model:       str                  # e.g. "gpt-4o", "claude-3-5-sonnet"
+    example_id:  str                  # FK to InputFile.example_id
+    tier:        Tier
+    run_number:  int                  # Repeat index within same config (1–N)
+    timestamp:   datetime = Field(default_factory=datetime.utcnow)
+
+
+# ---------------------------------------------------------------------------
+# ModelPricing — lookup table for cost calculation
+# ---------------------------------------------------------------------------
+
+class ModelPricing(BaseModel):
+    """
+    Per-model token pricing in USD per 1M tokens.
+    Used to compute cost_usd at write time.
+    """
+
+    model:                  str
+    input_price_per_1m:     float   # USD per 1M prompt tokens
+    output_price_per_1m:    float   # USD per 1M completion tokens
+
+
+# ---------------------------------------------------------------------------
+# RunResult — output and statistics of one LLM call
+# ---------------------------------------------------------------------------
+
+class RunResult(BaseModel):
+    """
+    Stores everything produced by a single LLM generation run.
+    Links back to RunConfig via run_id.
+    """
+
+    run_id:               UUID   # FK to RunConfig.run_id
+
+    # Output
+    output_diagram_code:  Optional[str] = None  # Generated Mermaid / PlantUML / etc.
+
+    # Token usage
+    prompt_tokens:        int
+    completion_tokens:    int
+
+    # Performance
+    duration_ms:          int    # Wall-clock time for the LLM call
+
+    # Cost — computed from token counts + ModelPricing at write time
+    cost_usd:             float
+
+    # Error — None if successful, exception message otherwise
+    error:                Optional[str] = None
+
+    @computed_field
+    @property
+    def total_tokens(self) -> int:
+        # Convenience field for quick cost/efficiency analysis
+        return self.prompt_tokens + self.completion_tokens
+
+    @computed_field
+    @property
+    def success(self) -> bool:
+        # True if a diagram was produced without error
+        return self.error is None and self.output_diagram_code is not None
+
+
+# ---------------------------------------------------------------------------
+# Helper — compute cost from token counts and pricing
+# ---------------------------------------------------------------------------
+
+def compute_cost(
+    prompt_tokens:     int,
+    completion_tokens: int,
+    pricing:           ModelPricing,
+) -> float:
+    """
+    Calculate USD cost for one LLM call.
+    Prices are per 1M tokens — divide by 1_000_000.
+    """
+    input_cost  = (prompt_tokens     / 1_000_000) * pricing.input_price_per_1m
+    output_cost = (completion_tokens / 1_000_000) * pricing.output_price_per_1m
+    return round(input_cost + output_cost, 8)

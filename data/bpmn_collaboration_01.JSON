@@ -1,0 +1,189 @@
+{
+  "metadata": {
+    "id": "bpmn_collaboration_01",
+    "source": "A_4_0-roundtrip.bpmn",
+    "diagram_type": "bpmn_collaboration",
+    "tier": 2,
+    "entity_count": 17,
+    "description": "Two-pool BPMN collaboration with message flows, lanes, and expanded sub-processes"
+  },
+  "participants": [
+    {
+      "id": "pool_1",
+      "name": "Pool",
+      "lanes": ["lane_pool1"]
+    },
+    {
+      "id": "pool_2",
+      "name": "Pool 2",
+      "lanes": ["lane_1", "lane_2"]
+    }
+  ],
+  "lanes": [
+    {
+      "id": "lane_pool1",
+      "name": null,
+      "pool": "pool_1"
+    },
+    {
+      "id": "lane_1",
+      "name": "Lane 1",
+      "pool": "pool_2"
+    },
+    {
+      "id": "lane_2",
+      "name": "Lane 2",
+      "pool": "pool_2"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start_event_1",
+      "name": "Start Event 1",
+      "type": "startEvent",
+      "lane": "lane_pool1",
+      "parent_subprocess": null
+    },
+    {
+      "id": "task_1",
+      "name": "Task 1",
+      "type": "task",
+      "lane": "lane_pool1",
+      "parent_subprocess": null
+    },
+    {
+      "id": "task_2",
+      "name": "Task 2",
+      "type": "task",
+      "lane": "lane_pool1",
+      "parent_subprocess": null
+    },
+    {
+      "id": "end_event_1",
+      "name": "End Event 1",
+      "type": "endEvent",
+      "lane": "lane_pool1",
+      "parent_subprocess": null
+    },
+    {
+      "id": "start_event_2",
+      "name": "Start Event 2",
+      "type": "startEvent",
+      "lane": "lane_1",
+      "parent_subprocess": null
+    },
+    {
+      "id": "task_3",
+      "name": "Task 3",
+      "type": "task",
+      "lane": "lane_1",
+      "parent_subprocess": null
+    },
+    {
+      "id": "subprocess_1",
+      "name": "Expanded Sub-Process 1",
+      "type": "subProcess",
+      "lane": "lane_1",
+      "parent_subprocess": null
+    },
+    {
+      "id": "start_event_3",
+      "name": "Start Event 3",
+      "type": "startEvent",
+      "lane": "lane_1",
+      "parent_subprocess": "subprocess_1"
+    },
+    {
+      "id": "task_4",
+      "name": "Task 4",
+      "type": "task",
+      "lane": "lane_1",
+      "parent_subprocess": "subprocess_1"
+    },
+    {
+      "id": "end_event_3",
+      "name": "End Event 3",
+      "type": "endEvent",
+      "lane": "lane_1",
+      "parent_subprocess": "subprocess_1"
+    },
+    {
+      "id": "task_5",
+      "name": "Task 5",
+      "type": "task",
+      "lane": "lane_1",
+      "parent_subprocess": null
+    },
+    {
+      "id": "end_event_2",
+      "name": "End Event 2",
+      "type": "endEvent",
+      "lane": "lane_1",
+      "parent_subprocess": null
+    },
+    {
+      "id": "subprocess_2",
+      "name": "Expanded Sub-Process 2",
+      "type": "subProcess",
+      "lane": "lane_2",
+      "parent_subprocess": null
+    },
+    {
+      "id": "start_event_4",
+      "name": "Start Event 4",
+      "type": "startEvent",
+      "lane": "lane_2",
+      "parent_subprocess": "subprocess_2"
+    },
+    {
+      "id": "task_6",
+      "name": "Task 6",
+      "type": "task",
+      "lane": "lane_2",
+      "parent_subprocess": "subprocess_2"
+    },
+    {
+      "id": "end_event_4",
+      "name": "End Event 4",
+      "type": "endEvent",
+      "lane": "lane_2",
+      "parent_subprocess": "subprocess_2"
+    },
+    {
+      "id": "end_event_5",
+      "name": "End Event 5",
+      "type": "endEvent",
+      "lane": "lane_2",
+      "parent_subprocess": null
+    }
+  ],
+  "sequence_flows": [
+    { "id": "sf_1", "source": "start_event_1", "target": "task_1" },
+    { "id": "sf_2", "source": "task_1",         "target": "task_2" },
+    { "id": "sf_3", "source": "task_2",          "target": "end_event_1" },
+    { "id": "sf_4", "source": "start_event_2",  "target": "task_3" },
+    { "id": "sf_5", "source": "task_3",          "target": "subprocess_1" },
+    { "id": "sf_6", "source": "task_3",          "target": "subprocess_2" },
+    { "id": "sf_7", "source": "start_event_3",  "target": "task_4" },
+    { "id": "sf_8", "source": "task_4",          "target": "end_event_3" },
+    { "id": "sf_9", "source": "subprocess_1",   "target": "task_5" },
+    { "id": "sf_10", "source": "task_5",         "target": "end_event_2" },
+    { "id": "sf_11", "source": "start_event_4", "target": "task_6" },
+    { "id": "sf_12", "source": "task_6",         "target": "end_event_4" },
+    { "id": "sf_13", "source": "subprocess_2",  "target": "end_event_5" }
+  ],
+  "message_flows": [
+    {
+      "id": "mf_1",
+      "name": "Message Flow 1",
+      "source": "task_1",
+      "target": "task_3"
+    },
+    {
+      "id": "mf_2",
+      "name": "Message Flow 2",
+      "source": "task_5",
+      "target": "task_2"
+    }
+  ]
+}
