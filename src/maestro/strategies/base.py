@@ -5,7 +5,7 @@ All orchestration strategies (single agent, SOP, CrewAI, LangGraph) implement th
 
 from abc import ABC, abstractmethod
 
-from maestro.schemas import InputFile, RunConfig, RunResult
+from maestro.schemas import InputFile, RunConfig, RunResult, SubResult
 from maestro.providers.base import LLMProvider
 
 
@@ -22,10 +22,10 @@ class BaseStrategy(ABC):
         self.provider = provider
 
     @abstractmethod
-    def run(self, input_file: InputFile, config: RunConfig) -> RunResult:
+    def run(self, input_file: InputFile, config: RunConfig) -> tuple[RunResult, list[SubResult]]:
         """
-        Execute the strategy for one input and return the result.
-        Must always return a RunResult — never raise.
+        Execute the strategy for one input and return the result including sub results.
+        Must always return a RunResult.
         """
         ...
 

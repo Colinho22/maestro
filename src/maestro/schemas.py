@@ -123,6 +123,24 @@ class RunResult(BaseModel):
         return self.error is None and self.output_diagram_code is not None
 
 
+class SubResult(BaseModel):
+    """
+    One sub-call within a multi-step strategy (e.g. SOP).
+    Links to the parent run via run_id.
+    """
+
+    sub_id:            UUID = Field(default_factory=uuid4)
+    run_id:            UUID          # FK to RunConfig.run_id
+    step_number:       int           # 1, 2, 3…
+    step_name:         str           # "extract_entities", "extract_relationships", etc.
+    output_text:       Optional[str] = None
+    prompt_tokens:     int
+    completion_tokens: int
+    duration_ms:       int
+    cost_usd:          float
+    error:             Optional[str] = None
+    retry_count:       int = 0       # 0 = first attempt worked
+
 # ---------------------------------------------------------------------------
 # Helper — compute cost from token counts and pricing
 # ---------------------------------------------------------------------------

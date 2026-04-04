@@ -6,11 +6,10 @@ This is the control condition all other strategies are compared against.
 
 import json
 
-from maestro.schemas import InputFile, RunConfig, RunResult
+from maestro.schemas import InputFile, RunConfig, RunResult, SubResult
 from maestro.strategies.base import BaseStrategy
 
 
-# Prompt template — kept here so it's easy to version and compare across strategies
 PROMPT_TEMPLATE = """\
 You are given a dataset describing entities and their relationships.
 Your task is to generate a Mermaid diagram that accurately represents this data.
@@ -20,6 +19,7 @@ Rules:
 - Include all entities and relationships from the input
 - Do not invent entities or relationships not present in the data
 - Do not include explanations or markdown code fences
+- Do not use internal IDs as edge labels
 
 Input data:
 {input_data}
@@ -34,14 +34,15 @@ class SingleAgentStrategy(BaseStrategy):
     Establishes the lower bound for comparison with orchestrated strategies.
     """
 
-    def run(self, input_file: InputFile, config: RunConfig) -> RunResult:
+    def run(
+        self, input_file: InputFile, config: RunConfig
+    ) -> tuple[RunResult, list[SubResult]]:
         """
         Load the input JSON, build a single prompt, call the provider.
-        Returns the RunResult directly — no post-processing.
+        Returns (RunResult, []) — empty sub_results for single-agent.
         """
 
         try:
-            # Load the input JSON from disk
             raw = input_file.file_path.read_text(encoding="utf-8")
             input_data = json.loads(raw)
 
@@ -50,20 +51,20 @@ class SingleAgentStrategy(BaseStrategy):
         except json.JSONDecodeError as e:
             return self._file_error(config, f"Invalid JSON in input file: {e}")
 
-        # Serialise back to a clean indented string — helps the model parse structure
         formatted_input = json.dumps(input_data, indent=2)
-
         prompt = PROMPT_TEMPLATE.format(input_data=formatted_input)
 
-        # Single call — provider handles timing, token counting, and error capture
-        return self.provider.complete(prompt, config)
+        # Single call — wrap result in tuple with empty sub_results
+        result = self.provider.complete(prompt, config)
+        return (result, [])
 
-    def _file_error(self, config: RunConfig, message: str) -> RunResult:
+    def _file_error(
+        self, config: RunConfig, message: str
+    ) -> tuple[RunResult, list[SubResult]]:
         """
         Return a failed RunResult for file-level errors before any LLM call.
-        duration_ms is 0 since no API call was made.
         """
-        return RunResult(
+        result = RunResult(
             run_id              = config.run_id,
             output_diagram_code = None,
             prompt_tokens       = 0,
@@ -72,3 +73,4 @@ class SingleAgentStrategy(BaseStrategy):
             cost_usd            = 0.0,
             error               = message,
         )
+        return (result, [])

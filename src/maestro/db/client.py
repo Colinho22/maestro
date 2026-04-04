@@ -33,6 +33,21 @@ CREATE TABLE IF NOT EXISTS run_results (
     error                TEXT,
     FOREIGN KEY (run_id) REFERENCES run_configs(run_id)
 );
+
+CREATE TABLE IF NOT EXISTS sub_results (
+    sub_id            TEXT PRIMARY KEY,
+    run_id            TEXT NOT NULL,
+    step_number       INTEGER NOT NULL,
+    step_name         TEXT NOT NULL,
+    output_text       TEXT,
+    prompt_tokens     INTEGER NOT NULL,
+    completion_tokens INTEGER NOT NULL,
+    duration_ms       INTEGER NOT NULL,
+    cost_usd          REAL NOT NULL,
+    error             TEXT,
+    retry_count       INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (run_id) REFERENCES run_configs(run_id)
+);
 """
 
 

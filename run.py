@@ -11,15 +11,16 @@ from dotenv import load_dotenv
 from maestro.schemas import InputFile, ModelPricing, RunConfig, Strategy, Tier
 from maestro.providers.anthropic import AnthropicProvider
 from maestro.strategies.single import SingleAgentStrategy
+from maestro.strategies.sop import SOPStrategy
 from maestro.db.client import init_db, get_connection
-from maestro.db.queries import insert_run_config, insert_run_result
+from maestro.db.queries import insert_run_config, insert_run_result, insert_sub_result
 
 # ---------------------------------------------------------------------------
 # Config — change these to run different experiment conditions
 # ---------------------------------------------------------------------------
 
 MODEL        = "claude-haiku-4-5-20251001"
-STRATEGY     = Strategy.SINGLE_AGENT
+STRATEGY     = Strategy.SOP_BASED
 TIER         = Tier.INTERMEDIATE
 EXAMPLE_ID   = "bpmn_collaboration_01"
 RUN_NUMBER   = 1
@@ -73,17 +74,26 @@ def main() -> None:
     print(f"  Model    : {config.model}")
     print(f"  Example  : {config.example_id} (Tier {config.tier.value})")
 
-    # Initialise provider and strategy
+    # Initialise provider
     provider = AnthropicProvider(api_key=api_key, pricing=PRICING)
-    strategy = SingleAgentStrategy(provider=provider)
+
+    # Select strategy based on config
+    if STRATEGY == Strategy.SINGLE_AGENT:
+        strategy = SingleAgentStrategy(provider=provider)
+    elif STRATEGY == Strategy.SOP_BASED:
+        strategy = SOPStrategy(provider=provider)
+    else:
+        raise ValueError(f"Strategy not implemented: {STRATEGY.value}")
 
     # Execute
-    result = strategy.run(input_file=input_file, config=config)
+    result, sub_result = strategy.run(input_file=input_file, config=config)
 
     # Persist to DB
     with get_connection(DB_PATH) as conn:
         insert_run_config(conn, config)
         insert_run_result(conn, result)
+        for sub in sub_result:
+            insert_sub_result(conn, sub)
 
     # Print summary
     if result.success:
@@ -95,6 +105,14 @@ def main() -> None:
     else:
         print(f"\nFailed: {result.error}")
 
+    # Print sub-call details if any
+    if sub_result:
+        print(f"\n--- Sub-calls ---")
+        for sub in sub_result:
+            status = "OK" if sub.error is None else f"FAIL: {sub.error}"
+            print(f"  Step {sub.step_number} ({sub.step_name}): {status}")
+            print(f"    Tokens: {sub.prompt_tokens} in / {sub.completion_tokens} out")
+            print(f"    Cost: ${sub.cost_usd:.6f} | Retries: {sub.retry_count}")
 
 if __name__ == "__main__":
     main()

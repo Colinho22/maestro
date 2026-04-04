@@ -5,7 +5,7 @@ Insert and fetch operations for RunConfig and RunResult.
 
 import sqlite3
 
-from maestro.schemas import RunConfig, RunResult
+from maestro.schemas import RunConfig, RunResult, SubResult
 
 
 def insert_run_config(conn: sqlite3.Connection, config: RunConfig) -> None:
@@ -50,6 +50,45 @@ def insert_run_result(conn: sqlite3.Connection, result: RunResult) -> None:
         ),
     )
 
+def insert_sub_result(conn: sqlite3.Connection, sub: SubResult) -> None:
+    """Persist one sub-call result from a multi-step strategy."""
+    conn.execute(
+        """
+        INSERT INTO sub_results
+            (sub_id, run_id, step_number, step_name, output_text,
+             prompt_tokens, completion_tokens, duration_ms, cost_usd,
+             error, retry_count)
+        VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            str(sub.sub_id),
+            str(sub.run_id),
+            sub.step_number,
+            sub.step_name,
+            sub.output_text,
+            sub.prompt_tokens,
+            sub.completion_tokens,
+            sub.duration_ms,
+            sub.cost_usd,
+            sub.error,
+            sub.retry_count,
+        ),
+    )
+
+
+def fetch_sub_results_by_run(
+    conn: sqlite3.Connection, run_id: str
+) -> list[sqlite3.Row]:
+    """Fetch all sub-call results for a given parent run."""
+    return conn.execute(
+        """
+        SELECT * FROM sub_results
+        WHERE run_id = ?
+        ORDER BY step_number
+        """,
+        (run_id,),
+    ).fetchall()
 
 def fetch_results_by_strategy(
     conn: sqlite3.Connection, strategy: str
