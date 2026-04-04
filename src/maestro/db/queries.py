@@ -5,7 +5,7 @@ Insert and fetch operations for RunConfig and RunResult.
 
 import sqlite3
 
-from maestro.schemas import RunConfig, RunResult, SubResult
+from maestro.schemas import RunConfig, RunResult, SubResult, MetricResult
 
 
 def insert_run_config(conn: sqlite3.Connection, config: RunConfig) -> None:
@@ -116,3 +116,56 @@ def fetch_all_results(conn: sqlite3.Connection) -> list[sqlite3.Row]:
         ORDER BY c.timestamp
         """,
     ).fetchall()
+
+def insert_metric_result(conn: sqlite3.Connection, metric: MetricResult) -> None:
+    """Persist evaluation metrics for one run."""
+    conn.execute(
+        """
+        INSERT INTO metric_results
+            (metric_id, run_id, parses_valid, parse_error,
+             entity_id_precision, entity_id_recall, entity_id_f1,
+             entity_name_precision, entity_name_recall, entity_name_f1,
+             entity_lemma_precision, entity_lemma_recall, entity_lemma_f1,
+             relationship_relaxed_precision, relationship_relaxed_recall, relationship_relaxed_f1,
+             relationship_strict_precision, relationship_strict_recall, relationship_strict_f1,
+             entities_in_output, entities_in_truth,
+             relationships_in_output, relationships_in_truth,
+             missing_entities, extra_entities, false_entities, duplicate_entities,
+             missing_relationships, extra_relationships, false_relationships, duplicate_relationships)
+        VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            str(metric.metric_id),
+            str(metric.run_id),
+            int(metric.parses_valid),
+            metric.parse_error,
+            metric.entity_id_precision,
+            metric.entity_id_recall,
+            metric.entity_id_f1,
+            metric.entity_name_precision,
+            metric.entity_name_recall,
+            metric.entity_name_f1,
+            metric.entity_lemma_precision,
+            metric.entity_lemma_recall,
+            metric.entity_lemma_f1,
+            metric.relationship_relaxed_precision,
+            metric.relationship_relaxed_recall,
+            metric.relationship_relaxed_f1,
+            metric.relationship_strict_precision,
+            metric.relationship_strict_recall,
+            metric.relationship_strict_f1,
+            metric.entities_in_output,
+            metric.entities_in_truth,
+            metric.relationships_in_output,
+            metric.relationships_in_truth,
+            metric.missing_entities,
+            metric.extra_entities,
+            metric.false_entities,
+            metric.duplicate_entities,
+            metric.missing_relationships,
+            metric.extra_relationships,
+            metric.false_relationships,
+            metric.duplicate_relationships,
+        ),
+    )

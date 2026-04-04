@@ -157,3 +157,64 @@ def compute_cost(
     input_cost  = (prompt_tokens     / 1_000_000) * pricing.input_price_per_1m
     output_cost = (completion_tokens / 1_000_000) * pricing.output_price_per_1m
     return round(input_cost + output_cost, 8)
+
+
+# ---------------------------------------------------------------------------
+# Metric Result — comparison to ground truth
+# ---------------------------------------------------------------------------
+
+class MetricResult(BaseModel):
+    """
+    Stores evaluation scores for one run against its ground truth.
+    Links to run_configs via run_id.
+    """
+
+    metric_id:              UUID = Field(default_factory=uuid4)
+    run_id:                 UUID
+
+    # Structural validity
+    parses_valid:           bool        # Did mmdc parse without errors?
+    parse_error:            Optional[str] = None
+
+    # Entity metrics — exact ID match
+    entity_id_precision:    float       # correct IDs / total IDs in output
+    entity_id_recall:       float       # correct IDs / total IDs in ground truth
+    entity_id_f1:           float
+
+    # Entity metrics — fuzzy name match
+    entity_name_precision:  float
+    entity_name_recall:     float
+    entity_name_f1:         float
+
+    # Entity metrics — lemmatized name match
+    entity_lemma_precision: float
+    entity_lemma_recall:    float
+    entity_lemma_f1:        float
+
+    # Relationship metrics — relaxed (source + target match, ignores type)
+    relationship_relaxed_precision: float
+    relationship_relaxed_recall:    float
+    relationship_relaxed_f1:        float
+
+    # Relationship metrics — strict (source + target + type must all match)
+    relationship_strict_precision:  float
+    relationship_strict_recall:     float
+    relationship_strict_f1:         float
+
+    # Raw counts for transparency
+    entities_in_output:     int
+    entities_in_truth:      int
+    relationships_in_output:        int
+    relationships_in_truth:         int
+
+    # Error taxonomy counts - entities
+    missing_entities:       int
+    extra_entities:         int
+    false_entities:         int
+    duplicate_entities:     int
+
+    # Error taxonomy counts - relationships
+    missing_relationships:  int
+    extra_relationships:    int
+    false_relationships:    int
+    duplicate_relationships: int

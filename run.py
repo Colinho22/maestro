@@ -12,8 +12,9 @@ from maestro.schemas import InputFile, ModelPricing, RunConfig, Strategy, Tier
 from maestro.providers.anthropic import AnthropicProvider
 from maestro.strategies.single import SingleAgentStrategy
 from maestro.strategies.sop import SOPStrategy
+from maestro.analysis.metrics import evaluate_run
 from maestro.db.client import init_db, get_connection
-from maestro.db.queries import insert_run_config, insert_run_result, insert_sub_result
+from maestro.db.queries import insert_run_config, insert_run_result, insert_sub_result, insert_metric_result
 
 # ---------------------------------------------------------------------------
 # Config — change these to run different experiment conditions
@@ -113,6 +114,27 @@ def main() -> None:
             print(f"  Step {sub.step_number} ({sub.step_name}): {status}")
             print(f"    Tokens: {sub.prompt_tokens} in / {sub.completion_tokens} out")
             print(f"    Cost: ${sub.cost_usd:.6f} | Retries: {sub.retry_count}")
+
+    # Evaluate against ground truth (only if run succeeded)
+    if result.success:
+        metrics = evaluate_run(
+            run_id=config.run_id,
+            output_diagram_code=result.output_diagram_code,
+            ground_truth_path=input_file.ground_truth_path,
+        )
+        with get_connection(DB_PATH) as conn:
+            insert_metric_result(conn, metrics)
+
+        print(f"\n--- Metrics ---")
+        print(f"  Parse valid     : {metrics.parses_valid}")
+        print(f"  Entity ID       : P={metrics.entity_id_precision} R={metrics.entity_id_recall} F1={metrics.entity_id_f1}")
+        print(f"  Entity name     : P={metrics.entity_name_precision} R={metrics.entity_name_recall} F1={metrics.entity_name_f1}")
+        print(f"  Entity lemma    : P={metrics.entity_lemma_precision} R={metrics.entity_lemma_recall} F1={metrics.entity_lemma_f1}")
+        print(f"  Rel. relaxed    : P={metrics.relationship_relaxed_precision} R={metrics.relationship_relaxed_recall} F1={metrics.relationship_relaxed_f1}")
+        print(f"  Rel. strict     : P={metrics.relationship_strict_precision} R={metrics.relationship_strict_recall} F1={metrics.relationship_strict_f1}")
+        print(f"\n--- Taxonomy ---")
+        print(f"  Entities  : {metrics.missing_entities} missing | {metrics.extra_entities} extra | {metrics.false_entities} false | {metrics.duplicate_entities} duplicate")
+        print(f"  Relations : {metrics.missing_relationships} missing | {metrics.extra_relationships} extra | {metrics.false_relationships} false | {metrics.duplicate_relationships} duplicate")
 
 if __name__ == "__main__":
     main()

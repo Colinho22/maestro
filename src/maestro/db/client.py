@@ -48,6 +48,41 @@ CREATE TABLE IF NOT EXISTS sub_results (
     retry_count       INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (run_id) REFERENCES run_configs(run_id)
 );
+    
+CREATE TABLE IF NOT EXISTS metric_results (
+    metric_id               TEXT PRIMARY KEY,
+    run_id                  TEXT NOT NULL,
+    parses_valid            INTEGER NOT NULL,
+    parse_error             TEXT,
+    entity_id_precision     REAL NOT NULL,
+    entity_id_recall        REAL NOT NULL,
+    entity_id_f1            REAL NOT NULL,
+    entity_name_precision   REAL NOT NULL,
+    entity_name_recall      REAL NOT NULL,
+    entity_name_f1          REAL NOT NULL,
+    entity_lemma_precision  REAL NOT NULL,
+    entity_lemma_recall     REAL NOT NULL,
+    entity_lemma_f1         REAL NOT NULL,
+    relationship_relaxed_precision  REAL NOT NULL,
+    relationship_relaxed_recall     REAL NOT NULL,
+    relationship_relaxed_f1         REAL NOT NULL,
+    relationship_strict_precision   REAL NOT NULL,
+    relationship_strict_recall      REAL NOT NULL,
+    relationship_strict_f1          REAL NOT NULL,
+    entities_in_output      INTEGER NOT NULL,
+    entities_in_truth       INTEGER NOT NULL,
+    relationships_in_output INTEGER NOT NULL,
+    relationships_in_truth  INTEGER NOT NULL,
+    missing_entities        INTEGER NOT NULL,
+    extra_entities          INTEGER NOT NULL,
+    false_entities          INTEGER NOT NULL,
+    duplicate_entities      INTEGER NOT NULL,
+    missing_relationships   INTEGER NOT NULL,
+    extra_relationships     INTEGER NOT NULL,
+    false_relationships     INTEGER NOT NULL,
+    duplicate_relationships INTEGER NOT NULL,
+    FOREIGN KEY (run_id) REFERENCES run_configs(run_id)
+);
 """
 
 
