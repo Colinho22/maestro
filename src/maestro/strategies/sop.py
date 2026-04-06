@@ -6,16 +6,12 @@ Each step's output feeds the next step's input.
 
 import json
 import time
-from uuid import uuid4
 
-from maestro.providers.base import LLMProvider
 from maestro.schemas import (
     InputFile,
-    ModelPricing,
     RunConfig,
     RunResult,
     SubResult,
-    compute_cost,
 )
 from maestro.strategies.base import BaseStrategy
 
@@ -114,13 +110,13 @@ MAX_RETRIES = 1
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _strip_fences(text: str) -> str:
+def _strip_fences(text: str | None) -> str | None:
     """
     Remove markdown code fences if present.
     Models often wrap JSON in ```json ... ```
     """
     if text is None:
-        return text
+        return None
     stripped = text.strip()
     if stripped.startswith("```"):
         # Remove first line (```json or ```)
@@ -228,6 +224,7 @@ class SOPStrategy(BaseStrategy):
         output_text is None if the step failed.
         """
         last_error = None
+        result = None
 
         for attempt in range(MAX_RETRIES + 1):
             # provider.complete() returns a RunResult — we extract what we need
@@ -238,8 +235,6 @@ class SOPStrategy(BaseStrategy):
                 output = result.output_diagram_code
                 output = _strip_fences(output)
                 if step_number < 3:
-                    print(f"\n--- Step {step_number} raw output ---")
-                    print(output[:200])
                     try:
                         json.loads(output)
                     except (json.JSONDecodeError, TypeError):
@@ -271,11 +266,11 @@ class SOPStrategy(BaseStrategy):
                 step_number=step_number,
                 step_name=step_name,
                 output_text=None,
-                prompt_tokens=result.prompt_tokens,
-                completion_tokens=result.completion_tokens,
-                duration_ms=result.duration_ms,
-                cost_usd=result.cost_usd,
-                error=last_error,
+                prompt_tokens=result.prompt_tokens if result else 0,
+                completion_tokens=result.completion_tokens if result else 0,
+                duration_ms=result.duration_ms if result else 0,
+                cost_usd=result.cost_usd if result else 0.0,
+                error=last_error or "No attempts executed",
                 retry_count=MAX_RETRIES,
             ),
             None,

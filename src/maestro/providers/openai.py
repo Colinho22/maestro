@@ -1,73 +1,73 @@
 """
-MAESTRO — Anthropic provider implementation
-Wraps the Anthropic messages API into the LLMProvider interface.
+MAESTRO — OpenAI provider implementation
+Wraps the OpenAI chat completions API into the LLMProvider interface.
 """
 
 import time
 
-import anthropic
-from anthropic import APIError, APITimeoutError, RateLimitError
+import openai
+from openai import APIError, APITimeoutError, RateLimitError
 
 from maestro.schemas import ModelPricing, RunConfig, RunResult, compute_cost
 from maestro.providers.base import LLMProvider
 
 
-class AnthropicProvider(LLMProvider):
+class OpenAIProvider(LLMProvider):
     """
-    Concrete provider for Anthropic models (claude-sonnet-4-5, etc.)
-    Uses the official anthropic SDK — add 'anthropic>=0.25.0' to pyproject.toml.
+    Concrete provider for OpenAI models (gpt-4o, gpt-4o-mini, etc.)
+    Uses the official openai SDK — add 'openai>=1.0.0' to pyproject.toml.
     """
 
-    # Instructs the model to output diagram code only — no prose or fencing
+    # Same role as AnthropicProvider.SYSTEM_PROMPT
     SYSTEM_PROMPT = (
         "You are a diagram generation assistant. "
         "Respond only with valid Mermaid diagram code. "
         "Do not include any explanation, markdown fencing, or additional text."
     )
 
-    # Max tokens for the completion — diagram code is rarely long
+    # Max tokens for the completion
     MAX_TOKENS = 4096
 
     def __init__(self, api_key: str, pricing: ModelPricing) -> None:
         super().__init__(api_key, pricing)
         # Initialise the SDK client once — reused for all calls
-        self._client = anthropic.Anthropic(api_key=api_key)
+        self._client = openai.OpenAI(api_key=api_key)
 
     def complete(self, prompt: str, config: RunConfig) -> RunResult:
         """
-        Call the Anthropic messages endpoint and return a RunResult.
+        Call the OpenAI chat completions endpoint and return a RunResult.
         Never raises — all exceptions are captured into RunResult.error.
         """
 
         start_ms = time.monotonic()
 
         try:
-            response = self._client.messages.create(
+            response = self._client.chat.completions.create(
                 model=config.model,
                 max_tokens=self.MAX_TOKENS,
                 temperature=self.TEMPERATURE,
-                system=self.SYSTEM_PROMPT,
                 messages=[
+                    {"role": "system", "content": self.SYSTEM_PROMPT},
                     {"role": "user", "content": prompt},
                 ],
             )
 
             duration_ms = int((time.monotonic() - start_ms) * 1000)
 
-            # Anthropic returns usage on every non-streaming response
-            prompt_tokens     = response.usage.input_tokens
-            completion_tokens = response.usage.output_tokens
+            # OpenAI returns usage on every non-streaming response
+            prompt_tokens = response.usage.prompt_tokens
+            completion_tokens = response.usage.completion_tokens
 
-            # Response content is a list of blocks — grab the first text block
-            output = response.content[0].text
+            # Response content from the first choice
+            output = response.choices[0].message.content
 
             return RunResult(
-                run_id              = config.run_id,
-                output_diagram_code = output,
-                prompt_tokens       = prompt_tokens,
-                completion_tokens   = completion_tokens,
-                duration_ms         = duration_ms,
-                cost_usd            = compute_cost(
+                run_id=config.run_id,
+                output_diagram_code=output,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                duration_ms=duration_ms,
+                cost_usd=compute_cost(
                     prompt_tokens, completion_tokens, self.pricing
                 ),
             )
@@ -92,11 +92,11 @@ class AnthropicProvider(LLMProvider):
         Build a failed RunResult with zero token counts and the error message.
         """
         return RunResult(
-            run_id              = config.run_id,
-            output_diagram_code = None,
-            prompt_tokens       = 0,
-            completion_tokens   = 0,
-            duration_ms         = int((time.monotonic() - start_ms) * 1000),
-            cost_usd            = 0.0,
-            error               = error,
+            run_id=config.run_id,
+            output_diagram_code=None,
+            prompt_tokens=0,
+            completion_tokens=0,
+            duration_ms=int((time.monotonic() - start_ms) * 1000),
+            cost_usd=0.0,
+            error=error,
         )

@@ -90,25 +90,37 @@ def extract_nodes(mermaid_code: str) -> list[dict]:
     """
     Extract node definitions from Mermaid code.
     Returns list of {"id": str, "label": str}.
+
+    Handles two common formats:
+      - Standalone:  node_id["Label"]  or  node_id(Label)
+      - Inline:      node_id(Label) --> other_id(Other Label)
     """
     nodes = []
     seen_ids = set()
 
-    # Node pattern: id followed by brackets with label
-    pattern = r'^\s*(\w+)\s*[\[\(\{]+["\'/]?\s*"?([^"\]\)\}]+)"?\s*[\]\)\}]+'
+    # Keywords to skip — these are Mermaid syntax, not nodes
+    SKIP = {"graph", "flowchart", "subgraph", "end", "direction", "style", "classDef"}
+
+    # Inline node pattern: matches id(Label), id["Label"], id[Label], id{Label}
+    # Works anywhere in a line — catches nodes inside arrow chains
+    inline_pattern = re.compile(
+        r'(\w+)\s*'           # node id
+        r'[\[\(\{]+'          # opening bracket(s)
+        r'["\']?\s*'          # optional quote
+        r'([^"\]\)\}]+?)'     # label (non-greedy)
+        r'\s*["\']?'          # optional closing quote
+        r'[\]\)\}]+'          # closing bracket(s)
+    )
+
     for line in mermaid_code.splitlines():
-        match = re.match(pattern, line.strip())
-        if match:
+        for match in inline_pattern.finditer(line):
             node_id = match.group(1)
             label = match.group(2).strip().strip('"').strip("'")
-            if node_id.lower() not in (
-                "graph", "flowchart", "subgraph", "end", "direction"
-            ):
-                if node_id not in seen_ids:
-                    nodes.append({"id": node_id, "label": label})
-                    seen_ids.add(node_id)
+            if node_id.lower() not in SKIP and node_id not in seen_ids:
+                nodes.append({"id": node_id, "label": label})
+                seen_ids.add(node_id)
 
-    # Subgraph definitions
+    # Subgraph definitions: subgraph id["Label"]
     subgraph_pattern = r'subgraph\s+(\w+)\s*\["?([^"\]]*)"?\]'
     for match in re.finditer(subgraph_pattern, mermaid_code):
         sg_id = match.group(1)
@@ -128,8 +140,8 @@ def extract_relationships(mermaid_code: str) -> list[dict]:
     relationships = []
 
     patterns = [
-        # Format: source -.->|label| target  OR  source -.-> target
-        r'(\w+)\s+(-->|-.->)\s*(?:\|[^|]*\|)?\s*(\w+)',
+        # Format: source -->|label| target  OR  source -.->|label| target  OR  source --> target
+        r'(\w+)\s+(-->|-.->)\s*(?:\|([^|]*)\|)?\s*(\w+)',
         # Format: source -.label.-> target (inline dot-delimited label)
         r'(\w+)\s+-\..*?\.->?\s*(\w+)',
     ]
@@ -140,8 +152,11 @@ def extract_relationships(mermaid_code: str) -> list[dict]:
     for match in re.finditer(patterns[0], mermaid_code):
         source = match.group(1)
         arrow = match.group(2)
-        target = match.group(3)
-        rel_type = "message_flow" if "-." in arrow else "sequence_flow"
+        label = match.group(3) or ""
+        target = match.group(4)
+        # Determine type: message_flow if arrow uses dots OR label contains "message"
+        is_message = "-." in arrow or "message" in label.lower()
+        rel_type = "message_flow" if is_message else "sequence_flow"
         key = (source, target)
         if key not in seen:
             relationships.append({
@@ -303,40 +318,6 @@ def compute_entity_taxonomy(
 ) -> dict:
     """
     Count entity-level errors by taxonomy category.
-    Returns: {"missing": int, "extra": int, "false": int}
-    """
-    output_ids = {n["id"] for n in output_nodes}
-    truth_ids = {n["id"] for n in truth_nodes}
-
-    # Missing: in truth but not in output
-    missing = len(truth_ids - output_ids)
-
-    # Extra: in output but not in truth
-    extra = len(output_ids - truth_ids)
-
-    # False: ID matches but label is significantly different
-    # (entity exists but represents something wrong)
-    shared_ids = output_ids & truth_ids
-    output_labels = {n["id"]: n["label"] for n in output_nodes}
-    truth_labels = {n["id"]: n["label"] for n in truth_nodes}
-
-    false_count = 0
-    for nid in shared_ids:
-        similarity = _fuzzy_score(
-            _normalize_label(output_labels[nid]),
-            _normalize_label(truth_labels[nid]),
-        )
-        if similarity < FUZZY_THRESHOLD:
-            false_count += 1
-
-    return {"missing": missing, "extra": extra, "false": false_count}
-
-
-def compute_entity_taxonomy(
-    output_nodes: list[dict], truth_nodes: list[dict]
-) -> dict:
-    """
-    Count entity-level errors by taxonomy category.
     Returns: {"missing": int, "extra": int, "false": int, "duplicate": int}
     """
     output_ids = [n["id"] for n in output_nodes]
@@ -453,50 +434,6 @@ def evaluate_run(
     rel_p, rel_r, rel_f1 = compute_relationship_metrics_relaxed(output_relationships, truth_relationships)
     str_p, str_r, str_f1 = compute_relationship_metrics_strict(output_relationships, truth_relationships)
 
-
-    # 5. Duplicate detection
-    def compute_entity_taxonomy(
-            output_nodes: list[dict], truth_nodes: list[dict]
-    ) -> dict:
-        """
-        Count entity-level errors by taxonomy category.
-        Returns: {"missing": int, "extra": int, "false": int, "duplicate": int}
-        """
-        output_ids = [n["id"] for n in output_nodes]
-        truth_ids = {n["id"] for n in truth_nodes}
-
-        # Duplicate: same ID appears more than once in output
-        id_counts = Counter(output_ids)
-        duplicate = sum(c - 1 for c in id_counts.values() if c > 1)
-
-        output_ids_set = set(output_ids)
-
-        # Missing: in truth but not in output
-        missing = len(truth_ids - output_ids_set)
-
-        # Extra: in output but not in truth
-        extra = len(output_ids_set - truth_ids)
-
-        # False: ID matches but label is significantly different
-        shared_ids = output_ids_set & truth_ids
-        output_labels = {n["id"]: n["label"] for n in output_nodes}
-        truth_labels = {n["id"]: n["label"] for n in truth_nodes}
-
-        false_count = 0
-        for nid in shared_ids:
-            similarity = _fuzzy_score(
-                _normalize_label(output_labels[nid]),
-                _normalize_label(truth_labels[nid]),
-            )
-            if similarity < FUZZY_THRESHOLD:
-                false_count += 1
-
-        return {
-            "missing": missing,
-            "extra": extra,
-            "false": false_count,
-            "duplicate": duplicate,
-        }
 
     # 5. Error taxonomy
     entity_tax = compute_entity_taxonomy(output_nodes, truth_nodes)

@@ -14,6 +14,9 @@ class LLMProvider(ABC):
     One instance per provider — reused across multiple runs.
     """
 
+    # Centralized temperature setting — 0 for reproducibility across all providers
+    TEMPERATURE = 0
+
     def __init__(self, api_key: str, pricing: ModelPricing) -> None:
         # api_key stored on instance — never logged or serialised
         self.api_key = api_key
