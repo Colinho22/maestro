@@ -1,0 +1,15 @@
+reviews:
+  auto_review:
+      enabled: true
+      ignore_title_keywords:
+        - "bump"
+        - "WIP"
+        - "DO NOT MERGE"
+      drafts: false
+  
+  review_simple_changes: false
+
+  # Global instructions
+  instructions: |
+    - Suggest using 'f-strings' over older '.format()' or '%' formatting.
+    - Watch for mutable default arguments in functions (e.g., def func(a=[])).
