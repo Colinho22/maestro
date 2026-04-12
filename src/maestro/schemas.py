@@ -119,8 +119,12 @@ class RunResult(BaseModel):
     @computed_field
     @property
     def success(self) -> bool:
-        """True if a diagram was produced without error."""
-        return self.error is None and self.output_diagram_code is not None
+        """True if a non-empty diagram was produced without error."""
+        return (
+            self.error is None
+            and self.output_diagram_code is not None
+            and self.output_diagram_code.strip() != ""
+        )
 
 
 class SubResult(BaseModel):
