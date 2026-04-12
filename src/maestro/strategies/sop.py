@@ -153,6 +153,8 @@ class SOPStrategy(BaseStrategy):
             return self._abort(config, f"Input file not found: {input_file.file_path}")
         except json.JSONDecodeError as e:
             return self._abort(config, f"Invalid JSON in input file: {e}")
+        except Exception as e:
+            return self._abort(config, f"Failed to read input file: {e}")
 
         sub_results: list[SubResult] = []
         # Intermediate outputs passed between steps
