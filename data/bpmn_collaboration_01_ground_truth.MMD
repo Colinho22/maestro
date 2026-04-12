@@ -1,0 +1,49 @@
+flowchart LR
+    subgraph pool_1["Pool"]
+        direction LR
+        start_event_1(["Start Event 1"])
+        task_1["Task 1"]
+        task_2["Task 2"]
+        end_event_1(["End Event 1"])
+    end
+
+    subgraph pool_2["Pool 2"]
+        direction LR
+        subgraph lane_1["Lane 1"]
+            direction LR
+            start_event_2(["Start Event 2"])
+            task_3["Task 3"]
+            subgraph subprocess_1["Expanded Sub-Process 1"]
+                start_event_3(["Start Event 3"])
+                task_4["Task 4"]
+                end_event_3(["End Event 3"])
+            end
+            task_5["Task 5"]
+            end_event_2(["End Event 2"])
+        end
+        subgraph lane_2["Lane 2"]
+            direction LR
+            subgraph subprocess_2["Expanded Sub-Process 2"]
+                start_event_4(["Start Event 4"])
+                task_6["Task 6"]
+                end_event_4(["End Event 4"])
+            end
+            end_event_5(["End Event 5"])
+        end
+    end
+
+    start_event_1 --> task_1
+    task_1 --> task_2
+    task_2 --> end_event_1
+    start_event_2 --> task_3
+    task_3 --> subprocess_1
+    task_3 --> subprocess_2
+    start_event_3 --> task_4
+    task_4 --> end_event_3
+    subprocess_1 --> task_5
+    task_5 --> end_event_2
+    start_event_4 --> task_6
+    task_6 --> end_event_4
+    subprocess_2 --> end_event_5
+    task_1 -.->|Message Flow 1| task_3
+    task_5 -.->|Message Flow 2| task_2
