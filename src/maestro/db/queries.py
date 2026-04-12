@@ -138,7 +138,7 @@ def insert_metric_result(conn: sqlite3.Connection, metric: MetricResult) -> None
         (
             str(metric.metric_id),
             str(metric.run_id),
-            int(metric.parses_valid),
+            int(metric.parses_valid) if metric.parses_valid is not None else None,
             metric.parse_error,
             metric.entity_id_precision,
             metric.entity_id_recall,
