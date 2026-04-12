@@ -252,9 +252,12 @@ class SOPStrategy(BaseStrategy):
                 output = _strip_fences(output)
                 if step_number < 3:
                     try:
-                        json.loads(output)
-                    except (json.JSONDecodeError, TypeError):
-                        last_error = f"Invalid JSON output on attempt {attempt + 1}"
+                        parsed = json.loads(output)
+                        expected_key = "entities" if step_number == 1 else "relationships"
+                        if not isinstance(parsed, dict) or not isinstance(parsed.get(expected_key), list):
+                            raise ValueError(f"missing `{expected_key}` list")
+                    except (json.JSONDecodeError, TypeError, ValueError) as e:
+                        last_error = f"Invalid {step_name} payload on attempt {attempt + 1}: {e}"
                         continue
 
                 return (
