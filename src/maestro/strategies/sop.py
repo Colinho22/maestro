@@ -226,9 +226,23 @@ class SOPStrategy(BaseStrategy):
         last_error = None
         result = None
 
+        # Accumulate metrics across all attempts (including failed ones)
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+        total_duration_ms = 0
+        total_cost_usd = 0.0
+        actual_retries = 0
+
         for attempt in range(MAX_RETRIES + 1):
             # provider.complete() returns a RunResult — we extract what we need
             result = self.provider.complete(prompt, config)
+
+            # Accumulate metrics from every attempt
+            total_prompt_tokens += result.prompt_tokens
+            total_completion_tokens += result.completion_tokens
+            total_duration_ms += result.duration_ms
+            total_cost_usd += result.cost_usd
+            actual_retries = attempt
 
             if result.success:
                 # For steps 1-2, validate JSON output
@@ -247,12 +261,12 @@ class SOPStrategy(BaseStrategy):
                         step_number=step_number,
                         step_name=step_name,
                         output_text=output,
-                        prompt_tokens=result.prompt_tokens,
-                        completion_tokens=result.completion_tokens,
-                        duration_ms=result.duration_ms,
-                        cost_usd=result.cost_usd,
+                        prompt_tokens=total_prompt_tokens,
+                        completion_tokens=total_completion_tokens,
+                        duration_ms=total_duration_ms,
+                        cost_usd=total_cost_usd,
                         error=None,
-                        retry_count=attempt,
+                        retry_count=actual_retries,
                     ),
                     output,
                 )
@@ -266,12 +280,12 @@ class SOPStrategy(BaseStrategy):
                 step_number=step_number,
                 step_name=step_name,
                 output_text=None,
-                prompt_tokens=result.prompt_tokens if result else 0,
-                completion_tokens=result.completion_tokens if result else 0,
-                duration_ms=result.duration_ms if result else 0,
-                cost_usd=result.cost_usd if result else 0.0,
+                prompt_tokens=total_prompt_tokens,
+                completion_tokens=total_completion_tokens,
+                duration_ms=total_duration_ms,
+                cost_usd=total_cost_usd,
                 error=last_error or "No attempts executed",
-                retry_count=MAX_RETRIES,
+                retry_count=actual_retries,
             ),
             None,
         )

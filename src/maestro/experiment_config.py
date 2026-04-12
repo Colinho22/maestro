@@ -56,7 +56,8 @@ MODELS: list[ModelPricing] = [
         output_price_per_1m=4.00,
     ),
     ModelPricing(
-        model="gpt-4o-mini",
+        # Pinned to snapshot for reproducibility
+        model="gpt-4o-mini-2024-07-18",
         input_price_per_1m=0.15,
         output_price_per_1m=0.60,
     ),

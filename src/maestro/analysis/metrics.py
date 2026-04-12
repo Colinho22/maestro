@@ -23,15 +23,16 @@ from maestro.schemas import MetricResult
 # Mermaid parsing validation via mmdc CLI
 # ---------------------------------------------------------------------------
 
-def check_mermaid_valid(diagram_code: str) -> tuple[bool, str | None]:
+def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
     """
     Validate Mermaid syntax using mmdc CLI.
     Returns (is_valid, error_message_or_none).
+    Returns (None, skip_message) when mmdc is not installed.
     Requires: npm install -g @mermaid-js/mermaid-cli
     """
     mmdc = shutil.which("mmdc")
     if mmdc is None:
-        return (True, "mmdc not found — validation skipped")
+        return (None, "mmdc not found — validation skipped")
 
     try:
         result = subprocess.run(
@@ -216,7 +217,7 @@ def compute_entity_metrics_exact(
         return (0.0, 0.0, 0.0)
 
     correct = output_ids & truth_ids
-    precision = round(len(correct) / len(output_ids), 4) if output_ids else 0.0
+    precision = round(len(correct) / len(output_ids), 4)
     recall = round(len(correct) / len(truth_ids), 4) if truth_ids else 0.0
     return (precision, recall, _f1(precision, recall))
 
@@ -410,8 +411,24 @@ def evaluate_run(
     Full evaluation pipeline for one run.
     Compares generated diagram against ground truth file.
     """
-    truth_code = ground_truth_path.read_text(encoding="utf-8")
-
+    try:
+        truth_code = ground_truth_path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        # Return zeroed metrics with error instead of crashing the runner
+        return MetricResult(
+            run_id=run_id,
+            parses_valid=None,
+            parse_error=f"Ground truth file not found: {ground_truth_path}",
+            entity_id_precision=0.0, entity_id_recall=0.0, entity_id_f1=0.0,
+            entity_name_precision=0.0, entity_name_recall=0.0, entity_name_f1=0.0,
+            entity_lemma_precision=0.0, entity_lemma_recall=0.0, entity_lemma_f1=0.0,
+            relationship_relaxed_precision=0.0, relationship_relaxed_recall=0.0, relationship_relaxed_f1=0.0,
+            relationship_strict_precision=0.0, relationship_strict_recall=0.0, relationship_strict_f1=0.0,
+            entities_in_output=0, entities_in_truth=0,
+            relationships_in_output=0, relationships_in_truth=0,
+            missing_entities=0, extra_entities=0, false_entities=0, duplicate_entities=0,
+            missing_relationships=0, extra_relationships=0, false_relationships=0, duplicate_relationships=0,
+        )
 
     # 1. Structural validity
     parses_valid, parse_error = check_mermaid_valid(output_diagram_code)

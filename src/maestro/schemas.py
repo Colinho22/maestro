@@ -3,7 +3,7 @@
 # All models use Pydantic v2 for validation and serialization
 # ---------------------------------------------------------------------------
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Optional
@@ -26,7 +26,7 @@ class Strategy(str, Enum):
 class Tier(int, Enum):
     # Complexity tiers based on entity count
     SIMPLE       = 1   # < 10 entities
-    INTERMEDIATE = 2   # 10–25 entities
+    INTERMEDIATE = 2   # 10-25 entities
     COMPLEX      = 3   # 25+ entities
 
 
@@ -64,7 +64,7 @@ class RunConfig(BaseModel):
     example_id:  str                  # FK to InputFile.example_id
     tier:        Tier
     run_number:  int                  # Repeat index within same config (1–N)
-    timestamp:   datetime = Field(default_factory=datetime.utcnow)
+    timestamp:   datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # ---------------------------------------------------------------------------
@@ -172,8 +172,8 @@ class MetricResult(BaseModel):
     metric_id:              UUID = Field(default_factory=uuid4)
     run_id:                 UUID
 
-    # Structural validity
-    parses_valid:           bool        # Did mmdc parse without errors?
+    # Structural validity (None = validation was skipped)
+    parses_valid:           Optional[bool]
     parse_error:            Optional[str] = None
 
     # Entity metrics — exact ID match

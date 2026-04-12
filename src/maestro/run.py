@@ -86,14 +86,16 @@ def _create_provider(model_pricing):
     """
     model = model_pricing.model
 
-    if "claude" in model:
+    model_lower = model.lower()
+
+    if "claude" in model_lower:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
             print("ERROR: ANTHROPIC_API_KEY not set in environment")
             sys.exit(1)
         return AnthropicProvider(api_key=api_key, pricing=model_pricing)
 
-    if "gpt" in model:
+    if "gpt" in model_lower:
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
             print("ERROR: OPENAI_API_KEY not set in environment")
@@ -294,10 +296,12 @@ def main():
                 )
                 insert_metric_result(conn, metric)
 
+        # Always track cost (partial responses may still consume tokens)
+        total_cost += result.cost_usd
+
         # Log result
         if result.success:
             successes += 1
-            total_cost += result.cost_usd
             print(
                 f"  OK — {result.duration_ms}ms, "
                 f"${result.cost_usd:.6f}, "
@@ -305,7 +309,7 @@ def main():
             )
         else:
             failures += 1
-            print(f"  FAIL — {result.error}")
+            print(f"  FAIL — {result.error} (cost: ${result.cost_usd:.6f})")
 
     # Final summary
     print("\n" + "=" * 60)

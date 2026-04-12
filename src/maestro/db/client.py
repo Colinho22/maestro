@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS sub_results (
 CREATE TABLE IF NOT EXISTS metric_results (
     metric_id               TEXT PRIMARY KEY,
     run_id                  TEXT NOT NULL,
-    parses_valid            INTEGER NOT NULL,
+    parses_valid            INTEGER,
     parse_error             TEXT,
     entity_id_precision     REAL NOT NULL,
     entity_id_recall        REAL NOT NULL,
@@ -93,6 +93,7 @@ def init_db(db_path: Path) -> None:
     """
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(db_path) as conn:
+        conn.execute("PRAGMA foreign_keys = ON")
         conn.executescript(SCHEMA)
         conn.commit()
 
@@ -104,6 +105,7 @@ def get_connection(db_path: Path):
     Commits on success, rolls back on exception.
     """
     conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA foreign_keys = ON")
     conn.row_factory = sqlite3.Row
     try:
         yield conn
