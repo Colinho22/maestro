@@ -41,7 +41,7 @@ class InputFile(BaseModel):
     """
 
     example_id:          str        # Human-readable ID, e.g. "er_diagram_01"
-    tier:                Tier       # Complexity tier (1–3)
+    tier:                Tier       # Complexity tier (1-3)
     entity_count:        int        # Number of entities in the input
     file_path:           Path       # Path to the JSON input file on disk
     ground_truth_path:   Path       # Path to the reference diagram code file
@@ -63,7 +63,7 @@ class RunConfig(BaseModel):
     model:       str                  # e.g. "gpt-4o", "claude-3-5-sonnet"
     example_id:  str                  # FK to InputFile.example_id
     tier:        Tier
-    run_number:  int                  # Repeat index within same config (1–N)
+    run_number:  int                  # Repeat index within same config (1-N)
     timestamp:   datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
