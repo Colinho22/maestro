@@ -113,13 +113,13 @@ class RunResult(BaseModel):
     @computed_field
     @property
     def total_tokens(self) -> int:
-        # Convenience field for quick cost/efficiency analysis
+        """Sum of prompt and completion tokens for cost/efficiency analysis."""
         return self.prompt_tokens + self.completion_tokens
 
     @computed_field
     @property
     def success(self) -> bool:
-        # True if a diagram was produced without error
+        """True if a diagram was produced without error."""
         return self.error is None and self.output_diagram_code is not None
 
 

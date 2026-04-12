@@ -111,6 +111,7 @@ def _create_provider(model_pricing):
 # ---------------------------------------------------------------------------
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI arguments for filtering the experiment matrix."""
     parser = argparse.ArgumentParser(
         description="MAESTRO experiment runner — iterate the full experiment matrix"
     )
@@ -199,6 +200,7 @@ def build_matrix(args: argparse.Namespace) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def main():
+    """Run the full experiment matrix with CLI filters applied."""
     args = parse_args()
     matrix = build_matrix(args)
 
