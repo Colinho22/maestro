@@ -50,6 +50,8 @@ class SingleAgentStrategy(BaseStrategy):
             return self._file_error(config, f"Input file not found: {input_file.file_path}")
         except json.JSONDecodeError as e:
             return self._file_error(config, f"Invalid JSON in input file: {e}")
+        except Exception as e:
+            return self._file_error(config, f"Failed to read input file: {e}")
 
         formatted_input = json.dumps(input_data, indent=2)
         prompt = PROMPT_TEMPLATE.format(input_data=formatted_input)
