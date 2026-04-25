@@ -12,7 +12,7 @@ keywords = ["multi-agent", "llm", "visualization", "orchestration", "thesis"]
 
 dependencies = [
     # Core
-    "python-dotenv>=1.2",
+    "python-dotenv>=1.2.2",
     "pydantic>=2.12",
     "anthropic>=0.88",
     "openai>=2.30",
