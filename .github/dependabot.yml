@@ -9,3 +9,21 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      python-deps:
+        patterns:
+          - "*"
+    ignore:
+      # manual version increase during dev
+      - dependency-name: "anthropic"
+      - dependency-name: "openai"
+
+      # major releases only
+      - dependency-name: "pydantic"
+        update-types:
+          - "version-update:semver-patch"
+          - "version-update:semver-minor"
+      - dependency-name: "python-dotenv"
+        update-types:
+          - "version-update:semver-patch"
+          - "version-update:semver-minor"
