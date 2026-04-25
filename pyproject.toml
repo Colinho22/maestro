@@ -12,8 +12,8 @@ keywords = ["multi-agent", "llm", "visualization", "orchestration", "thesis"]
 
 dependencies = [
     # Core
-    "python-dotenv>=1.2",
-    "pydantic>=2.12",
+    "python-dotenv>=1.2.2",
+    "pydantic>=2.13.3",
     "anthropic>=0.88",
     "openai>=2.30",
 ]
@@ -21,8 +21,8 @@ dependencies = [
 [project.optional-dependencies]
 # Dev tooling - install with: pip install -e ".[dev]"
 dev = [
-    "pytest>=8.0",
-    "ruff>=0.6",
+    "pytest>=9.0.3",
+    "ruff>=0.15.12",
 ]
 
 [build-system]
