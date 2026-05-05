@@ -1,0 +1,3 @@
+# Keep blank issues enabled for quick scratch notes; the templates above
+# are surfaced as the recommended starting points in the chooser.
+blank_issues_enabled: true
