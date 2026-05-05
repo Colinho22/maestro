@@ -23,9 +23,19 @@ class LLMProvider(ABC):
         self.pricing = pricing
 
     @abstractmethod
-    def complete(self, prompt: str, config: RunConfig) -> RunResult:
+    def complete(
+        self,
+        prompt: str,
+        config: RunConfig,
+        system_prompt: str | None = None,
+    ) -> RunResult:
         """
         Send a prompt to the LLM and return a fully populated RunResult.
+
+        If system_prompt is None, the provider falls back to its own default
+        SYSTEM_PROMPT class attribute. Strategies that need a different system
+        identity for a given call (e.g. SOP intermediate steps requesting JSON
+        instead of Mermaid) pass an explicit string.
 
         Implementations must:
         - Measure wall-clock duration_ms

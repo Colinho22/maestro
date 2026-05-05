@@ -33,20 +33,26 @@ class AnthropicProvider(LLMProvider):
         # Initialise the SDK client once — reused for all calls
         self._client = anthropic.Anthropic(api_key=api_key)
 
-    def complete(self, prompt: str, config: RunConfig) -> RunResult:
+    def complete(
+        self,
+        prompt: str,
+        config: RunConfig,
+        system_prompt: str | None = None,
+    ) -> RunResult:
         """
         Call the Anthropic messages endpoint and return a RunResult.
         Never raises — all exceptions are captured into RunResult.error.
         """
 
         start_ms = time.monotonic()
+        effective_system = system_prompt if system_prompt is not None else self.SYSTEM_PROMPT
 
         try:
             response = self._client.messages.create(
                 model=config.model,
                 max_tokens=self.MAX_TOKENS,
                 temperature=self.TEMPERATURE,
-                system=self.SYSTEM_PROMPT,
+                system=effective_system,
                 messages=[
                     {"role": "user", "content": prompt},
                 ],

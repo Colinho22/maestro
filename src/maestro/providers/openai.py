@@ -33,13 +33,19 @@ class OpenAIProvider(LLMProvider):
         # Initialise the SDK client once — reused for all calls
         self._client = openai.OpenAI(api_key=api_key)
 
-    def complete(self, prompt: str, config: RunConfig) -> RunResult:
+    def complete(
+        self,
+        prompt: str,
+        config: RunConfig,
+        system_prompt: str | None = None,
+    ) -> RunResult:
         """
         Call the OpenAI chat completions endpoint and return a RunResult.
         Never raises — all exceptions are captured into RunResult.error.
         """
 
         start_ms = time.monotonic()
+        effective_system = system_prompt if system_prompt is not None else self.SYSTEM_PROMPT
 
         try:
             response = self._client.chat.completions.create(
@@ -47,7 +53,7 @@ class OpenAIProvider(LLMProvider):
                 max_tokens=self.MAX_TOKENS,
                 temperature=self.TEMPERATURE,
                 messages=[
-                    {"role": "system", "content": self.SYSTEM_PROMPT},
+                    {"role": "system", "content": effective_system},
                     {"role": "user", "content": prompt},
                 ],
             )

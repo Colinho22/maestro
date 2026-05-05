@@ -96,10 +96,19 @@ Relationships:
 # Step definitions
 # ---------------------------------------------------------------------------
 
+# System prompt for steps 1 and 2 — these expect strict JSON output, so the
+# provider's default Mermaid-only system prompt would mislead the model.
+# Step 3 generates the diagram and uses the provider's default system prompt.
+SOP_JSON_SYSTEM_PROMPT = (
+    "You are a data extraction assistant. "
+    "Respond only with valid JSON matching the schema in the user message. "
+    "Do not include any explanation, markdown fencing, or additional text."
+)
+
 STEPS = [
-    {"number": 1, "name": "extract_entities",       "prompt": STEP_1_PROMPT},
-    {"number": 2, "name": "extract_relationships",  "prompt": STEP_2_PROMPT},
-    {"number": 3, "name": "generate_mermaid",        "prompt": STEP_3_PROMPT},
+    {"number": 1, "name": "extract_entities",       "prompt": STEP_1_PROMPT, "system_prompt": SOP_JSON_SYSTEM_PROMPT},
+    {"number": 2, "name": "extract_relationships",  "prompt": STEP_2_PROMPT, "system_prompt": SOP_JSON_SYSTEM_PROMPT},
+    {"number": 3, "name": "generate_mermaid",        "prompt": STEP_3_PROMPT, "system_prompt": None},
 ]
 
 # Max retries per step before aborting the whole run
@@ -164,6 +173,7 @@ class SOPStrategy(BaseStrategy):
         for step in STEPS:
             step_num = step["number"]
             step_name = step["name"]
+            step_system_prompt = step["system_prompt"]
 
             # Build prompt with outputs from previous steps
             prompt = self._build_prompt(
@@ -172,7 +182,7 @@ class SOPStrategy(BaseStrategy):
 
             # Execute with retry
             sub, output_text = self._execute_step(
-                config, step_num, step_name, prompt
+                config, step_num, step_name, prompt, step_system_prompt,
             )
             sub_results.append(sub)
 
@@ -219,6 +229,7 @@ class SOPStrategy(BaseStrategy):
         step_number: int,
         step_name: str,
         prompt: str,
+        system_prompt: str | None,
     ) -> tuple[SubResult, str | None]:
         """
         Run one step with retry logic.
@@ -237,7 +248,7 @@ class SOPStrategy(BaseStrategy):
 
         for attempt in range(MAX_RETRIES + 1):
             # provider.complete() returns a RunResult — we extract what we need
-            result = self.provider.complete(prompt, config)
+            result = self.provider.complete(prompt, config, system_prompt=system_prompt)
 
             # Accumulate metrics from every attempt
             total_prompt_tokens += result.prompt_tokens
