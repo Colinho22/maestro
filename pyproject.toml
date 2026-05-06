@@ -16,6 +16,8 @@ dependencies = [
     "pydantic>=2.13.3",
     "anthropic>=0.88",
     "openai>=2.30",
+    "mistralai>=1.5",
+    "google-genai>=1.0",
 ]
 
 [project.optional-dependencies]

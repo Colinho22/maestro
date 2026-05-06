@@ -57,6 +57,8 @@ from maestro.db.queries import (
 from maestro.analysis.metrics import evaluate_run
 from maestro.providers.anthropic import AnthropicProvider
 from maestro.providers.openai import OpenAIProvider
+from maestro.providers.mistral import MistralProvider
+from maestro.providers.gemini import GeminiProvider
 from maestro.strategies.single import SingleAgentStrategy
 from maestro.strategies.sop import SOPStrategy
 
@@ -101,6 +103,20 @@ def _create_provider(model_pricing):
             print("ERROR: OPENAI_API_KEY not set in environment")
             sys.exit(1)
         return OpenAIProvider(api_key=api_key, pricing=model_pricing)
+
+    if "mistral" in model_lower:
+        api_key = os.environ.get("MISTRAL_API_KEY")
+        if not api_key:
+            print("ERROR: MISTRAL_API_KEY not set in environment")
+            sys.exit(1)
+        return MistralProvider(api_key=api_key, pricing=model_pricing)
+
+    if "gemini" in model_lower:
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            print("ERROR: GEMINI_API_KEY not set in environment")
+            sys.exit(1)
+        return GeminiProvider(api_key=api_key, pricing=model_pricing)
 
     print(f"ERROR: No provider registered for model '{model}'")
     sys.exit(1)

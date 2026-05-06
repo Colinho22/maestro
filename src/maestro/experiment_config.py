@@ -61,6 +61,16 @@ MODELS: list[ModelPricing] = [
         input_price_per_1m=0.15,
         output_price_per_1m=0.60,
     ),
+    ModelPricing(
+        model="mistral-small-2603",
+        input_price_per_1m=0.15,
+        output_price_per_1m=0.60,
+    ),
+    ModelPricing(
+        model="gemini-2.5-flash-lite",
+        input_price_per_1m=0.10,
+        output_price_per_1m=0.40,
+    ),
     # --- Add new models below ---
     # ModelPricing(
     #     model="claude-sonnet-4-20250514",
