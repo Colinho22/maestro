@@ -87,9 +87,8 @@ MODELS: list[ModelPricing] = [
 STRATEGIES: list[Strategy] = [
     Strategy.SINGLE_AGENT,
     Strategy.SOP_BASED,
-    # --- Enable once implemented ---
-    # Strategy.CREW_AI,
-    # Strategy.LANG_GRAPH,
+    Strategy.CREW_AI,
+    Strategy.LANG_GRAPH,
 ]
 
 

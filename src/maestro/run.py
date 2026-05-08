@@ -39,6 +39,12 @@ from dotenv import load_dotenv
 # Load .env file so API keys are available via os.environ
 load_dotenv()
 
+# Silence CrewAI's interactive tracing prompt and telemetry so batch runs
+# stay non-interactive on fresh checkouts (the user's preference file is
+# machine-local and won't exist in CI / on a fresh clone).
+os.environ.setdefault("CREWAI_TRACING_ENABLED", "false")
+os.environ.setdefault("CREWAI_DISABLE_TELEMETRY", "true")
+
 from maestro.experiment_config import (
     DB_PATH,
     DEFAULT_REPEATS,
@@ -59,6 +65,8 @@ from maestro.providers.anthropic import AnthropicProvider
 from maestro.providers.openai import OpenAIProvider
 from maestro.providers.mistral import MistralProvider
 from maestro.providers.gemini import GeminiProvider
+from maestro.strategies.crew import CrewAIStrategy
+from maestro.strategies.langgraph import LangGraphStrategy
 from maestro.strategies.single import SingleAgentStrategy
 from maestro.strategies.sop import SOPStrategy
 
@@ -70,9 +78,8 @@ from maestro.strategies.sop import SOPStrategy
 STRATEGY_MAP = {
     Strategy.SINGLE_AGENT: SingleAgentStrategy,
     Strategy.SOP_BASED: SOPStrategy,
-    # Enable once implemented:
-    # Strategy.CREW_AI: CrewAIStrategy,
-    # Strategy.LANG_GRAPH: LangGraphStrategy,
+    Strategy.CREW_AI: CrewAIStrategy,
+    Strategy.LANG_GRAPH: LangGraphStrategy,
 }
 
 
