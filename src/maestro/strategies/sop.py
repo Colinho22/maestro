@@ -66,6 +66,15 @@ class SOPStrategy(BaseStrategy):
     def run(
         self, input_file: InputFile, config: RunConfig
     ) -> tuple[RunResult, list[SubResult]]:
+        """
+        Execute the three-step procedure for one input.
+
+        Walks ``STEPS`` in order, threading each step's output into the
+        next step's prompt via ``step_outputs``. A failed step (after its
+        retry budget) aborts the whole run and the parent ``RunResult``
+        carries the error; the ``SubResult`` for the failing step is still
+        appended so partial-failure cost is observable in the database.
+        """
 
         # Load input JSON
         try:

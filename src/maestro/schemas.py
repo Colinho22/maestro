@@ -17,6 +17,13 @@ from pydantic import BaseModel, Field, computed_field
 # ---------------------------------------------------------------------------
 
 class Strategy(str, Enum):
+    """
+    Orchestration strategy under test. The string values are persisted to
+    the SQLite ``run_configs`` table and exposed as ``--strategy`` CLI
+    choices, so they are part of the experiment's analysis interface and
+    must not be renamed once data has been collected.
+    """
+
     SINGLE_AGENT = "single_agent"
     SOP_BASED    = "sop_based"
     CREW_AI      = "crew_ai"
@@ -24,7 +31,12 @@ class Strategy(str, Enum):
 
 
 class Tier(int, Enum):
-    # Complexity tiers based on entity count
+    """
+    Complexity tier of an input dataset, bucketed by entity count. Used as
+    a stratification dimension for the experiment matrix and as a filter
+    via ``--tier``. Integer values are persisted, so they must not change.
+    """
+
     SIMPLE       = 1   # < 10 entities
     INTERMEDIATE = 2   # 10-25 entities
     COMPLEX      = 3   # 25+ entities

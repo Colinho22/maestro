@@ -219,6 +219,17 @@ class CrewAIStrategy(BaseStrategy):
     def run(
         self, input_file: InputFile, config: RunConfig
     ) -> tuple[RunResult, list[SubResult]]:
+        """
+        Execute the three-step procedure as three single-task Crew kickoffs.
+
+        Each step builds a fresh ``MaestroBackedLLM`` + ``Agent`` + ``Task``
+        + ``Crew`` (CrewAI mutates internal state on kickoff, so reuse is
+        unsafe), runs ``crew.kickoff()``, and harvests exactly one call from
+        the recorder. Outputs are threaded forward via the same prompt
+        templates SOP uses, so prompt content is byte-identical across the
+        two strategies — the difference the experiment captures is purely
+        the orchestration overhead CrewAI's machinery adds.
+        """
 
         # Load input JSON — same shape as SOP for parity
         try:

@@ -263,6 +263,17 @@ class LangGraphStrategy(BaseStrategy):
     def run(
         self, input_file: InputFile, config: RunConfig
     ) -> tuple[RunResult, list[SubResult]]:
+        """
+        Execute the three-step procedure as a compiled ``StateGraph``.
+
+        Builds the graph fresh per call so each invocation closes over its
+        own ``RunConfig``, then ``compile().invoke(...)`` runs it. The graph
+        wiring (``add_node`` × 3, one ``add_edge`` from START, two
+        ``add_conditional_edges`` for short-circuit-on-error, one
+        ``add_edge`` to END) is the readable description of the DAG; node
+        bodies live in ``_make_nodes`` and reuse ``_run_step`` for retry
+        and validation so behaviour matches SOP and CrewAI exactly.
+        """
 
         # Load input JSON — same shape as SOP and CrewAI for parity
         try:

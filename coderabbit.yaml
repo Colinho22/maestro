@@ -6,7 +6,7 @@ reviews:
         - "WIP"
         - "DO NOT MERGE"
       drafts: false
-  
+
   review_simple_changes: false
 
   # Global instructions
