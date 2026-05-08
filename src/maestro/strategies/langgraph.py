@@ -176,7 +176,7 @@ def _make_nodes(provider: LLMProvider, config: RunConfig):
             prompt=prompt,
             system_prompt=JSON_EXTRACTION_SYSTEM_PROMPT,
         )
-        update: GraphState = {"sub_results": state.get("sub_results", []) + [sub]}
+        update: GraphState = {"sub_results": [*state.get("sub_results", []), sub]}
         if sub.error is not None:
             update["error"] = f"Step 1 (extract_entities) failed: {sub.error}"
         else:
@@ -196,7 +196,7 @@ def _make_nodes(provider: LLMProvider, config: RunConfig):
             prompt=prompt,
             system_prompt=JSON_EXTRACTION_SYSTEM_PROMPT,
         )
-        update: GraphState = {"sub_results": state.get("sub_results", []) + [sub]}
+        update: GraphState = {"sub_results": [*state.get("sub_results", []), sub]}
         if sub.error is not None:
             update["error"] = f"Step 2 (extract_relationships) failed: {sub.error}"
         else:
@@ -216,7 +216,7 @@ def _make_nodes(provider: LLMProvider, config: RunConfig):
             prompt=prompt,
             system_prompt=None,
         )
-        update: GraphState = {"sub_results": state.get("sub_results", []) + [sub]}
+        update: GraphState = {"sub_results": [*state.get("sub_results", []), sub]}
         if sub.error is not None:
             update["error"] = f"Step 3 (generate_mermaid) failed: {sub.error}"
         else:

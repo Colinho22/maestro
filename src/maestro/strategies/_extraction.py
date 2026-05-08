@@ -95,7 +95,7 @@ Rules:
 - Include all relationships as edges
 - Do not invent entities or relationships not provided
 - Do not include explanations or markdown code fences
-- Do not use realtionship IDs as edge labels
+- Do not use relationship IDs as edge labels
 
 Entities:
 {entities_json}

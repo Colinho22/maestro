@@ -57,10 +57,27 @@ class MistralProvider(LLMProvider):
 
             duration_ms = int((time.monotonic() - start_ms) * 1000)
 
-            prompt_tokens = response.usage.prompt_tokens
-            completion_tokens = response.usage.completion_tokens
+            # usage / choices / message.content can be missing on truncated or
+            # malformed responses — guard each access so token usage is still
+            # recorded when content is absent.
+            usage = response.usage
+            prompt_tokens = getattr(usage, "prompt_tokens", 0) or 0
+            completion_tokens = getattr(usage, "completion_tokens", 0) or 0
 
-            output = response.choices[0].message.content
+            choices = response.choices or []
+            output = choices[0].message.content if choices else None
+            if output is None:
+                return RunResult(
+                    run_id=config.run_id,
+                    output_diagram_code=None,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    duration_ms=duration_ms,
+                    cost_usd=compute_cost(
+                        prompt_tokens, completion_tokens, self.pricing
+                    ),
+                    error="EmptyResponse: Mistral returned no content",
+                )
 
             return RunResult(
                 run_id=config.run_id,

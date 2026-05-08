@@ -112,14 +112,17 @@ class MaestroBackedLLM(BaseLLM):
         tools=None,
         callbacks=None,
         available_functions=None,
-        from_task=None,
-        from_agent=None,
-        response_model=None,
+        **kwargs,
     ) -> str:
         """
         CrewAI calls this with either a string prompt or a list of role/content
         dicts. We collapse it into a single user-side prompt and forward to
         ``provider.complete()``.
+
+        ``**kwargs`` swallows ``from_task`` / ``from_agent`` / ``response_model``
+        and any future CrewAI additions to the BaseLLM contract — we don't
+        need them, and accepting them keeps the adapter forward-compatible
+        without a signature change.
         """
         prompt = self._collapse_messages(messages)
 
@@ -334,11 +337,21 @@ class CrewAIStrategy(BaseStrategy):
                 last_error = f"CrewAI kickoff raised on attempt {attempt + 1}: {e}"
                 continue
 
-            # We only care about the call this kickoff produced — pop the
-            # latest record off the recorder. (A single-task Crew makes one
-            # provider call per kickoff.)
-            if not recorder.calls:
+            # Single-task crew + sequential process => exactly one LLM call
+            # per kickoff. We assert that invariant rather than silently using
+            # the latest record: if CrewAI ever fans out additional calls
+            # (delegation, tool use), the experiment's per-step accounting
+            # would be wrong and we want to know loudly.
+            expected_call_count = attempt + 1
+            if len(recorder.calls) == expected_call_count - 1:
                 last_error = f"No LLM call recorded on attempt {attempt + 1}"
+                continue
+            if len(recorder.calls) != expected_call_count:
+                last_error = (
+                    f"Single-call invariant violated on attempt {attempt + 1}: "
+                    f"expected {expected_call_count} recorded call(s), "
+                    f"got {len(recorder.calls)}"
+                )
                 continue
             call = recorder.calls[-1]
 

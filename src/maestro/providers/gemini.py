@@ -58,11 +58,28 @@ class GeminiProvider(LLMProvider):
 
             duration_ms = int((time.monotonic() - start_ms) * 1000)
 
+            # usage_metadata can be absent on blocked / malformed responses
             usage = response.usage_metadata
-            prompt_tokens = usage.prompt_token_count or 0
-            completion_tokens = usage.candidates_token_count or 0
+            prompt_tokens = (usage.prompt_token_count or 0) if usage else 0
+            completion_tokens = (usage.candidates_token_count or 0) if usage else 0
 
-            output = response.text
+            # response.text raises ValueError when the candidate has no text
+            # parts (e.g. safety blocks). Capture that as a normal failure so
+            # token usage from the prompt is still recorded.
+            try:
+                output = response.text
+            except ValueError as e:
+                return RunResult(
+                    run_id=config.run_id,
+                    output_diagram_code=None,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    duration_ms=duration_ms,
+                    cost_usd=compute_cost(
+                        prompt_tokens, completion_tokens, self.pricing
+                    ),
+                    error=f"BlockedResponse: {e}",
+                )
 
             return RunResult(
                 run_id=config.run_id,
