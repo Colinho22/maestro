@@ -48,5 +48,10 @@ class LLMProvider(ABC):
 
     @property
     def model_name(self) -> str:
-        # Convenience accessor — matches RunConfig.model
+        """
+        The model identifier this provider was constructed for. Matches the
+        string stored in ``RunConfig.model`` and ``ModelPricing.model``, so
+        callers can correlate provider instances with rows in the run_configs
+        table without reaching into ``self.pricing``.
+        """
         return self.pricing.model

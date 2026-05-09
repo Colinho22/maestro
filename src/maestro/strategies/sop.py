@@ -1,7 +1,17 @@
 """
-MAESTRO — SOP (Standard Operating Procedure) strategy
-Decomposes diagram generation into 3 sequential sub-prompts.
-Each step's output feeds the next step's input.
+MAESTRO — SOP (Standard Operating Procedure) strategy.
+
+Orchestration shape: a *hand-coded sequential procedure*. The strategy walks
+a fixed list of steps in a Python `for` loop, threading each step's output
+into the next step's prompt by hand. There is no framework — the loop, the
+state dict, the retry block and the abort logic are all written explicitly
+in this file so the procedure is fully visible to the reader.
+
+This is the procedural baseline that CrewAI and LangGraph are compared
+against: same task, same prompts, same retry budget — different orchestrator.
+
+Prompts and validation rules live in `_extraction.py` so all multi-step
+strategies share them byte-for-byte.
 """
 
 import json
@@ -14,125 +24,28 @@ from maestro.schemas import (
     SubResult,
 )
 from maestro.strategies.base import BaseStrategy
-
-
-# ---------------------------------------------------------------------------
-# Prompt templates — one per step
-# ---------------------------------------------------------------------------
-
-STEP_1_PROMPT = """\
-You are given a dataset describing entities and their relationships.
-Your task is to extract all entities (nodes) and their hierarchy.
-
-Rules:
-- Output valid JSON only — no explanations, no markdown fencing
-- Include every entity from the input
-- Capture parent-child relationships (pools, lanes, subprocesses)
-- Use this exact schema:
-{{
-  "entities": [
-    {{
-      "id": "string",
-      "name": "string",
-      "type": "string",
-      "parent_id": "string or null"
-    }}
-  ]
-}}
-
-Input data:
-{input_data}
-"""
-
-STEP_2_PROMPT = """\
-You are given a list of entities and the original dataset.
-Your task is to extract all relationships (edges) between entities.
-
-Rules:
-- Output valid JSON only — no explanations, no markdown fencing
-- Include every sequence flow, message flow, and association
-- Do not invent relationships not present in the data
-- Use this exact schema:
-{{
-  "relationships": [
-    {{
-      "id": "string",
-      "source": "string",
-      "target": "string",
-      "type": "string",
-      "label": "string or null"
-    }}
-  ]
-}}
-
-Entities extracted in the previous step:
-{entities_json}
-
-Original input data:
-{input_data}
-"""
-
-STEP_3_PROMPT = """\
-You are given a set of entities and relationships extracted from a dataset.
-Your task is to generate a Mermaid diagram that accurately represents them.
-
-Rules:
-- Output only valid Mermaid syntax
-- Include all entities with correct hierarchy (subgraphs for pools/lanes/subprocesses)
-- Include all relationships as edges
-- Do not invent entities or relationships not provided
-- Do not include explanations or markdown code fences
-- Do not use realtionship IDs as edge labels
-
-Entities:
-{entities_json}
-
-Relationships:
-{relationships_json}
-"""
-
-
-# ---------------------------------------------------------------------------
-# Step definitions
-# ---------------------------------------------------------------------------
-
-# System prompt for steps 1 and 2 — these expect strict JSON output, so the
-# provider's default Mermaid-only system prompt would mislead the model.
-# Step 3 generates the diagram and uses the provider's default system prompt.
-SOP_JSON_SYSTEM_PROMPT = (
-    "You are a data extraction assistant. "
-    "Respond only with valid JSON matching the schema in the user message. "
-    "Do not include any explanation, markdown fencing, or additional text."
+from maestro.strategies._extraction import (
+    JSON_EXTRACTION_SYSTEM_PROMPT,
+    MAX_RETRIES,
+    STEP_1_PROMPT,
+    STEP_2_PROMPT,
+    STEP_3_PROMPT,
+    strip_fences,
+    validate_step_payload,
 )
 
+
+# ---------------------------------------------------------------------------
+# Step table — the procedure as data
+# ---------------------------------------------------------------------------
+# Steps 1 and 2 use the JSON system prompt; step 3 falls back to the
+# provider's default Mermaid system prompt by passing system_prompt=None.
+
 STEPS = [
-    {"number": 1, "name": "extract_entities",       "prompt": STEP_1_PROMPT, "system_prompt": SOP_JSON_SYSTEM_PROMPT},
-    {"number": 2, "name": "extract_relationships",  "prompt": STEP_2_PROMPT, "system_prompt": SOP_JSON_SYSTEM_PROMPT},
-    {"number": 3, "name": "generate_mermaid",        "prompt": STEP_3_PROMPT, "system_prompt": None},
+    {"number": 1, "name": "extract_entities",      "prompt": STEP_1_PROMPT, "system_prompt": JSON_EXTRACTION_SYSTEM_PROMPT},
+    {"number": 2, "name": "extract_relationships", "prompt": STEP_2_PROMPT, "system_prompt": JSON_EXTRACTION_SYSTEM_PROMPT},
+    {"number": 3, "name": "generate_mermaid",      "prompt": STEP_3_PROMPT, "system_prompt": None},
 ]
-
-# Max retries per step before aborting the whole run
-MAX_RETRIES = 1
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _strip_fences(text: str | None) -> str | None:
-    """
-    Remove markdown code fences if present.
-    Models often wrap JSON in ```json ... ```
-    """
-    if text is None:
-        return None
-    stripped = text.strip()
-    if stripped.startswith("```"):
-        # Remove first line (```json or ```)
-        stripped = stripped.split("\n", 1)[-1]
-    if stripped.endswith("```"):
-        stripped = stripped.rsplit("```", 1)[0]
-    return stripped.strip()
 
 
 # ---------------------------------------------------------------------------
@@ -153,6 +66,15 @@ class SOPStrategy(BaseStrategy):
     def run(
         self, input_file: InputFile, config: RunConfig
     ) -> tuple[RunResult, list[SubResult]]:
+        """
+        Execute the three-step procedure for one input.
+
+        Walks ``STEPS`` in order, threading each step's output into the
+        next step's prompt via ``step_outputs``. A failed step (after its
+        retry budget) aborts the whole run and the parent ``RunResult``
+        carries the error; the ``SubResult`` for the failing step is still
+        appended so partial-failure cost is observable in the database.
+        """
 
         # Load input JSON
         try:
@@ -259,16 +181,14 @@ class SOPStrategy(BaseStrategy):
 
             if result.success:
                 # For steps 1-2, validate JSON output
-                output = result.output_diagram_code
-                output = _strip_fences(output)
+                output = strip_fences(result.output_diagram_code)
                 if step_number < 3:
-                    try:
-                        parsed = json.loads(output)
-                        expected_key = "entities" if step_number == 1 else "relationships"
-                        if not isinstance(parsed, dict) or not isinstance(parsed.get(expected_key), list):
-                            raise ValueError(f"missing `{expected_key}` list")
-                    except (json.JSONDecodeError, TypeError, ValueError) as e:
-                        last_error = f"Invalid {step_name} payload on attempt {attempt + 1}: {e}"
+                    is_valid, validation_error = validate_step_payload(output, step_number)
+                    if not is_valid:
+                        last_error = (
+                            f"Invalid {step_name} payload on attempt {attempt + 1}: "
+                            f"{validation_error}"
+                        )
                         continue
 
                 return (

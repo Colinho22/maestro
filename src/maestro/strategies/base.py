@@ -31,5 +31,10 @@ class BaseStrategy(ABC):
 
     @property
     def name(self) -> str:
-        # Used for logging — matches Strategy enum value
+        """
+        Human-readable name of the strategy, used in log lines and progress
+        output. Returns the concrete class name (e.g. ``SOPStrategy``); this
+        is *not* the persisted ``Strategy`` enum value — that lives on
+        ``RunConfig.strategy`` instead.
+        """
         return self.__class__.__name__

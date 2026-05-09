@@ -39,6 +39,12 @@ from dotenv import load_dotenv
 # Load .env file so API keys are available via os.environ
 load_dotenv()
 
+# Silence CrewAI's interactive tracing prompt and telemetry so batch runs
+# stay non-interactive on fresh checkouts (the user's preference file is
+# machine-local and won't exist in CI / on a fresh clone).
+os.environ.setdefault("CREWAI_TRACING_ENABLED", "false")
+os.environ.setdefault("CREWAI_DISABLE_TELEMETRY", "true")
+
 from maestro.experiment_config import (
     DB_PATH,
     DEFAULT_REPEATS,
@@ -57,6 +63,10 @@ from maestro.db.queries import (
 from maestro.analysis.metrics import evaluate_run
 from maestro.providers.anthropic import AnthropicProvider
 from maestro.providers.openai import OpenAIProvider
+from maestro.providers.mistral import MistralProvider
+from maestro.providers.gemini import GeminiProvider
+from maestro.strategies.crew import CrewAIStrategy
+from maestro.strategies.langgraph import LangGraphStrategy
 from maestro.strategies.single import SingleAgentStrategy
 from maestro.strategies.sop import SOPStrategy
 
@@ -68,9 +78,8 @@ from maestro.strategies.sop import SOPStrategy
 STRATEGY_MAP = {
     Strategy.SINGLE_AGENT: SingleAgentStrategy,
     Strategy.SOP_BASED: SOPStrategy,
-    # Enable once implemented:
-    # Strategy.CREW_AI: CrewAIStrategy,
-    # Strategy.LANG_GRAPH: LangGraphStrategy,
+    Strategy.CREW_AI: CrewAIStrategy,
+    Strategy.LANG_GRAPH: LangGraphStrategy,
 }
 
 
@@ -101,6 +110,20 @@ def _create_provider(model_pricing):
             print("ERROR: OPENAI_API_KEY not set in environment")
             sys.exit(1)
         return OpenAIProvider(api_key=api_key, pricing=model_pricing)
+
+    if "mistral" in model_lower:
+        api_key = os.environ.get("MISTRAL_API_KEY")
+        if not api_key:
+            print("ERROR: MISTRAL_API_KEY not set in environment")
+            sys.exit(1)
+        return MistralProvider(api_key=api_key, pricing=model_pricing)
+
+    if "gemini" in model_lower:
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            print("ERROR: GEMINI_API_KEY not set in environment")
+            sys.exit(1)
+        return GeminiProvider(api_key=api_key, pricing=model_pricing)
 
     print(f"ERROR: No provider registered for model '{model}'")
     sys.exit(1)

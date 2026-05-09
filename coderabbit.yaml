@@ -6,10 +6,16 @@ reviews:
         - "WIP"
         - "DO NOT MERGE"
       drafts: false
-  
+
   review_simple_changes: false
 
   # Global instructions
   instructions: |
     - Suggest using 'f-strings' over older '.format()' or '%' formatting.
     - Watch for mutable default arguments in functions (e.g., def func(a=[])).
+    - LLM provider classes (subclasses of LLMProvider in src/maestro/providers/) must
+      use the 'Provider' suffix (e.g. AnthropicProvider, MistralProvider). This avoids
+      name collisions with vendor SDK client classes (anthropic.Anthropic,
+      openai.OpenAI, mistralai.Mistral).
+    - Strategy classes (subclasses of base.Strategy in src/maestro/strategies/) must
+      use the 'Strategy' suffix (e.g. SingleAgentStrategy, SOPStrategy).
