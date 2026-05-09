@@ -339,6 +339,10 @@ class CrewAIStrategy(BaseStrategy):
                 verbose=False,
             )
 
+            # Snapshot call count before kickoff so we can measure the
+            # per-attempt delta independently of earlier attempts/raises.
+            start_calls = len(recorder.calls)
+
             # Kickoff. CrewAI's BaseLLM contract says return a string on error,
             # so kickoff itself shouldn't raise from a provider error — but
             # other CrewAI-internal failures could, so wrap it.
@@ -349,19 +353,17 @@ class CrewAIStrategy(BaseStrategy):
                 continue
 
             # Single-task crew + sequential process => exactly one LLM call
-            # per kickoff. We assert that invariant rather than silently using
-            # the latest record: if CrewAI ever fans out additional calls
-            # (delegation, tool use), the experiment's per-step accounting
-            # would be wrong and we want to know loudly.
-            expected_call_count = attempt + 1
-            if len(recorder.calls) == expected_call_count - 1:
+            # per kickoff. Assert the per-attempt delta (not a cumulative count)
+            # so a raise on a previous attempt — with or without a provider call
+            # — does not skew the check for this attempt.
+            new_call_count = len(recorder.calls) - start_calls
+            if new_call_count == 0:
                 last_error = f"No LLM call recorded on attempt {attempt + 1}"
                 continue
-            if len(recorder.calls) != expected_call_count:
+            if new_call_count != 1:
                 last_error = (
                     f"Single-call invariant violated on attempt {attempt + 1}: "
-                    f"expected {expected_call_count} recorded call(s), "
-                    f"got {len(recorder.calls)}"
+                    f"expected 1 new call, got {new_call_count}"
                 )
                 continue
             call = recorder.calls[-1]

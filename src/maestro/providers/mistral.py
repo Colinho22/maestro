@@ -5,8 +5,8 @@ Wraps the Mistral chat completions API into the LLMProvider interface.
 
 import time
 
-from mistralai.client import Mistral
-from mistralai.client.errors import SDKError
+from mistralai import Mistral
+from mistralai.models import SDKError
 
 from maestro.schemas import ModelPricing, RunConfig, RunResult, compute_cost
 from maestro.providers.base import LLMProvider
