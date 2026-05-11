@@ -16,9 +16,9 @@ dependencies = [
     "pydantic>=2.13.3",
     "anthropic>=0.88",
     "openai>=2.30",
-    "mistralai>=2.4.5",
-    "google-genai>=2.0.1",
-    "crewai>=1.14.4",
+    "mistralai>=2.4.4",
+    "google-genai>=1.75.0",
+    "crewai>=1.6.1",
     "langgraph>=1.1.10",
 ]
 
