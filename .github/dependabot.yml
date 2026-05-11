@@ -14,9 +14,13 @@ updates:
         patterns:
           - "*"
     ignore:
-      # manual version increase during dev
+      # manual version increase during dev (mainly AI SDKs)
       - dependency-name: "anthropic"
       - dependency-name: "openai"
+      - dependency-name: "mistralai"
+      - dependency-name: "google-genai"
+      - dependency-name: "crewai"
+      - dependency-name: "langgraph"
 
       # major releases only
       - dependency-name: "pydantic"
