@@ -5,8 +5,8 @@ Wraps the Mistral chat completions API into the LLMProvider interface.
 
 import time
 
-from mistralai import Mistral
-from mistralai.models import SDKError
+from mistralai.client import Mistral
+from mistralai.client.errors import SDKError
 
 from maestro.schemas import ModelPricing, RunConfig, RunResult, compute_cost
 from maestro.providers.base import LLMProvider
@@ -15,7 +15,9 @@ from maestro.providers.base import LLMProvider
 class MistralProvider(LLMProvider):
     """
     Concrete provider for Mistral models (mistral-small, mistral-large, etc.)
-    Uses the official mistralai SDK — add 'mistralai>=1.5' to pyproject.toml.
+    Uses the official mistralai SDK (>=2.4.7). The 2.x SDK moved ``Mistral``
+    and ``SDKError`` out of the package root into ``mistralai.client`` and
+    ``mistralai.client.errors`` respectively.
     """
 
     SYSTEM_PROMPT = (
