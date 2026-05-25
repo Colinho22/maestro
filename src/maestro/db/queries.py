@@ -5,7 +5,40 @@ Insert and fetch operations for RunConfig and RunResult.
 
 import sqlite3
 
-from maestro.schemas import RunConfig, RunResult, SubResult, MetricResult
+from maestro.schemas import (
+    MetricResult,
+    RunConfig,
+    RunEnvironment,
+    RunResult,
+    SubResult,
+)
+
+
+def insert_run_environment(conn: sqlite3.Connection, env: RunEnvironment) -> None:
+    """Persist a RunEnvironment row — raises if environment_id already exists."""
+    conn.execute(
+        """
+        INSERT INTO run_environments
+            (environment_id, os, arch, python, hostname,
+             git_commit, git_dirty, lib_versions, docker_image_digest,
+             captured_at)
+        VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            str(env.environment_id),
+            env.os,
+            env.arch,
+            env.python,
+            env.hostname,
+            env.git_commit,
+            # SQLite has no bool; coerce explicitly so None stays None.
+            None if env.git_dirty is None else int(env.git_dirty),
+            env.lib_versions,
+            env.docker_image_digest,
+            env.captured_at.isoformat(),
+        ),
+    )
 
 
 def insert_run_config(conn: sqlite3.Connection, config: RunConfig) -> None:
@@ -13,9 +46,10 @@ def insert_run_config(conn: sqlite3.Connection, config: RunConfig) -> None:
     conn.execute(
         """
         INSERT INTO run_configs
-            (run_id, strategy, model, example_id, tier, run_number, timestamp)
+            (run_id, strategy, model, example_id, tier, run_number,
+             timestamp, environment_id)
         VALUES
-            (?, ?, ?, ?, ?, ?, ?)
+            (?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             str(config.run_id),
@@ -25,6 +59,7 @@ def insert_run_config(conn: sqlite3.Connection, config: RunConfig) -> None:
             config.tier.value,
             config.run_number,
             config.timestamp.isoformat(),
+            str(config.environment_id) if config.environment_id is not None else None,
         ),
     )
 

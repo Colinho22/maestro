@@ -11,6 +11,11 @@ authors = [
 keywords = ["multi-agent", "llm", "visualization", "orchestration", "thesis"]
 
 dependencies = [
+    # When adding a runtime-relevant dep here, also add it to _LIB_WHITELIST
+    # in src/maestro/db/environment.py so its installed version is captured
+    # in run_environments.lib_versions for every experiment invocation.
+    # Pure dev tooling (pytest, ruff under [project.optional-dependencies])
+    # is exempt — it does not affect experiment results.
     # Core
     "python-dotenv>=1.2.2",
     "pydantic>=2.13.3",

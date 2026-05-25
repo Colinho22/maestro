@@ -54,9 +54,11 @@ from maestro.experiment_config import (
 )
 from maestro.schemas import RunConfig, Strategy, Tier
 from maestro.db.client import get_connection, init_db
+from maestro.db.environment import capture_environment
 from maestro.db.queries import (
     insert_metric_result,
     insert_run_config,
+    insert_run_environment,
     insert_run_result,
     insert_sub_result,
 )
@@ -262,6 +264,19 @@ def main():
     # Initialize DB
     init_db(DB_PATH)
 
+    # Capture the runtime environment once per invocation. Every RunConfig
+    # written below carries its environment_id so a future replication
+    # attempt can diagnose diverging numbers against the exact stack that
+    # produced the original data.
+    environment = capture_environment()
+    if environment.git_dirty:
+        print(
+            "⚠  Git working tree is dirty — uncommitted changes will not be "
+            "reproducible from this commit hash."
+        )
+    with get_connection(DB_PATH) as conn:
+        insert_run_environment(conn, environment)
+
     # Track totals for summary
     successes = 0
     failures = 0
@@ -289,6 +304,7 @@ def main():
             example_id=input_file.example_id,
             tier=input_file.tier,
             run_number=run_number,
+            environment_id=environment.environment_id,
         )
 
         # Instantiate provider and strategy

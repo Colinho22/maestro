@@ -70,13 +70,53 @@ class RunConfig(BaseModel):
     run_id is the unique key; all other fields allow grouping/filtering.
     """
 
-    run_id:      UUID     = Field(default_factory=uuid4)
-    strategy:    Strategy
-    model:       str                  # e.g. "gpt-4o", "claude-3-5-sonnet"
-    example_id:  str                  # FK to InputFile.example_id
-    tier:        Tier
-    run_number:  int                  # Repeat index within same config (1-N)
-    timestamp:   datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    run_id:         UUID     = Field(default_factory=uuid4)
+    strategy:       Strategy
+    model:          str                  # e.g. "gpt-4o", "claude-3-5-sonnet"
+    example_id:     str                  # FK to InputFile.example_id
+    tier:           Tier
+    run_number:     int                  # Repeat index within same config (1-N)
+    timestamp:      datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # FK to run_environments.environment_id. Optional because rows written
+    # before this column existed have NULL, and because env capture is best
+    # effort — a run must still be persistable if the capture helper fails.
+    environment_id: Optional[UUID] = None
+
+
+# ---------------------------------------------------------------------------
+# RunEnvironment — runtime stack snapshot, one row per CLI invocation
+# ---------------------------------------------------------------------------
+
+class RunEnvironment(BaseModel):
+    """
+    Snapshot of the runtime environment that produced a batch of runs.
+
+    One row per CLI invocation, referenced by ``RunConfig.environment_id``.
+    All fields except ``environment_id`` and ``captured_at`` are nullable
+    because the underlying probe (subprocess, env var, package import) may
+    legitimately fail — a missing field must be recorded as ``None`` rather
+    than aborting the experiment.
+    """
+
+    environment_id:      UUID = Field(default_factory=uuid4)
+
+    # Host / runtime
+    os:                  Optional[str] = None      # platform.platform()
+    arch:                Optional[str] = None      # platform.machine()
+    python:              Optional[str] = None      # sys.version
+    hostname:            Optional[str] = None      # platform.node()
+
+    # Source control
+    git_commit:          Optional[str] = None      # git rev-parse HEAD
+    git_dirty:           Optional[bool] = None     # True/False/None (probe failed)
+
+    # Dependency snapshot — JSON blob: {"anthropic": "1.2.3", "openai": None, ...}
+    lib_versions:        Optional[str] = None
+
+    # Container provenance — set by CI/CD via env var, NULL when running locally
+    docker_image_digest: Optional[str] = None
+
+    captured_at:         datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # ---------------------------------------------------------------------------
