@@ -26,7 +26,7 @@ dependencies = [
 # Dev tooling - install with: pip install -e ".[dev]"
 dev = [
     "pytest>=9.0.3",
-    "ruff>=0.15.13",
+    "ruff>=0.15.14",
 ]
 
 [build-system]
