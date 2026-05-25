@@ -16,7 +16,11 @@ dependencies = [
     "pydantic>=2.13.3",
     "anthropic>=0.88",
     "openai>=2.30",
-    "mistralai>=2.4.4",
+    # 2.4.6 was a compromised release (TanStack supply-chain incident); 2.4.7+
+    # restructured the SDK layout — `Mistral` and `SDKError` moved out of the
+    # package root. Pin >=2.4.7 to enforce both: skip-the-bad-release and
+    # match-the-import-paths-this-code-uses.
+    "mistralai>=2.4.7",
     "google-genai>=1.75.0",
     "crewai>=1.6.1",
     "langgraph>=1.1.10",
