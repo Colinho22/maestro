@@ -34,7 +34,7 @@ dependencies = [
     # explicitly so it doesn't silently disappear on a transitive bump.
     # >=8.1.0: that release introduced `wait_exponential_jitter`, which
     # _retry.py imports directly. 8.0.x lacks the symbol.
-    "tenacity>=8.1.0",
+    "tenacity>=9.1.4",
 ]
 
 [project.optional-dependencies]
