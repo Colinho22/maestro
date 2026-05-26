@@ -59,7 +59,11 @@ def _git_head() -> str | None:
             timeout=5,
             check=False,
         )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    except (OSError, subprocess.TimeoutExpired):
+        # OSError covers FileNotFoundError (git not on PATH), PermissionError
+        # (git present but not executable) and other low-level subprocess
+        # spawn failures. The probe must never crash the experiment runner
+        # it is supposed to describe — fall back to None.
         return None
     if out.returncode != 0:
         return None
@@ -81,7 +85,11 @@ def _git_dirty() -> bool | None:
             timeout=5,
             check=False,
         )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    except (OSError, subprocess.TimeoutExpired):
+        # OSError covers FileNotFoundError (git not on PATH), PermissionError
+        # (git present but not executable) and other low-level subprocess
+        # spawn failures. The probe must never crash the experiment runner
+        # it is supposed to describe — fall back to None.
         return None
     if out.returncode != 0:
         return None
