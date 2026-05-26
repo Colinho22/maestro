@@ -116,7 +116,16 @@ def call_with_retry(
     ):
         with attempt:
             stats.attempts = attempt.retry_state.attempt_number
-            return fn(), stats
+            try:
+                return fn(), stats
+            except Exception as exc:
+                # ``_log_retry`` only fires before each *sleep*, so it never
+                # sees the terminal exception (no sleep after the final
+                # attempt) and never fires at all for non-retryable errors
+                # that fail on attempt 1. Capture here so stats.last_exception
+                # always reflects whatever actually came out of fn().
+                stats.last_exception = f"{type(exc).__name__}: {exc}"
+                raise
 
     # Unreachable: ``reraise=True`` propagates the last exception out of
     # the for-loop on failure; success returns from inside the with-block.
