@@ -13,14 +13,29 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS run_environments (
+    environment_id      TEXT PRIMARY KEY,
+    os                  TEXT,
+    arch                TEXT,
+    python              TEXT,
+    hostname            TEXT,
+    git_commit          TEXT,
+    git_dirty           INTEGER,
+    lib_versions        TEXT,
+    docker_image_digest TEXT,
+    captured_at         TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS run_configs (
-    run_id       TEXT PRIMARY KEY,
-    strategy     TEXT NOT NULL,
-    model        TEXT NOT NULL,
-    example_id   TEXT NOT NULL,
-    tier         INTEGER NOT NULL,
-    run_number   INTEGER NOT NULL,
-    timestamp    TEXT NOT NULL
+    run_id         TEXT PRIMARY KEY,
+    strategy       TEXT NOT NULL,
+    model          TEXT NOT NULL,
+    example_id     TEXT NOT NULL,
+    tier           INTEGER NOT NULL,
+    run_number     INTEGER NOT NULL,
+    timestamp      TEXT NOT NULL,
+    environment_id TEXT,
+    FOREIGN KEY (environment_id) REFERENCES run_environments(environment_id)
 );
 
 CREATE TABLE IF NOT EXISTS run_results (
@@ -90,12 +105,33 @@ def init_db(db_path: Path) -> None:
     """
     Create the SQLite file and tables if they don't exist.
     Safe to call on every run — no data is overwritten.
+
+    Also runs the small set of additive migrations needed to bring a
+    pre-existing database (e.g. data collected before ``run_environments``
+    was introduced) up to the current schema. Old rows keep their NULL
+    ``environment_id``; no backfill is attempted.
     """
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(db_path) as conn:
         conn.execute("PRAGMA foreign_keys = ON")
         conn.executescript(SCHEMA)
+        _migrate_add_environment_id_column(conn)
         conn.commit()
+
+
+def _migrate_add_environment_id_column(conn: sqlite3.Connection) -> None:
+    """
+    Add ``run_configs.environment_id`` to databases that predate the column.
+
+    SQLite has no portable ``ADD COLUMN IF NOT EXISTS``, so we inspect
+    ``PRAGMA table_info`` first and only issue the ALTER when the column
+    is missing. The FK is declarative-only on the new column (SQLite cannot
+    add a constrained FK via ALTER); fresh databases created by ``SCHEMA``
+    above carry the FK clause directly.
+    """
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(run_configs)")}
+    if "environment_id" not in cols:
+        conn.execute("ALTER TABLE run_configs ADD COLUMN environment_id TEXT")
 
 
 @contextmanager
