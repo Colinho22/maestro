@@ -18,7 +18,10 @@ Why this lives in its own module:
 
 Failure semantics: if ``max_attempts`` is exhausted, the *last* exception is
 re-raised so the caller's existing try/except in ``complete()`` builds a
-failed RunResult exactly as before. No silent swallowing.
+failed RunResult exactly as before. No silent swallowing. The caller passes
+in a ``RetryStats`` it owns; the helper mutates it in place so the attempt
+count survives the exception unwind and the failed ``RunResult`` can still
+record ``retry_count``.
 """
 
 from __future__ import annotations
@@ -65,6 +68,7 @@ def call_with_retry(
     *,
     is_retryable: Callable[[BaseException], bool],
     provider_name: str,
+    stats: RetryStats | None = None,
     max_attempts: int = MAX_ATTEMPTS,
     wait_initial: float = WAIT_INITIAL,
     wait_max: float = WAIT_MAX,
@@ -78,10 +82,20 @@ def call_with_retry(
 
     ``provider_name`` is only used in the stderr log line so a long run is
     debuggable ("which provider is rate-limiting?").
+
+    Callers that need ``retry_count`` to survive an exhausted-retries
+    exception (so the failed ``RunResult`` can still record it) should
+    pre-create a ``RetryStats`` and pass it in: the helper mutates it in
+    place, so the caller's exception handlers can read ``stats.retry_count``
+    after the helper raised. If ``stats`` is omitted, a fresh instance is
+    created — convenient for success-only callers and tests.
     """
-    stats = RetryStats()
+    if stats is None:
+        stats = RetryStats()
 
     def _log_retry(retry_state) -> None:
+        """Tenacity ``before_sleep`` hook: log the failed attempt to stderr
+        and update ``stats.last_exception`` for the caller."""
         # tenacity calls this before each sleep; ``retry_state.attempt_number``
         # is the attempt that just failed.
         exc = retry_state.outcome.exception()

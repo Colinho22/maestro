@@ -12,7 +12,7 @@ from google.genai import types as genai_types
 
 from maestro.schemas import ModelPricing, RunConfig, RunResult, compute_cost
 from maestro.providers.base import LLMProvider
-from maestro.providers._retry import call_with_retry
+from maestro.providers._retry import RetryStats, call_with_retry
 
 
 # See providers/openai.py for the rationale on this status set.
@@ -67,7 +67,13 @@ class GeminiProvider(LLMProvider):
         start_ms = time.monotonic()
         effective_system = system_prompt if system_prompt is not None else self.SYSTEM_PROMPT
 
+        # Owned by the caller so retry_count survives an exhausted-retries
+        # exception — the except blocks below read stats.retry_count to
+        # record it on the failed RunResult.
+        stats = RetryStats()
+
         def _do_call():
+            """The SDK call ``call_with_retry`` re-runs on transient failures."""
             return self._client.models.generate_content(
                 model=config.model,
                 contents=prompt,
@@ -79,10 +85,11 @@ class GeminiProvider(LLMProvider):
             )
 
         try:
-            response, stats = call_with_retry(
+            response, _ = call_with_retry(
                 _do_call,
                 is_retryable=self._is_retryable,
                 provider_name="gemini",
+                stats=stats,
             )
 
             duration_ms = int((time.monotonic() - start_ms) * 1000)
@@ -124,15 +131,19 @@ class GeminiProvider(LLMProvider):
             )
 
         except genai_errors.APIError as e:
-            return self._error_result(config, start_ms, f"APIError: {e}")
+            return self._error_result(config, start_ms, f"APIError: {e}", stats.retry_count)
 
         except Exception as e:
-            return self._error_result(config, start_ms, f"UnexpectedError: {e}")
+            return self._error_result(config, start_ms, f"UnexpectedError: {e}", stats.retry_count)
 
     def _error_result(
-        self, config: RunConfig, start_ms: float, error: str
+        self, config: RunConfig, start_ms: float, error: str, retry_count: int = 0,
     ) -> RunResult:
-        """Build a failed RunResult with zero token counts and the error message."""
+        """
+        Build a failed RunResult with zero token counts and the error message.
+        ``retry_count`` is propagated from ``RetryStats`` so an exhausted-
+        retries failure still records how many attempts were made.
+        """
         return RunResult(
             run_id=config.run_id,
             output_diagram_code=None,
@@ -141,4 +152,5 @@ class GeminiProvider(LLMProvider):
             duration_ms=int((time.monotonic() - start_ms) * 1000),
             cost_usd=0.0,
             error=error,
+            retry_count=retry_count,
         )
