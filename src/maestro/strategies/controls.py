@@ -52,6 +52,12 @@ class NullControlStrategy(BaseStrategy):
     def run(
         self, input_file: InputFile, config: RunConfig
     ) -> tuple[RunResult, list[SubResult]]:
+        """
+        Return a RunResult carrying the empty diagram. ``input_file`` is
+        accepted to satisfy the BaseStrategy contract but deliberately not
+        read — the floor must be input-independent so the score reflects
+        only the metric pipeline's response to "no entities, no edges".
+        """
         start = time.monotonic()
         duration_ms = int((time.monotonic() - start) * 1000)
         result = RunResult(
@@ -79,6 +85,12 @@ class CopyInputControlStrategy(BaseStrategy):
     def run(
         self, input_file: InputFile, config: RunConfig
     ) -> tuple[RunResult, list[SubResult]]:
+        """
+        Read ``input_file.file_path`` and shove its bytes into
+        ``output_diagram_code`` unmodified. The metric pipeline will see
+        JSON where Mermaid was expected — exactly the input shape needed
+        to test whether the parser is too permissive.
+        """
         start = time.monotonic()
         try:
             raw = input_file.file_path.read_text(encoding="utf-8")
@@ -129,6 +141,12 @@ class GroundTruthEchoControlStrategy(BaseStrategy):
     def run(
         self, input_file: InputFile, config: RunConfig
     ) -> tuple[RunResult, list[SubResult]]:
+        """
+        Read the ground truth file and return its contents as the
+        ``output_diagram_code``. The downstream metric pipeline will then
+        compare ground truth to itself — anything less than F1 = 1.0
+        indicates a bug in the scoring code, not in the "model".
+        """
         start = time.monotonic()
         try:
             truth = input_file.ground_truth_path.read_text(encoding="utf-8")
