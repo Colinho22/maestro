@@ -287,11 +287,13 @@ class LangGraphStrategy(BaseStrategy):
             raw = input_file.file_path.read_text(encoding="utf-8")
             input_data = json.dumps(json.loads(raw), indent=2)
         except FileNotFoundError:
-            return self._abort(config, f"Input file not found: {input_file.file_path}")
+            return self._error_result(
+                config, f"Input file not found: {input_file.file_path}"
+            )
         except json.JSONDecodeError as e:
-            return self._abort(config, f"Invalid JSON in input file: {e}")
+            return self._error_result(config, f"Invalid JSON in input file: {e}")
         except Exception as e:
-            return self._abort(config, f"Failed to read input file: {e}")
+            return self._error_result(config, f"Failed to read input file: {e}")
 
         total_start = time.monotonic()
 
@@ -363,18 +365,3 @@ class LangGraphStrategy(BaseStrategy):
             error=error,
         )
         return (result, subs)
-
-    def _abort(
-        self, config: RunConfig, message: str
-    ) -> tuple[RunResult, list[SubResult]]:
-        """File-level error before any LLM call — same shape as SOP and CrewAI."""
-        result = RunResult(
-            run_id=config.run_id,
-            output_diagram_code=None,
-            prompt_tokens=0,
-            completion_tokens=0,
-            duration_ms=0,
-            cost_usd=0.0,
-            error=message,
-        )
-        return (result, [])

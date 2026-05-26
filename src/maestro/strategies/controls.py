@@ -1,8 +1,17 @@
 """
 MAESTRO — Control strategies.
 
-Three deterministic strategies that bypass the LLM entirely. They serve two
-distinct purposes in the experimental design:
+**Controls are not baselines.** ``SingleAgentStrategy`` (in ``single.py``)
+is the *comparison baseline* — the simplest real LLM-using approach that
+the orchestration strategies are measured against. The classes here are
+*control conditions* in the DSR / experimental-method sense: deterministic
+non-strategies that bypass the LLM entirely and have a known expected
+score, used to isolate the metric pipeline from the model under test.
+
+The two words got conflated in early issue language; keep them distinct
+in code, prose and (eventually) thesis text.
+
+These three deterministic strategies serve two distinct purposes:
 
 1. **Metric-pipeline sanity checks.** A normalization bug that makes the
    empty string match anything would make every real strategy look better
@@ -15,10 +24,7 @@ distinct purposes in the experimental design:
    control F1 = 0.00, ground-truth control F1 = 1.00" frames the result
    on a known scale.
 
-Naming follows the DSR convention: these are *control conditions*, not
-"baselines" (the issue used baseline loosely — ``SingleAgentStrategy``
-already calls itself the baseline in the comparison sense). All class
-names keep the ``Strategy`` suffix per ``coderabbit.yaml``.
+All class names keep the ``Strategy`` suffix per ``coderabbit.yaml``.
 
 Determinism: each control's output is a pure function of the input file
 (NullControl ignores even that). The matrix builder collapses the
@@ -102,9 +108,8 @@ class CopyInputControlStrategy(BaseStrategy):
         try:
             raw = input_file.file_path.read_text(encoding="utf-8")
         except Exception as e:
-            return (
-                self._file_error(config, start, f"Failed to read input file: {e}"),
-                [],
+            return self._error_result(
+                config, f"Failed to read input file: {e}", start=start
             )
 
         duration_ms = int((time.monotonic() - start) * 1000)
@@ -117,17 +122,6 @@ class CopyInputControlStrategy(BaseStrategy):
             cost_usd=0.0,
         )
         return (result, [])
-
-    def _file_error(self, config: RunConfig, start: float, message: str) -> RunResult:
-        return RunResult(
-            run_id=config.run_id,
-            output_diagram_code=None,
-            prompt_tokens=0,
-            completion_tokens=0,
-            duration_ms=int((time.monotonic() - start) * 1000),
-            cost_usd=0.0,
-            error=message,
-        )
 
 
 class GroundTruthEchoControlStrategy(BaseStrategy):
@@ -158,9 +152,8 @@ class GroundTruthEchoControlStrategy(BaseStrategy):
         try:
             truth = input_file.ground_truth_path.read_text(encoding="utf-8")
         except Exception as e:
-            return (
-                self._file_error(config, start, f"Failed to read ground truth: {e}"),
-                [],
+            return self._error_result(
+                config, f"Failed to read ground truth: {e}", start=start
             )
 
         duration_ms = int((time.monotonic() - start) * 1000)
@@ -173,14 +166,3 @@ class GroundTruthEchoControlStrategy(BaseStrategy):
             cost_usd=0.0,
         )
         return (result, [])
-
-    def _file_error(self, config: RunConfig, start: float, message: str) -> RunResult:
-        return RunResult(
-            run_id=config.run_id,
-            output_diagram_code=None,
-            prompt_tokens=0,
-            completion_tokens=0,
-            duration_ms=int((time.monotonic() - start) * 1000),
-            cost_usd=0.0,
-            error=message,
-        )
