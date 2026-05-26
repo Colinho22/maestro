@@ -162,6 +162,10 @@ class RunResult(BaseModel):
     # Error — None if successful, exception message otherwise
     error:                Optional[str] = None
 
+    # Number of *retries* the underlying provider call needed (0 = first
+    # attempt worked). Mirrors SubResult.retry_count for top-level runs.
+    retry_count:          int = 0
+
     @computed_field
     @property
     def total_tokens(self) -> int:

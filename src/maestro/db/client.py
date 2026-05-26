@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS run_results (
     duration_ms          INTEGER NOT NULL,
     cost_usd             REAL NOT NULL,
     error                TEXT,
+    retry_count          INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (run_id) REFERENCES run_configs(run_id)
 );
 
@@ -107,15 +108,16 @@ def init_db(db_path: Path) -> None:
     Safe to call on every run — no data is overwritten.
 
     Also runs the small set of additive migrations needed to bring a
-    pre-existing database (e.g. data collected before ``run_environments``
-    was introduced) up to the current schema. Old rows keep their NULL
-    ``environment_id``; no backfill is attempted.
+    pre-existing database up to the current schema. Old rows keep their
+    NULL ``run_configs.environment_id`` and default ``run_results.retry_count
+    = 0``; no backfill is attempted.
     """
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(db_path) as conn:
         conn.execute("PRAGMA foreign_keys = ON")
         conn.executescript(SCHEMA)
         _migrate_add_environment_id_column(conn)
+        _migrate_add_retry_count_column(conn)
         conn.commit()
 
 
@@ -132,6 +134,21 @@ def _migrate_add_environment_id_column(conn: sqlite3.Connection) -> None:
     cols = {row[1] for row in conn.execute("PRAGMA table_info(run_configs)")}
     if "environment_id" not in cols:
         conn.execute("ALTER TABLE run_configs ADD COLUMN environment_id TEXT")
+
+
+def _migrate_add_retry_count_column(conn: sqlite3.Connection) -> None:
+    """
+    Add ``run_results.retry_count`` to databases that predate the column.
+
+    SQLite has no portable ``ADD COLUMN IF NOT EXISTS``, so we inspect
+    ``PRAGMA table_info`` first and only ALTER when missing. Fresh
+    databases created by ``SCHEMA`` above carry the column directly.
+    """
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(run_results)")}
+    if "retry_count" not in cols:
+        conn.execute(
+            "ALTER TABLE run_results ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0"
+        )
 
 
 @contextmanager
