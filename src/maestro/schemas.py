@@ -29,6 +29,13 @@ class Strategy(str, Enum):
     CREW_AI      = "crew_ai"
     LANG_GRAPH   = "lang_graph"
 
+    # Control conditions — bypass the LLM, deterministic, used as metric-
+    # pipeline sanity checks and as interpretation anchors for absolute F1.
+    # See maestro.strategies.controls.* for the implementations.
+    NULL_CONTROL         = "null_control"          # floor: empty diagram
+    COPY_CONTROL         = "copy_control"          # floor: raw input as diagram
+    GROUND_TRUTH_CONTROL = "ground_truth_control"  # ceiling: ground truth verbatim
+
 
 class Tier(int, Enum):
     """

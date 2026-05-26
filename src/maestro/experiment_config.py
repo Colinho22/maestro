@@ -49,6 +49,17 @@ INPUTS: list[InputFile] = [
 # Model registry — pricing per model for cost calculation
 # ---------------------------------------------------------------------------
 
+# Synthetic "model" used only for control-strategy rows. Controls bypass the
+# LLM entirely so no real model is involved; this entry exists so the
+# ``RunConfig.model`` column has an honest value ("control") rather than
+# borrowing the name of a real model and lying about what produced the row.
+# Zero pricing means control rows never affect cost rollups.
+CONTROL_MODEL = ModelPricing(
+    model="control",
+    input_price_per_1m=0.0,
+    output_price_per_1m=0.0,
+)
+
 MODELS: list[ModelPricing] = [
     ModelPricing(
         model="claude-haiku-4-5-20251001",
@@ -89,7 +100,26 @@ STRATEGIES: list[Strategy] = [
     Strategy.SOP_BASED,
     Strategy.CREW_AI,
     Strategy.LANG_GRAPH,
+    # Control conditions (no LLM, deterministic). Included in the default
+    # matrix so every full run produces a metric-pipeline sanity record;
+    # ``build_matrix`` in run.py collapses their model/repeat fan-out to
+    # one row per (input, control) cell since neither dimension varies.
+    Strategy.NULL_CONTROL,
+    Strategy.COPY_CONTROL,
+    Strategy.GROUND_TRUTH_CONTROL,
 ]
+
+
+# Set used by ``build_matrix`` and analysis code to special-case controls:
+# - matrix builder uses CONTROL_MODEL and run_number=1 for these strategies
+# - analysis can exclude them from ANOVA / cost rollups with
+#   ``WHERE strategy NOT IN (SELECT value FROM control_strategies)`` or the
+#   in-Python equivalent ``s not in CONTROL_STRATEGIES``.
+CONTROL_STRATEGIES: set[Strategy] = {
+    Strategy.NULL_CONTROL,
+    Strategy.COPY_CONTROL,
+    Strategy.GROUND_TRUTH_CONTROL,
+}
 
 
 # ---------------------------------------------------------------------------

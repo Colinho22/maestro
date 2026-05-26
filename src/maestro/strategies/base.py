@@ -4,6 +4,7 @@ All orchestration strategies (single agent, SOP, CrewAI, LangGraph) implement th
 """
 
 from abc import ABC, abstractmethod
+from typing import Optional
 
 from maestro.schemas import InputFile, RunConfig, RunResult, SubResult
 from maestro.providers.base import LLMProvider
@@ -16,9 +17,15 @@ class BaseStrategy(ABC):
     - Building the prompt(s) from the input file
     - Orchestrating one or more LLM calls
     - Returning a single RunResult
+
+    ``provider`` is Optional because control strategies (NullControlStrategy,
+    CopyInputControlStrategy, GroundTruthEchoControlStrategy) bypass the LLM
+    entirely and have no use for one. Real strategies must still supply a
+    provider — calling ``self.provider.complete(...)`` on None will error
+    loudly, which is the right failure mode for a misconfigured run.
     """
 
-    def __init__(self, provider: LLMProvider) -> None:
+    def __init__(self, provider: Optional[LLMProvider] = None) -> None:
         self.provider = provider
 
     @abstractmethod

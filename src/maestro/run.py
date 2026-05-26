@@ -46,6 +46,8 @@ os.environ.setdefault("CREWAI_TRACING_ENABLED", "false")
 os.environ.setdefault("CREWAI_DISABLE_TELEMETRY", "true")
 
 from maestro.experiment_config import (
+    CONTROL_MODEL,
+    CONTROL_STRATEGIES,
     DB_PATH,
     DEFAULT_REPEATS,
     INPUTS,
@@ -67,6 +69,11 @@ from maestro.providers.anthropic import AnthropicProvider
 from maestro.providers.openai import OpenAIProvider
 from maestro.providers.mistral import MistralProvider
 from maestro.providers.gemini import GeminiProvider
+from maestro.strategies.controls import (
+    CopyInputControlStrategy,
+    GroundTruthEchoControlStrategy,
+    NullControlStrategy,
+)
 from maestro.strategies.crew import CrewAIStrategy
 from maestro.strategies.langgraph import LangGraphStrategy
 from maestro.strategies.single import SingleAgentStrategy
@@ -82,6 +89,10 @@ STRATEGY_MAP = {
     Strategy.SOP_BASED: SOPStrategy,
     Strategy.CREW_AI: CrewAIStrategy,
     Strategy.LANG_GRAPH: LangGraphStrategy,
+    # Controls — see strategies/controls.py for rationale
+    Strategy.NULL_CONTROL: NullControlStrategy,
+    Strategy.COPY_CONTROL: CopyInputControlStrategy,
+    Strategy.GROUND_TRUTH_CONTROL: GroundTruthEchoControlStrategy,
 }
 
 
@@ -199,23 +210,44 @@ def build_matrix(args: argparse.Namespace) -> list[dict]:
     if args.strategy:
         strategies = [s for s in strategies if s.value == args.strategy]
 
-    # Filter models
+    # Filter models — applies only to real (LLM) strategies. Control rows
+    # ignore --model because they don't use a model; --model gpt-4o-mini
+    # should narrow which LLM rows run but should not silently drop the
+    # sanity floor/ceiling rows the experiment needs.
     models = MODELS
     if args.model:
         models = [m for m in models if m.model == args.model]
 
-    # Build cross-product
-    # Order: run_number outermost, then input, strategy, model
-    # This interleaves models so no single provider gets hammered back-to-back
+    # Partition by strategy kind. Controls are deterministic in (model,
+    # repeat) — collapsing both dimensions to a single row per
+    # (input, control) avoids 40× duplicate rows per input that would
+    # need to be filtered out at analysis time anyway.
+    real_strategies = [s for s in strategies if s not in CONTROL_STRATEGIES]
+    control_strategies = [s for s in strategies if s in CONTROL_STRATEGIES]
+
     matrix = []
+
+    # Real strategies: full inputs × strategies × models × repeats fan-out.
+    # Order: run_number outermost so models are interleaved (no single
+    # provider gets hammered back-to-back).
     for run_number in range(1, args.repeats + 1):
-        for input_file, strategy, model_pricing in product(inputs, strategies, models):
+        for input_file, strategy, model_pricing in product(inputs, real_strategies, models):
             matrix.append({
                 "input_file": input_file,
                 "strategy": strategy,
                 "model_pricing": model_pricing,
                 "run_number": run_number,
             })
+
+    # Controls: one row per (input, control_strategy). Synthetic CONTROL_MODEL,
+    # run_number=1. Not affected by --model or --repeats.
+    for input_file, strategy in product(inputs, control_strategies):
+        matrix.append({
+            "input_file": input_file,
+            "strategy": strategy,
+            "model_pricing": CONTROL_MODEL,
+            "run_number": 1,
+        })
 
     return matrix
 
@@ -307,13 +339,17 @@ def main():
             environment_id=environment.environment_id,
         )
 
-        # Instantiate provider and strategy
-        provider = _create_provider(model_pricing)
+        # Instantiate strategy. Controls don't need a provider — they
+        # bypass the LLM entirely; passing one would just be unused state.
         strategy_cls = STRATEGY_MAP.get(strategy_enum)
         if strategy_cls is None:
             print(f"  SKIP — strategy {strategy_enum.value} not implemented")
             continue
-        strategy = strategy_cls(provider=provider)
+        if strategy_enum in CONTROL_STRATEGIES:
+            strategy = strategy_cls()
+        else:
+            provider = _create_provider(model_pricing)
+            strategy = strategy_cls(provider=provider)
 
         # Execute
         result, sub_results = strategy.run(
