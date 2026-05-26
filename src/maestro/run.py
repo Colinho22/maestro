@@ -219,19 +219,6 @@ def build_matrix(args: argparse.Namespace) -> list[dict]:
     models = MODELS
     if args.model:
         models = [m for m in models if m.model == args.model]
-        # Fail fast on an unknown model: without this guard a typo (e.g.
-        # `--model gpt-4o-min`) would silently produce only the 3 control
-        # rows — looks like a tiny matrix instead of the misuse it is.
-        # Controls always run regardless of --model, so the empty-models
-        # case below would not catch this on its own.
-        if not models:
-            known = ", ".join(m.model for m in MODELS)
-            print(
-                f"ERROR: --model {args.model!r} matches no registered model. "
-                f"Known: {known}",
-                file=sys.stderr,
-            )
-            sys.exit(2)
 
     # Partition by strategy kind. Controls are deterministic in (model,
     # repeat) — collapsing both dimensions to a single row per
@@ -239,6 +226,23 @@ def build_matrix(args: argparse.Namespace) -> list[dict]:
     # need to be filtered out at analysis time anyway.
     real_strategies = [s for s in strategies if s not in CONTROL_STRATEGIES]
     control_strategies = [s for s in strategies if s in CONTROL_STRATEGIES]
+
+    # Fail fast on an unknown --model only when it actually matters:
+    # `--strategy null_control --model typo` should be a no-op on --model
+    # (controls don't use any model) rather than aborting. Without this
+    # guard, however, `--model gpt-4o-min` would silently produce just
+    # the 3 control rows when the user wanted a single LLM cell — looks
+    # like a tiny matrix instead of the misuse it is. So: validate the
+    # model flag only when there's at least one real strategy left after
+    # the strategy filter.
+    if args.model and real_strategies and not models:
+        known = ", ".join(m.model for m in MODELS)
+        print(
+            f"ERROR: --model {args.model!r} matches no registered model. "
+            f"Known: {known}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
 
     matrix = []
 

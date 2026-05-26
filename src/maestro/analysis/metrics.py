@@ -45,6 +45,10 @@ def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
 
     # NamedTemporaryFile with delete=True cleans up after the context exits.
     # The file is created so mmdc has somewhere to write; we never read it.
+    # NOTE: Windows-incompatible — Windows holds the named-temp-file open
+    # exclusively, which would block mmdc from writing to it. The project
+    # targets macOS / Linux (Ubuntu CI), so this is a deliberate trade-off.
+    # ``/dev/stdin`` for the input side is also Unix-only by the same logic.
     try:
         with tempfile.NamedTemporaryFile(suffix=".png", delete=True) as out:
             result = subprocess.run(
@@ -54,6 +58,9 @@ def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
                 text=True,
                 timeout=15,
             )
+        # ``result`` is bound inside the ``with`` block but Python's scoping
+        # makes it visible here; the temp file is gone by this point, which
+        # is fine because we only need the return code + stderr text.
         if result.returncode == 0:
             return (True, None)
         return (False, result.stderr.strip()[:500])

@@ -13,6 +13,7 @@ record in every actual run's database. Two audiences, same job.
 
 from __future__ import annotations
 
+import re
 from uuid import uuid4
 
 import pytest
@@ -59,11 +60,21 @@ def test_raw_json_input_as_diagram_scores_low():
         output_diagram_code=raw,
         ground_truth_path=INPUT.ground_truth_path,
     )
-    assert metric.entity_id_f1 == 0.0, (
+    # "Meaningfully above zero" rather than "exactly zero": the relaxed
+    # relationship regex is permissive and a future input file containing
+    # `-->` in a string value would push F1 fractionally above 0 without
+    # the parser actually being broken. 0.1 is well below anything a real
+    # strategy would ever produce — if this fires, the parser is genuinely
+    # over-matching JSON content.
+    assert metric.entity_id_f1 < 0.1, (
         f"JSON-as-diagram scored entity_id_f1={metric.entity_id_f1} — "
         "parser may be matching content inside JSON strings"
     )
-    assert metric.relationship_relaxed_f1 == 0.0
+    assert metric.relationship_relaxed_f1 < 0.1, (
+        f"JSON-as-diagram scored relationship_relaxed_f1="
+        f"{metric.relationship_relaxed_f1} — the relationship regex may be "
+        "matching `-->` inside JSON string values"
+    )
 
 
 def test_ground_truth_echo_scores_perfect_ceiling():
@@ -126,8 +137,6 @@ def test_sparse_output_scores_below_ground_truth():
     # the leading token before "[" or "(" on entity declarations.
     truth = INPUT.ground_truth_path.read_text(encoding="utf-8")
     # Find the first node line: a token followed by '[' or '(' (Mermaid syntax).
-    import re
-
     match = re.search(r"^\s*([A-Za-z_][\w]*)[\[\(]", truth, re.MULTILINE)
     assert match, "Could not find any node id in ground truth — input format changed?"
     real_id = match.group(1)

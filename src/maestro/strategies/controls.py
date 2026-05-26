@@ -24,6 +24,13 @@ Determinism: each control's output is a pure function of the input file
 (NullControl ignores even that). The matrix builder collapses the
 ``model`` and ``run_number`` dimensions for controls — running them 5×
 per model would just produce duplicate rows.
+
+Duration semantics: ``RunResult.duration_ms`` for control rows reflects
+the wall-clock cost of the strategy itself, which is effectively zero
+for NullControl (no I/O) and a single small file read for the other
+two. Analysis code that filters on ``duration_ms > 0`` to "exclude
+errored runs" would inadvertently exclude NullControl rows — filter on
+``error IS NULL`` (or ``RunResult.success``) instead.
 """
 
 from __future__ import annotations
