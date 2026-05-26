@@ -5,11 +5,17 @@ Wraps the Mistral chat completions API into the LLMProvider interface.
 
 import time
 
+import httpx
 from mistralai.client import Mistral
-from mistralai.client.errors import SDKError
+from mistralai.client.errors import NoResponseError, SDKError
 
 from maestro.schemas import ModelPricing, RunConfig, RunResult, compute_cost
 from maestro.providers.base import LLMProvider
+from maestro.providers._retry import call_with_retry
+
+
+# See providers/openai.py for the rationale on this status set.
+_RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 
 class MistralProvider(LLMProvider):
@@ -32,6 +38,22 @@ class MistralProvider(LLMProvider):
         super().__init__(api_key, pricing)
         self._client = Mistral(api_key=api_key)
 
+    @staticmethod
+    def _is_retryable(exc: BaseException) -> bool:
+        """
+        mistralai exposes ``SDKError`` carrying ``raw_response: httpx.Response``;
+        we read ``status_code`` from there. ``NoResponseError`` means the SDK
+        got nothing back at all — always transient. Low-level httpx network
+        errors (connect / timeout) also surface unwrapped on some failure
+        modes and are equally transient.
+        """
+        if isinstance(exc, (NoResponseError, httpx.ConnectError, httpx.TimeoutException)):
+            return True
+        if isinstance(exc, SDKError):
+            status = getattr(getattr(exc, "raw_response", None), "status_code", None)
+            return status in _RETRYABLE_STATUS
+        return False
+
     def complete(
         self,
         prompt: str,
@@ -41,13 +63,15 @@ class MistralProvider(LLMProvider):
         """
         Call the Mistral chat completions endpoint and return a RunResult.
         Never raises — all exceptions are captured into RunResult.error.
+        Transient failures are retried with exponential backoff via
+        ``call_with_retry``.
         """
 
         start_ms = time.monotonic()
         effective_system = system_prompt if system_prompt is not None else self.SYSTEM_PROMPT
 
-        try:
-            response = self._client.chat.complete(
+        def _do_call():
+            return self._client.chat.complete(
                 model=config.model,
                 max_tokens=self.MAX_TOKENS,
                 temperature=self.TEMPERATURE,
@@ -55,6 +79,13 @@ class MistralProvider(LLMProvider):
                     {"role": "system", "content": effective_system},
                     {"role": "user", "content": prompt},
                 ],
+            )
+
+        try:
+            response, stats = call_with_retry(
+                _do_call,
+                is_retryable=self._is_retryable,
+                provider_name="mistral",
             )
 
             duration_ms = int((time.monotonic() - start_ms) * 1000)
@@ -79,6 +110,7 @@ class MistralProvider(LLMProvider):
                         prompt_tokens, completion_tokens, self.pricing
                     ),
                     error="EmptyResponse: Mistral returned no content",
+                    retry_count=stats.retry_count,
                 )
 
             return RunResult(
@@ -90,6 +122,7 @@ class MistralProvider(LLMProvider):
                 cost_usd=compute_cost(
                     prompt_tokens, completion_tokens, self.pricing
                 ),
+                retry_count=stats.retry_count,
             )
 
         except SDKError as e:

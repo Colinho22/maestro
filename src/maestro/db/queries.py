@@ -70,9 +70,9 @@ def insert_run_result(conn: sqlite3.Connection, result: RunResult) -> None:
         """
         INSERT INTO run_results
             (run_id, output_diagram_code, prompt_tokens, completion_tokens,
-             duration_ms, cost_usd, error)
+             duration_ms, cost_usd, error, retry_count)
         VALUES
-            (?, ?, ?, ?, ?, ?, ?)
+            (?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             str(result.run_id),
@@ -82,6 +82,7 @@ def insert_run_result(conn: sqlite3.Connection, result: RunResult) -> None:
             result.duration_ms,
             result.cost_usd,
             result.error,
+            result.retry_count,
         ),
     )
 

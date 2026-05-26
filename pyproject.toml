@@ -29,6 +29,10 @@ dependencies = [
     "google-genai>=1.75.0",
     "crewai>=1.6.1",
     "langgraph>=1.1.10",
+    # Provider-level retry with exponential backoff (see providers/_retry.py).
+    # Already pulled in transitively by langgraph/crewai but declared
+    # explicitly so it doesn't silently disappear on a transitive bump.
+    "tenacity>=8.0",
 ]
 
 [project.optional-dependencies]

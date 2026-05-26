@@ -6,10 +6,21 @@ Wraps the Anthropic messages API into the LLMProvider interface.
 import time
 
 import anthropic
-from anthropic import APIError, APITimeoutError, RateLimitError
+from anthropic import (
+    APIConnectionError,
+    APIError,
+    APIStatusError,
+    APITimeoutError,
+    RateLimitError,
+)
 
 from maestro.schemas import ModelPricing, RunConfig, RunResult, compute_cost
 from maestro.providers.base import LLMProvider
+from maestro.providers._retry import call_with_retry
+
+
+# See providers/openai.py for the rationale on this status set.
+_RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 
 class AnthropicProvider(LLMProvider):
@@ -33,6 +44,15 @@ class AnthropicProvider(LLMProvider):
         # Initialise the SDK client once — reused for all calls
         self._client = anthropic.Anthropic(api_key=api_key)
 
+    @staticmethod
+    def _is_retryable(exc: BaseException) -> bool:
+        """Mirrors OpenAIProvider._is_retryable — same SDK exception shape."""
+        if isinstance(exc, (APIConnectionError, APITimeoutError, RateLimitError)):
+            return True
+        if isinstance(exc, APIStatusError):
+            return exc.status_code in _RETRYABLE_STATUS
+        return False
+
     def complete(
         self,
         prompt: str,
@@ -42,13 +62,16 @@ class AnthropicProvider(LLMProvider):
         """
         Call the Anthropic messages endpoint and return a RunResult.
         Never raises — all exceptions are captured into RunResult.error.
+        Transient failures are retried with exponential backoff via
+        ``call_with_retry``; non-retryable errors fall through to the
+        handlers below on the first attempt.
         """
 
         start_ms = time.monotonic()
         effective_system = system_prompt if system_prompt is not None else self.SYSTEM_PROMPT
 
-        try:
-            response = self._client.messages.create(
+        def _do_call():
+            return self._client.messages.create(
                 model=config.model,
                 max_tokens=self.MAX_TOKENS,
                 temperature=self.TEMPERATURE,
@@ -56,6 +79,13 @@ class AnthropicProvider(LLMProvider):
                 messages=[
                     {"role": "user", "content": prompt},
                 ],
+            )
+
+        try:
+            response, stats = call_with_retry(
+                _do_call,
+                is_retryable=self._is_retryable,
+                provider_name="anthropic",
             )
 
             duration_ms = int((time.monotonic() - start_ms) * 1000)
@@ -76,6 +106,7 @@ class AnthropicProvider(LLMProvider):
                 cost_usd            = compute_cost(
                     prompt_tokens, completion_tokens, self.pricing
                 ),
+                retry_count         = stats.retry_count,
             )
 
         except RateLimitError as e:
