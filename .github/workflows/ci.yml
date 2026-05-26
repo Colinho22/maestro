@@ -1,0 +1,46 @@
+name: ci
+
+# Runs ruff (lint + format check) and pytest on PRs targeting main and on
+# main pushes. Branch pushes don't trigger the workflow — saves GitHub
+# minutes while still gating every PR.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cancel in-progress runs when new commits land on the same PR; the latest
+# diff is the only one worth gating.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # Match the .python-version pin and pyproject.toml requires-python.
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install project + dev extras
+        # Editable install so pytest's pythonpath = ["src"] picks up the
+        # package without needing site-packages indirection.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: ruff check
+        run: ruff check .
+
+      - name: ruff format --check
+        run: ruff format --check .
+
+      - name: pytest
+        run: pytest -v

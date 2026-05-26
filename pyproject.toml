@@ -58,6 +58,12 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
 
+[tool.ruff.lint.per-file-ignores]
+# run.py deliberately calls load_dotenv() and sets CrewAI env vars before
+# importing strategy modules — those imports must see the configured
+# environment, so they cannot move to the top of the file.
+"src/maestro/run.py" = ["E402"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]

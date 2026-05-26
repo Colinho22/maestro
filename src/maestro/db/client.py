@@ -7,7 +7,6 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
-
 # ---------------------------------------------------------------------------
 # Schema — creates tables if they don't exist
 # ---------------------------------------------------------------------------
@@ -64,7 +63,7 @@ CREATE TABLE IF NOT EXISTS sub_results (
     retry_count       INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (run_id) REFERENCES run_configs(run_id)
 );
-    
+
 CREATE TABLE IF NOT EXISTS metric_results (
     metric_id               TEXT PRIMARY KEY,
     run_id                  TEXT NOT NULL,

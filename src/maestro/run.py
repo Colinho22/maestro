@@ -45,16 +45,7 @@ load_dotenv()
 os.environ.setdefault("CREWAI_TRACING_ENABLED", "false")
 os.environ.setdefault("CREWAI_DISABLE_TELEMETRY", "true")
 
-from maestro.experiment_config import (
-    CONTROL_MODEL,
-    CONTROL_STRATEGIES,
-    DB_PATH,
-    DEFAULT_REPEATS,
-    INPUTS,
-    MODELS,
-    STRATEGIES,
-)
-from maestro.schemas import RunConfig, Strategy, Tier
+from maestro.analysis.metrics import evaluate_run
 from maestro.db.client import get_connection, init_db
 from maestro.db.environment import capture_environment
 from maestro.db.queries import (
@@ -64,11 +55,20 @@ from maestro.db.queries import (
     insert_run_result,
     insert_sub_result,
 )
-from maestro.analysis.metrics import evaluate_run
+from maestro.experiment_config import (
+    CONTROL_MODEL,
+    CONTROL_STRATEGIES,
+    DB_PATH,
+    DEFAULT_REPEATS,
+    INPUTS,
+    MODELS,
+    STRATEGIES,
+)
 from maestro.providers.anthropic import AnthropicProvider
-from maestro.providers.openai import OpenAIProvider
-from maestro.providers.mistral import MistralProvider
 from maestro.providers.gemini import GeminiProvider
+from maestro.providers.mistral import MistralProvider
+from maestro.providers.openai import OpenAIProvider
+from maestro.schemas import RunConfig, Strategy
 from maestro.strategies.controls import (
     CopyInputControlStrategy,
     GroundTruthEchoControlStrategy,
@@ -78,7 +78,6 @@ from maestro.strategies.crew import CrewAIStrategy
 from maestro.strategies.langgraph import LangGraphStrategy
 from maestro.strategies.single import SingleAgentStrategy
 from maestro.strategies.sop import SOPStrategy
-
 
 # ---------------------------------------------------------------------------
 # Strategy factory — maps enum to class
@@ -100,6 +99,7 @@ STRATEGY_MAP = {
 # Provider factory — maps model prefix to provider class
 # Currently only Anthropic; extend when adding OpenAI etc.
 # ---------------------------------------------------------------------------
+
 
 def _create_provider(model_pricing):
     """
@@ -145,6 +145,7 @@ def _create_provider(model_pricing):
 # ---------------------------------------------------------------------------
 # CLI argument parsing
 # ---------------------------------------------------------------------------
+
 
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments for filtering the experiment matrix."""
@@ -193,6 +194,7 @@ def parse_args() -> argparse.Namespace:
 # Matrix builder — apply filters
 # ---------------------------------------------------------------------------
 
+
 def build_matrix(args: argparse.Namespace) -> list[dict]:
     """
     Build the experiment matrix as a list of dicts, each representing one run.
@@ -231,23 +233,29 @@ def build_matrix(args: argparse.Namespace) -> list[dict]:
     # Order: run_number outermost so models are interleaved (no single
     # provider gets hammered back-to-back).
     for run_number in range(1, args.repeats + 1):
-        for input_file, strategy, model_pricing in product(inputs, real_strategies, models):
-            matrix.append({
-                "input_file": input_file,
-                "strategy": strategy,
-                "model_pricing": model_pricing,
-                "run_number": run_number,
-            })
+        for input_file, strategy, model_pricing in product(
+            inputs, real_strategies, models
+        ):
+            matrix.append(
+                {
+                    "input_file": input_file,
+                    "strategy": strategy,
+                    "model_pricing": model_pricing,
+                    "run_number": run_number,
+                }
+            )
 
     # Controls: one row per (input, control_strategy). Synthetic CONTROL_MODEL,
     # run_number=1. Not affected by --model or --repeats.
     for input_file, strategy in product(inputs, control_strategies):
-        matrix.append({
-            "input_file": input_file,
-            "strategy": strategy,
-            "model_pricing": CONTROL_MODEL,
-            "run_number": 1,
-        })
+        matrix.append(
+            {
+                "input_file": input_file,
+                "strategy": strategy,
+                "model_pricing": CONTROL_MODEL,
+                "run_number": 1,
+            }
+        )
 
     return matrix
 
@@ -256,13 +264,17 @@ def build_matrix(args: argparse.Namespace) -> list[dict]:
 # Main execution
 # ---------------------------------------------------------------------------
 
+
 def main():
     """Run the full experiment matrix with CLI filters applied."""
     args = parse_args()
     matrix = build_matrix(args)
 
     if not matrix:
-        print("No runs match the given filters. Check --strategy, --tier, --model, --example.")
+        print(
+            "No runs match the given filters. "
+            "Check --strategy, --tier, --model, --example."
+        )
         sys.exit(0)
 
     # Group summary for display

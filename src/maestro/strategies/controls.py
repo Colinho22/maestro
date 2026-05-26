@@ -83,7 +83,10 @@ class CopyInputControlStrategy(BaseStrategy):
         try:
             raw = input_file.file_path.read_text(encoding="utf-8")
         except Exception as e:
-            return (self._file_error(config, start, f"Failed to read input file: {e}"), [])
+            return (
+                self._file_error(config, start, f"Failed to read input file: {e}"),
+                [],
+            )
 
         duration_ms = int((time.monotonic() - start) * 1000)
         result = RunResult(
@@ -96,9 +99,7 @@ class CopyInputControlStrategy(BaseStrategy):
         )
         return (result, [])
 
-    def _file_error(
-        self, config: RunConfig, start: float, message: str
-    ) -> RunResult:
+    def _file_error(self, config: RunConfig, start: float, message: str) -> RunResult:
         return RunResult(
             run_id=config.run_id,
             output_diagram_code=None,
@@ -132,7 +133,10 @@ class GroundTruthEchoControlStrategy(BaseStrategy):
         try:
             truth = input_file.ground_truth_path.read_text(encoding="utf-8")
         except Exception as e:
-            return (self._file_error(config, start, f"Failed to read ground truth: {e}"), [])
+            return (
+                self._file_error(config, start, f"Failed to read ground truth: {e}"),
+                [],
+            )
 
         duration_ms = int((time.monotonic() - start) * 1000)
         result = RunResult(
@@ -145,9 +149,7 @@ class GroundTruthEchoControlStrategy(BaseStrategy):
         )
         return (result, [])
 
-    def _file_error(
-        self, config: RunConfig, start: float, message: str
-    ) -> RunResult:
+    def _file_error(self, config: RunConfig, start: float, message: str) -> RunResult:
         return RunResult(
             run_id=config.run_id,
             output_diagram_code=None,

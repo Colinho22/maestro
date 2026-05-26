@@ -86,6 +86,7 @@ def insert_run_result(conn: sqlite3.Connection, result: RunResult) -> None:
         ),
     )
 
+
 def insert_sub_result(conn: sqlite3.Connection, sub: SubResult) -> None:
     """Persist one sub-call result from a multi-step strategy."""
     conn.execute(
@@ -126,6 +127,7 @@ def fetch_sub_results_by_run(
         (run_id,),
     ).fetchall()
 
+
 def fetch_results_by_strategy(
     conn: sqlite3.Connection, strategy: str
 ) -> list[sqlite3.Row]:
@@ -153,6 +155,7 @@ def fetch_all_results(conn: sqlite3.Connection) -> list[sqlite3.Row]:
         """,
     ).fetchall()
 
+
 def insert_metric_result(conn: sqlite3.Connection, metric: MetricResult) -> None:
     """Persist evaluation metrics for one run."""
     conn.execute(
@@ -162,14 +165,28 @@ def insert_metric_result(conn: sqlite3.Connection, metric: MetricResult) -> None
              entity_id_precision, entity_id_recall, entity_id_f1,
              entity_name_precision, entity_name_recall, entity_name_f1,
              entity_lemma_precision, entity_lemma_recall, entity_lemma_f1,
-             relationship_relaxed_precision, relationship_relaxed_recall, relationship_relaxed_f1,
-             relationship_strict_precision, relationship_strict_recall, relationship_strict_f1,
+             relationship_relaxed_precision,
+             relationship_relaxed_recall,
+             relationship_relaxed_f1,
+             relationship_strict_precision,
+             relationship_strict_recall,
+             relationship_strict_f1,
              entities_in_output, entities_in_truth,
              relationships_in_output, relationships_in_truth,
-             missing_entities, extra_entities, false_entities, duplicate_entities,
-             missing_relationships, extra_relationships, false_relationships, duplicate_relationships)
+             missing_entities, extra_entities,
+             false_entities, duplicate_entities,
+             missing_relationships, extra_relationships,
+             false_relationships, duplicate_relationships)
         VALUES
-            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (?, ?, ?, ?,
+             ?, ?, ?,
+             ?, ?, ?,
+             ?, ?, ?,
+             ?, ?, ?,
+             ?, ?, ?,
+             ?, ?, ?, ?,
+             ?, ?, ?, ?,
+             ?, ?, ?, ?)
         """,
         (
             str(metric.metric_id),

@@ -9,8 +9,9 @@ Evaluation dimensions:
 """
 
 import re
-import subprocess
 import shutil
+import subprocess
+import tempfile
 from collections import Counter
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -18,10 +19,10 @@ from uuid import UUID
 
 from maestro.schemas import MetricResult
 
-
 # ---------------------------------------------------------------------------
 # Mermaid parsing validation via mmdc CLI
 # ---------------------------------------------------------------------------
+
 
 def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
     """
@@ -29,23 +30,33 @@ def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
     Returns (is_valid, error_message_or_none).
     Returns (None, skip_message) when mmdc is not installed.
     Requires: npm install -g @mermaid-js/mermaid-cli
+
+    Why the temp-file dance: mmdc *renders* its input to an output file
+    and requires the path to end with a known extension (.md, .svg,
+    .png, .pdf). Passing ``-o /dev/null`` worked-around the rendering
+    only on systems where mmdc happened not to validate the suffix; the
+    current SDK rejects it with "Output file must end with…". We hand
+    it a real temp PNG path, throw the file away, and only inspect the
+    return code — the validity signal we actually want.
     """
     mmdc = shutil.which("mmdc")
     if mmdc is None:
         return (None, "mmdc not found — validation skipped")
 
+    # NamedTemporaryFile with delete=True cleans up after the context exits.
+    # The file is created so mmdc has somewhere to write; we never read it.
     try:
-        result = subprocess.run(
-            [mmdc, "-i", "/dev/stdin", "-o", "/dev/null", "-e", "png"],
-            input=diagram_code,
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=True) as out:
+            result = subprocess.run(
+                [mmdc, "-i", "/dev/stdin", "-o", out.name, "-e", "png"],
+                input=diagram_code,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
         if result.returncode == 0:
             return (True, None)
-        else:
-            return (False, result.stderr.strip()[:500])
+        return (False, result.stderr.strip()[:500])
     except subprocess.TimeoutExpired:
         return (False, "mmdc timed out after 15s")
     except Exception as e:
@@ -55,6 +66,7 @@ def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
 # ---------------------------------------------------------------------------
 # Text normalization
 # ---------------------------------------------------------------------------
+
 
 def _normalize_label(label: str) -> str:
     """
@@ -87,6 +99,7 @@ def _lemmatize_label(label: str) -> str:
 # Mermaid text extraction — regex-based
 # ---------------------------------------------------------------------------
 
+
 def extract_nodes(mermaid_code: str) -> list[dict]:
     """
     Extract node definitions from Mermaid code.
@@ -105,12 +118,12 @@ def extract_nodes(mermaid_code: str) -> list[dict]:
     # Inline node pattern: matches id(Label), id["Label"], id[Label], id{Label}
     # Works anywhere in a line — catches nodes inside arrow chains
     inline_pattern = re.compile(
-        r'(\w+)\s*'           # node id
-        r'[\[\(\{]+'          # opening bracket(s)
-        r'["\']?\s*'          # optional quote
-        r'([^"\]\)\}]+?)'     # label (non-greedy)
-        r'\s*["\']?'          # optional closing quote
-        r'[\]\)\}]+'          # closing bracket(s)
+        r"(\w+)\s*"  # node id
+        r"[\[\(\{]+"  # opening bracket(s)
+        r'["\']?\s*'  # optional quote
+        r'([^"\]\)\}]+?)'  # label (non-greedy)
+        r'\s*["\']?'  # optional closing quote
+        r"[\]\)\}]+"  # closing bracket(s)
     )
 
     for line in mermaid_code.splitlines():
@@ -141,10 +154,10 @@ def extract_relationships(mermaid_code: str) -> list[dict]:
     relationships = []
 
     patterns = [
-        # Format: source -->|label| target  OR  source -.->|label| target  OR  source --> target
-        r'(\w+)\s+(-->|-.->)\s*(?:\|([^|]*)\|)?\s*(\w+)',
+        # source -->|label| target | source -.->|label| target | source --> target
+        r"(\w+)\s+(-->|-.->)\s*(?:\|([^|]*)\|)?\s*(\w+)",
         # Format: source -.label.-> target (inline dot-delimited label)
-        r'(\w+)\s+-\..*?\.->?\s*(\w+)',
+        r"(\w+)\s+-\..*?\.->?\s*(\w+)",
     ]
 
     seen = set()
@@ -160,11 +173,13 @@ def extract_relationships(mermaid_code: str) -> list[dict]:
         rel_type = "message_flow" if is_message else "sequence_flow"
         key = (source, target)
         if key not in seen:
-            relationships.append({
-                "source": source,
-                "target": target,
-                "type": rel_type,
-            })
+            relationships.append(
+                {
+                    "source": source,
+                    "target": target,
+                    "type": rel_type,
+                }
+            )
             seen.add(key)
 
     # Pattern 2: inline label between dots  e.g. -.Message Flow 1.->
@@ -173,11 +188,13 @@ def extract_relationships(mermaid_code: str) -> list[dict]:
         target = match.group(2)
         key = (source, target)
         if key not in seen:
-            relationships.append({
-                "source": source,
-                "target": target,
-                "type": "message_flow",
-            })
+            relationships.append(
+                {
+                    "source": source,
+                    "target": target,
+                    "type": "message_flow",
+                }
+            )
             seen.add(key)
 
     return relationships
@@ -186,6 +203,7 @@ def extract_relationships(mermaid_code: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Scoring helpers
 # ---------------------------------------------------------------------------
+
 
 def _f1(precision: float, recall: float) -> float:
     """Compute F1 score. Returns 0.0 if both inputs are 0."""
@@ -205,6 +223,7 @@ FUZZY_THRESHOLD = 0.75
 # ---------------------------------------------------------------------------
 # Entity metrics
 # ---------------------------------------------------------------------------
+
 
 def compute_entity_metrics_exact(
     output_nodes: list[dict], truth_nodes: list[dict]
@@ -278,6 +297,7 @@ def compute_entity_metrics_lemma(
 # Relationship metrics
 # ---------------------------------------------------------------------------
 
+
 def compute_relationship_metrics_relaxed(
     output_relationships: list[dict], truth_relationships: list[dict]
 ) -> tuple[float, float, float]:
@@ -298,7 +318,9 @@ def compute_relationship_metrics_strict(
     output_relationships: list[dict], truth_relationships: list[dict]
 ) -> tuple[float, float, float]:
     """Strict: match by (source, target, type) — all three must match."""
-    output_tuples = {(e["source"], e["target"], e["type"]) for e in output_relationships}
+    output_tuples = {
+        (e["source"], e["target"], e["type"]) for e in output_relationships
+    }
     truth_tuples = {(e["source"], e["target"], e["type"]) for e in truth_relationships}
 
     if not output_tuples:
@@ -314,9 +336,8 @@ def compute_relationship_metrics_strict(
 # Error taxonomy counts
 # ---------------------------------------------------------------------------
 
-def compute_entity_taxonomy(
-    output_nodes: list[dict], truth_nodes: list[dict]
-) -> dict:
+
+def compute_entity_taxonomy(output_nodes: list[dict], truth_nodes: list[dict]) -> dict:
     """
     Count entity-level errors by taxonomy category.
     Returns: {"missing": int, "extra": int, "false": int, "duplicate": int}
@@ -402,6 +423,7 @@ def compute_relationship_taxonomy(
 # Main evaluation function
 # ---------------------------------------------------------------------------
 
+
 def evaluate_run(
     run_id: UUID,
     output_diagram_code: str,
@@ -419,20 +441,37 @@ def evaluate_run(
             run_id=run_id,
             parses_valid=None,
             parse_error=f"Ground truth file not found: {ground_truth_path}",
-            entity_id_precision=0.0, entity_id_recall=0.0, entity_id_f1=0.0,
-            entity_name_precision=0.0, entity_name_recall=0.0, entity_name_f1=0.0,
-            entity_lemma_precision=0.0, entity_lemma_recall=0.0, entity_lemma_f1=0.0,
-            relationship_relaxed_precision=0.0, relationship_relaxed_recall=0.0, relationship_relaxed_f1=0.0,
-            relationship_strict_precision=0.0, relationship_strict_recall=0.0, relationship_strict_f1=0.0,
-            entities_in_output=0, entities_in_truth=0,
-            relationships_in_output=0, relationships_in_truth=0,
-            missing_entities=0, extra_entities=0, false_entities=0, duplicate_entities=0,
-            missing_relationships=0, extra_relationships=0, false_relationships=0, duplicate_relationships=0,
+            entity_id_precision=0.0,
+            entity_id_recall=0.0,
+            entity_id_f1=0.0,
+            entity_name_precision=0.0,
+            entity_name_recall=0.0,
+            entity_name_f1=0.0,
+            entity_lemma_precision=0.0,
+            entity_lemma_recall=0.0,
+            entity_lemma_f1=0.0,
+            relationship_relaxed_precision=0.0,
+            relationship_relaxed_recall=0.0,
+            relationship_relaxed_f1=0.0,
+            relationship_strict_precision=0.0,
+            relationship_strict_recall=0.0,
+            relationship_strict_f1=0.0,
+            entities_in_output=0,
+            entities_in_truth=0,
+            relationships_in_output=0,
+            relationships_in_truth=0,
+            missing_entities=0,
+            extra_entities=0,
+            false_entities=0,
+            duplicate_entities=0,
+            missing_relationships=0,
+            extra_relationships=0,
+            false_relationships=0,
+            duplicate_relationships=0,
         )
 
     # 1. Structural validity
     parses_valid, parse_error = check_mermaid_valid(output_diagram_code)
-
 
     # 2. Extract nodes and relationships
     output_nodes = extract_nodes(output_diagram_code)
@@ -440,21 +479,24 @@ def evaluate_run(
     output_relationships = extract_relationships(output_diagram_code)
     truth_relationships = extract_relationships(truth_code)
 
-
     # 3. Entity metrics — three levels
     id_p, id_r, id_f1 = compute_entity_metrics_exact(output_nodes, truth_nodes)
     name_p, name_r, name_f1 = compute_entity_metrics_fuzzy(output_nodes, truth_nodes)
     lemma_p, lemma_r, lemma_f1 = compute_entity_metrics_lemma(output_nodes, truth_nodes)
 
-
     # 4. Relationship metrics — two levels
-    rel_p, rel_r, rel_f1 = compute_relationship_metrics_relaxed(output_relationships, truth_relationships)
-    str_p, str_r, str_f1 = compute_relationship_metrics_strict(output_relationships, truth_relationships)
-
+    rel_p, rel_r, rel_f1 = compute_relationship_metrics_relaxed(
+        output_relationships, truth_relationships
+    )
+    str_p, str_r, str_f1 = compute_relationship_metrics_strict(
+        output_relationships, truth_relationships
+    )
 
     # 5. Error taxonomy
     entity_tax = compute_entity_taxonomy(output_nodes, truth_nodes)
-    relationship_tax = compute_relationship_taxonomy(output_relationships, truth_relationships)
+    relationship_tax = compute_relationship_taxonomy(
+        output_relationships, truth_relationships
+    )
 
     return MetricResult(
         run_id=run_id,

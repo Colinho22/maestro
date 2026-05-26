@@ -14,10 +14,9 @@ from openai import (
     RateLimitError,
 )
 
-from maestro.schemas import ModelPricing, RunConfig, RunResult, compute_cost
-from maestro.providers.base import LLMProvider
 from maestro.providers._retry import RetryStats, call_with_retry
-
+from maestro.providers.base import LLMProvider
+from maestro.schemas import ModelPricing, RunConfig, RunResult, compute_cost
 
 # HTTP status codes that indicate a transient server-side problem worth
 # retrying. 429 (rate limit) and 5xx (server errors). 4xx other than 429 are
@@ -77,7 +76,9 @@ class OpenAIProvider(LLMProvider):
         """
 
         start_ms = time.monotonic()
-        effective_system = system_prompt if system_prompt is not None else self.SYSTEM_PROMPT
+        effective_system = (
+            system_prompt if system_prompt is not None else self.SYSTEM_PROMPT
+        )
 
         # Owned by the caller so retry_count survives an exhausted-retries
         # exception — the except blocks below read stats.retry_count to
@@ -119,27 +120,37 @@ class OpenAIProvider(LLMProvider):
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 duration_ms=duration_ms,
-                cost_usd=compute_cost(
-                    prompt_tokens, completion_tokens, self.pricing
-                ),
+                cost_usd=compute_cost(prompt_tokens, completion_tokens, self.pricing),
                 retry_count=stats.retry_count,
             )
 
         except RateLimitError as e:
-            return self._error_result(config, start_ms, f"RateLimitError: {e}", stats.retry_count)
+            return self._error_result(
+                config, start_ms, f"RateLimitError: {e}", stats.retry_count
+            )
 
         except APITimeoutError as e:
-            return self._error_result(config, start_ms, f"TimeoutError: {e}", stats.retry_count)
+            return self._error_result(
+                config, start_ms, f"TimeoutError: {e}", stats.retry_count
+            )
 
         except APIError as e:
-            return self._error_result(config, start_ms, f"APIError: {e}", stats.retry_count)
+            return self._error_result(
+                config, start_ms, f"APIError: {e}", stats.retry_count
+            )
 
         except Exception as e:
             # Catch-all — unexpected failures should not crash the experiment
-            return self._error_result(config, start_ms, f"UnexpectedError: {e}", stats.retry_count)
+            return self._error_result(
+                config, start_ms, f"UnexpectedError: {e}", stats.retry_count
+            )
 
     def _error_result(
-        self, config: RunConfig, start_ms: float, error: str, retry_count: int = 0,
+        self,
+        config: RunConfig,
+        start_ms: float,
+        error: str,
+        retry_count: int = 0,
     ) -> RunResult:
         """
         Build a failed RunResult with zero token counts and the error message.

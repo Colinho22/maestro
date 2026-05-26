@@ -18,7 +18,6 @@ Adding a new multi-step strategy?
 
 import json
 
-
 # ---------------------------------------------------------------------------
 # Step 1 — Extract entities (nodes) from the input dataset
 # ---------------------------------------------------------------------------
@@ -132,6 +131,7 @@ MAX_RETRIES = 1
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def strip_fences(text: str | None) -> str | None:
     """
     Remove markdown code fences if present.
@@ -148,7 +148,9 @@ def strip_fences(text: str | None) -> str | None:
     return stripped.strip()
 
 
-def validate_step_payload(text: str | None, step_number: int) -> tuple[bool, str | None]:
+def validate_step_payload(
+    text: str | None, step_number: int
+) -> tuple[bool, str | None]:
     """
     Validate a step-1 or step-2 JSON payload against its expected schema shape.
 

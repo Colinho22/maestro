@@ -9,10 +9,9 @@ import httpx
 from mistralai.client import Mistral
 from mistralai.client.errors import NoResponseError, SDKError
 
-from maestro.schemas import ModelPricing, RunConfig, RunResult, compute_cost
-from maestro.providers.base import LLMProvider
 from maestro.providers._retry import RetryStats, call_with_retry
-
+from maestro.providers.base import LLMProvider
+from maestro.schemas import ModelPricing, RunConfig, RunResult, compute_cost
 
 # See providers/openai.py for the rationale on this status set.
 _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
@@ -47,7 +46,9 @@ class MistralProvider(LLMProvider):
         errors (connect / timeout) also surface unwrapped on some failure
         modes and are equally transient.
         """
-        if isinstance(exc, (NoResponseError, httpx.ConnectError, httpx.TimeoutException)):
+        if isinstance(
+            exc, (NoResponseError, httpx.ConnectError, httpx.TimeoutException)
+        ):
             return True
         if isinstance(exc, SDKError):
             status = getattr(getattr(exc, "raw_response", None), "status_code", None)
@@ -68,7 +69,9 @@ class MistralProvider(LLMProvider):
         """
 
         start_ms = time.monotonic()
-        effective_system = system_prompt if system_prompt is not None else self.SYSTEM_PROMPT
+        effective_system = (
+            system_prompt if system_prompt is not None else self.SYSTEM_PROMPT
+        )
 
         # Owned by the caller so retry_count survives an exhausted-retries
         # exception — the except blocks below read stats.retry_count to
@@ -126,20 +129,26 @@ class MistralProvider(LLMProvider):
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 duration_ms=duration_ms,
-                cost_usd=compute_cost(
-                    prompt_tokens, completion_tokens, self.pricing
-                ),
+                cost_usd=compute_cost(prompt_tokens, completion_tokens, self.pricing),
                 retry_count=stats.retry_count,
             )
 
         except SDKError as e:
-            return self._error_result(config, start_ms, f"SDKError: {e}", stats.retry_count)
+            return self._error_result(
+                config, start_ms, f"SDKError: {e}", stats.retry_count
+            )
 
         except Exception as e:
-            return self._error_result(config, start_ms, f"UnexpectedError: {e}", stats.retry_count)
+            return self._error_result(
+                config, start_ms, f"UnexpectedError: {e}", stats.retry_count
+            )
 
     def _error_result(
-        self, config: RunConfig, start_ms: float, error: str, retry_count: int = 0,
+        self,
+        config: RunConfig,
+        start_ms: float,
+        error: str,
+        retry_count: int = 0,
     ) -> RunResult:
         """
         Build a failed RunResult with zero token counts and the error message.

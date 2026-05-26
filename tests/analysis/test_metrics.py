@@ -20,7 +20,6 @@ import pytest
 from maestro.analysis.metrics import evaluate_run
 from maestro.experiment_config import INPUTS
 
-
 # All tests run against the first registered input. If/when the input
 # registry grows, parametrising over INPUTS is the obvious extension.
 INPUT = INPUTS[0]
@@ -133,7 +132,7 @@ def test_sparse_output_scores_below_ground_truth():
     assert match, "Could not find any node id in ground truth — input format changed?"
     real_id = match.group(1)
 
-    sparse_diagram = f"flowchart LR\n    {real_id}[\"Some Label\"]\n"
+    sparse_diagram = f'flowchart LR\n    {real_id}["Some Label"]\n'
     metric = evaluate_run(
         run_id=uuid4(),
         output_diagram_code=sparse_diagram,

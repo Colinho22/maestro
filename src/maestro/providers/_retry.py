@@ -37,7 +37,6 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
-
 T = TypeVar("T")
 
 
@@ -47,7 +46,7 @@ T = TypeVar("T")
 # stall the whole matrix for many minutes.
 MAX_ATTEMPTS = 5
 WAIT_INITIAL = 2.0
-WAIT_MAX     = 60.0
+WAIT_MAX = 60.0
 
 
 @dataclass

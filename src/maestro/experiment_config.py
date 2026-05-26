@@ -12,7 +12,6 @@ from pathlib import Path
 
 from maestro.schemas import InputFile, ModelPricing, Strategy, Tier
 
-
 # ---------------------------------------------------------------------------
 # Base path for all data files (relative to project root)
 # ---------------------------------------------------------------------------
@@ -27,7 +26,7 @@ DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 INPUTS: list[InputFile] = [
     InputFile(
         example_id="bpmn_collaboration_01",
-        tier=Tier.INTERMEDIATE,
+        tier=Tier.COMPLEX,
         entity_count=17,
         file_path=DATA_DIR / "bpmn_collaboration_01.JSON",
         ground_truth_path=DATA_DIR / "bpmn_collaboration_01_ground_truth.MMD",
