@@ -219,6 +219,19 @@ def build_matrix(args: argparse.Namespace) -> list[dict]:
     models = MODELS
     if args.model:
         models = [m for m in models if m.model == args.model]
+        # Fail fast on an unknown model: without this guard a typo (e.g.
+        # `--model gpt-4o-min`) would silently produce only the 3 control
+        # rows — looks like a tiny matrix instead of the misuse it is.
+        # Controls always run regardless of --model, so the empty-models
+        # case below would not catch this on its own.
+        if not models:
+            known = ", ".join(m.model for m in MODELS)
+            print(
+                f"ERROR: --model {args.model!r} matches no registered model. "
+                f"Known: {known}",
+                file=sys.stderr,
+            )
+            sys.exit(2)
 
     # Partition by strategy kind. Controls are deterministic in (model,
     # repeat) — collapsing both dimensions to a single row per
