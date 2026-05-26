@@ -5,6 +5,19 @@
 
 version: 2
 updates:
+  # GitHub Actions are SHA-pinned in .github/workflows/*.yml. Without
+  # this ecosystem entry Dependabot would not propose updates and the
+  # pins would go stale, which defeats the security argument for
+  # pinning in the first place.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      gh-actions:
+        patterns:
+          - "*"
+
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
