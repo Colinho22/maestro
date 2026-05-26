@@ -26,7 +26,6 @@ from importlib.metadata import PackageNotFoundError, version
 
 from maestro.schemas import RunEnvironment
 
-
 # Libraries whose installed version materially changes experiment behavior.
 # Mirrors the runtime dependencies in pyproject.toml — pure dev tooling
 # (pytest, ruff) is intentionally excluded since it has no effect on the
@@ -107,7 +106,9 @@ def _lib_versions() -> dict[str, str | None]:
     return resolved
 
 
-def capture_environment(image_digest_env: str = "MAESTRO_IMAGE_DIGEST") -> RunEnvironment:
+def capture_environment(
+    image_digest_env: str = "MAESTRO_IMAGE_DIGEST",
+) -> RunEnvironment:
     """
     Snapshot the runtime environment for this CLI invocation.
 

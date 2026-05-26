@@ -39,7 +39,6 @@ from maestro.schemas import (
     RunResult,
     SubResult,
 )
-from maestro.strategies.base import BaseStrategy
 from maestro.strategies._extraction import (
     JSON_EXTRACTION_SYSTEM_PROMPT,
     MAX_RETRIES,
@@ -49,15 +48,17 @@ from maestro.strategies._extraction import (
     strip_fences,
     validate_step_payload,
 )
-
+from maestro.strategies.base import BaseStrategy
 
 # ---------------------------------------------------------------------------
 # Per-call telemetry — captured by the LLM adapter, harvested by the strategy
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class _CallRecord:
     """One LLM round-trip as observed by the adapter."""
+
     prompt_tokens: int
     completion_tokens: int
     duration_ms: int
@@ -69,12 +70,14 @@ class _CallRecord:
 @dataclass
 class _Recorder:
     """Mutable list of call records owned by the strategy, written by the adapter."""
+
     calls: list[_CallRecord] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
 # LLM adapter — bridges CrewAI's BaseLLM contract to our LLMProvider
 # ---------------------------------------------------------------------------
+
 
 class MaestroBackedLLM(BaseLLM):
     """
@@ -176,7 +179,9 @@ STEPS = [
         "number": 1,
         "name": "extract_entities",
         "agent_role": "Entity Extractor",
-        "agent_goal": "Extract every entity and its hierarchy from the input dataset as JSON.",
+        "agent_goal": (
+            "Extract every entity and its hierarchy from the input dataset as JSON."
+        ),
         "task_prompt": STEP_1_PROMPT,
         "expected_output": "A JSON object with an `entities` list.",
         "system_prompt": JSON_EXTRACTION_SYSTEM_PROMPT,
@@ -194,7 +199,10 @@ STEPS = [
         "number": 3,
         "name": "generate_mermaid",
         "agent_role": "Mermaid Renderer",
-        "agent_goal": "Generate a valid Mermaid diagram from the provided entities and relationships.",
+        "agent_goal": (
+            "Generate a valid Mermaid diagram from the provided entities "
+            "and relationships."
+        ),
         "task_prompt": STEP_3_PROMPT,
         "expected_output": "Valid Mermaid diagram code.",
         "system_prompt": None,
@@ -205,6 +213,7 @@ STEPS = [
 # ---------------------------------------------------------------------------
 # Strategy
 # ---------------------------------------------------------------------------
+
 
 class CrewAIStrategy(BaseStrategy):
     """
@@ -265,14 +274,18 @@ class CrewAIStrategy(BaseStrategy):
 
             if sub.error is not None:
                 return self._aggregate(
-                    config, sub_results, total_start,
+                    config,
+                    sub_results,
+                    total_start,
                     error=f"Step {step['number']} ({step['name']}) failed: {sub.error}",
                 )
 
             step_outputs[step["name"]] = output_text
 
         return self._aggregate(
-            config, sub_results, total_start,
+            config,
+            sub_results,
+            total_start,
             diagram_code=step_outputs["generate_mermaid"],
         )
 
@@ -310,7 +323,7 @@ class CrewAIStrategy(BaseStrategy):
         for attempt in range(MAX_RETRIES + 1):
             actual_retries = attempt
 
-            # Fresh adapter + crew per attempt — CrewAI mutates internal state on kickoff.
+            # Fresh adapter + crew per attempt — CrewAI mutates state on kickoff.
             llm = MaestroBackedLLM(
                 provider=self.provider,
                 config=config,
@@ -321,7 +334,8 @@ class CrewAIStrategy(BaseStrategy):
                 role=agent_role,
                 goal=agent_goal,
                 backstory=(
-                    "You execute one focused step in a multi-agent diagram-generation pipeline."
+                    "You execute one focused step in a multi-agent "
+                    "diagram-generation pipeline."
                 ),
                 llm=llm,
                 allow_delegation=False,
@@ -430,7 +444,7 @@ class CrewAIStrategy(BaseStrategy):
         input_data: str,
         step_outputs: dict[str, str],
     ) -> str:
-        """Identical to SOP._build_prompt — fill template variables from prior outputs."""
+        """Like SOP._build_prompt — fill template vars from prior outputs."""
         template = step["task_prompt"]
         fmt = {"input_data": input_data}
         if "extract_entities" in step_outputs:

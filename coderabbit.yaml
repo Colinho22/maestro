@@ -9,6 +9,23 @@ reviews:
 
   review_simple_changes: false
 
+  # Exclude files that contribute noise to docstring / lint coverage
+  # metrics. The thesis artifact lives under src/ and tests/; everything
+  # else is generated, locked, or non-Python data we don't want CodeRabbit
+  # gating PRs on.
+  path_filters:
+    - "!**/*.lock"
+    - "!**/*.min.js"
+    - "!**/*.min.css"
+    - "!**/dist/**"
+    - "!**/build/**"
+    - "!**/.venv/**"
+    - "!**/__pycache__/**"
+    - "!**/*.db"
+    - "!data/**"          # benchmark inputs + ground truth, not code
+    - "!**/*.MMD"
+    - "!**/*.JSON"
+
   # Global instructions
   instructions: |
     - Suggest using 'f-strings' over older '.format()' or '%' formatting.
@@ -19,3 +36,12 @@ reviews:
       openai.OpenAI, mistralai.Mistral).
     - Strategy classes (subclasses of base.Strategy in src/maestro/strategies/) must
       use the 'Strategy' suffix (e.g. SingleAgentStrategy, SOPStrategy).
+    - Docstring scope for this codebase: substantive prose on classes,
+      public functions, and any function whose behaviour is not obvious
+      from name + type signature. Do NOT flag missing docstrings on:
+      __init__ methods that only call super() and assign attributes;
+      single-line private helpers (_name) when the parent class has
+      module/class-level prose explaining the pattern; trivial @property
+      accessors. Consistency with existing codebase style takes
+      precedence over universal coverage — this is a thesis artifact,
+      not a library API.

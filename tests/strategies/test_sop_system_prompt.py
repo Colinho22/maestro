@@ -21,11 +21,19 @@ from maestro.strategies.sop import SOPStrategy
 
 
 def _valid_step1_output() -> str:
-    return json.dumps({"entities": [{"id": "e1", "name": "E1", "type": "t", "parent_id": None}]})
+    return json.dumps(
+        {"entities": [{"id": "e1", "name": "E1", "type": "t", "parent_id": None}]}
+    )
 
 
 def _valid_step2_output() -> str:
-    return json.dumps({"relationships": [{"id": "r1", "source": "e1", "target": "e1", "type": "t", "label": None}]})
+    return json.dumps(
+        {
+            "relationships": [
+                {"id": "r1", "source": "e1", "target": "e1", "type": "t", "label": None}
+            ]
+        }
+    )
 
 
 def test_sop_forwards_per_step_system_prompt(tmp_path, recording_provider_factory):

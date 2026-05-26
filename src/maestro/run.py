@@ -45,14 +45,7 @@ load_dotenv()
 os.environ.setdefault("CREWAI_TRACING_ENABLED", "false")
 os.environ.setdefault("CREWAI_DISABLE_TELEMETRY", "true")
 
-from maestro.experiment_config import (
-    DB_PATH,
-    DEFAULT_REPEATS,
-    INPUTS,
-    MODELS,
-    STRATEGIES,
-)
-from maestro.schemas import RunConfig, Strategy, Tier
+from maestro.analysis.metrics import evaluate_run
 from maestro.db.client import get_connection, init_db
 from maestro.db.environment import capture_environment
 from maestro.db.queries import (
@@ -62,16 +55,29 @@ from maestro.db.queries import (
     insert_run_result,
     insert_sub_result,
 )
-from maestro.analysis.metrics import evaluate_run
+from maestro.experiment_config import (
+    CONTROL_MODEL,
+    CONTROL_STRATEGIES,
+    DB_PATH,
+    DEFAULT_REPEATS,
+    INPUTS,
+    MODELS,
+    STRATEGIES,
+)
 from maestro.providers.anthropic import AnthropicProvider
-from maestro.providers.openai import OpenAIProvider
-from maestro.providers.mistral import MistralProvider
 from maestro.providers.gemini import GeminiProvider
+from maestro.providers.mistral import MistralProvider
+from maestro.providers.openai import OpenAIProvider
+from maestro.schemas import RunConfig, Strategy
+from maestro.strategies.controls import (
+    CopyInputControlStrategy,
+    GroundTruthEchoControlStrategy,
+    NullControlStrategy,
+)
 from maestro.strategies.crew import CrewAIStrategy
 from maestro.strategies.langgraph import LangGraphStrategy
 from maestro.strategies.single import SingleAgentStrategy
 from maestro.strategies.sop import SOPStrategy
-
 
 # ---------------------------------------------------------------------------
 # Strategy factory — maps enum to class
@@ -82,6 +88,10 @@ STRATEGY_MAP = {
     Strategy.SOP_BASED: SOPStrategy,
     Strategy.CREW_AI: CrewAIStrategy,
     Strategy.LANG_GRAPH: LangGraphStrategy,
+    # Controls — see strategies/controls.py for rationale
+    Strategy.NULL_CONTROL: NullControlStrategy,
+    Strategy.COPY_CONTROL: CopyInputControlStrategy,
+    Strategy.GROUND_TRUTH_CONTROL: GroundTruthEchoControlStrategy,
 }
 
 
@@ -89,6 +99,7 @@ STRATEGY_MAP = {
 # Provider factory — maps model prefix to provider class
 # Currently only Anthropic; extend when adding OpenAI etc.
 # ---------------------------------------------------------------------------
+
 
 def _create_provider(model_pricing):
     """
@@ -134,6 +145,7 @@ def _create_provider(model_pricing):
 # ---------------------------------------------------------------------------
 # CLI argument parsing
 # ---------------------------------------------------------------------------
+
 
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments for filtering the experiment matrix."""
@@ -182,6 +194,7 @@ def parse_args() -> argparse.Namespace:
 # Matrix builder — apply filters
 # ---------------------------------------------------------------------------
 
+
 def build_matrix(args: argparse.Namespace) -> list[dict]:
     """
     Build the experiment matrix as a list of dicts, each representing one run.
@@ -199,23 +212,67 @@ def build_matrix(args: argparse.Namespace) -> list[dict]:
     if args.strategy:
         strategies = [s for s in strategies if s.value == args.strategy]
 
-    # Filter models
+    # Filter models — applies only to real (LLM) strategies. Control rows
+    # ignore --model because they don't use a model; --model gpt-4o-mini
+    # should narrow which LLM rows run but should not silently drop the
+    # sanity floor/ceiling rows the experiment needs.
     models = MODELS
     if args.model:
         models = [m for m in models if m.model == args.model]
 
-    # Build cross-product
-    # Order: run_number outermost, then input, strategy, model
-    # This interleaves models so no single provider gets hammered back-to-back
+    # Partition by strategy kind. Controls are deterministic in (model,
+    # repeat) — collapsing both dimensions to a single row per
+    # (input, control) avoids 40× duplicate rows per input that would
+    # need to be filtered out at analysis time anyway.
+    real_strategies = [s for s in strategies if s not in CONTROL_STRATEGIES]
+    control_strategies = [s for s in strategies if s in CONTROL_STRATEGIES]
+
+    # Fail fast on an unknown --model only when it actually matters:
+    # `--strategy null_control --model typo` should be a no-op on --model
+    # (controls don't use any model) rather than aborting. Without this
+    # guard, however, `--model gpt-4o-min` would silently produce just
+    # the 3 control rows when the user wanted a single LLM cell — looks
+    # like a tiny matrix instead of the misuse it is. So: validate the
+    # model flag only when there's at least one real strategy left after
+    # the strategy filter.
+    if args.model and real_strategies and not models:
+        known = ", ".join(m.model for m in MODELS)
+        print(
+            f"ERROR: --model {args.model!r} matches no registered model. "
+            f"Known: {known}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
     matrix = []
+
+    # Real strategies: full inputs × strategies × models × repeats fan-out.
+    # Order: run_number outermost so models are interleaved (no single
+    # provider gets hammered back-to-back).
     for run_number in range(1, args.repeats + 1):
-        for input_file, strategy, model_pricing in product(inputs, strategies, models):
-            matrix.append({
+        for input_file, strategy, model_pricing in product(
+            inputs, real_strategies, models
+        ):
+            matrix.append(
+                {
+                    "input_file": input_file,
+                    "strategy": strategy,
+                    "model_pricing": model_pricing,
+                    "run_number": run_number,
+                }
+            )
+
+    # Controls: one row per (input, control_strategy). Synthetic CONTROL_MODEL,
+    # run_number=1. Not affected by --model or --repeats.
+    for input_file, strategy in product(inputs, control_strategies):
+        matrix.append(
+            {
                 "input_file": input_file,
                 "strategy": strategy,
-                "model_pricing": model_pricing,
-                "run_number": run_number,
-            })
+                "model_pricing": CONTROL_MODEL,
+                "run_number": 1,
+            }
+        )
 
     return matrix
 
@@ -224,13 +281,17 @@ def build_matrix(args: argparse.Namespace) -> list[dict]:
 # Main execution
 # ---------------------------------------------------------------------------
 
+
 def main():
     """Run the full experiment matrix with CLI filters applied."""
     args = parse_args()
     matrix = build_matrix(args)
 
     if not matrix:
-        print("No runs match the given filters. Check --strategy, --tier, --model, --example.")
+        print(
+            "No runs match the given filters. "
+            "Check --strategy, --tier, --model, --example."
+        )
         sys.exit(0)
 
     # Group summary for display
@@ -307,13 +368,17 @@ def main():
             environment_id=environment.environment_id,
         )
 
-        # Instantiate provider and strategy
-        provider = _create_provider(model_pricing)
+        # Instantiate strategy. Controls don't need a provider — they
+        # bypass the LLM entirely; passing one would just be unused state.
         strategy_cls = STRATEGY_MAP.get(strategy_enum)
         if strategy_cls is None:
             print(f"  SKIP — strategy {strategy_enum.value} not implemented")
             continue
-        strategy = strategy_cls(provider=provider)
+        if strategy_enum in CONTROL_STRATEGIES:
+            strategy = strategy_cls()
+        else:
+            provider = _create_provider(model_pricing)
+            strategy = strategy_cls(provider=provider)
 
         # Execute
         result, sub_results = strategy.run(

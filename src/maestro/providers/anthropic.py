@@ -14,10 +14,9 @@ from anthropic import (
     RateLimitError,
 )
 
-from maestro.schemas import ModelPricing, RunConfig, RunResult, compute_cost
-from maestro.providers.base import LLMProvider
 from maestro.providers._retry import RetryStats, call_with_retry
-
+from maestro.providers.base import LLMProvider
+from maestro.schemas import ModelPricing, RunConfig, RunResult, compute_cost
 
 # See providers/openai.py for the rationale on this status set.
 _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
@@ -68,7 +67,9 @@ class AnthropicProvider(LLMProvider):
         """
 
         start_ms = time.monotonic()
-        effective_system = system_prompt if system_prompt is not None else self.SYSTEM_PROMPT
+        effective_system = (
+            system_prompt if system_prompt is not None else self.SYSTEM_PROMPT
+        )
 
         # Owned by the caller so retry_count survives an exhausted-retries
         # exception — the except blocks below read stats.retry_count to
@@ -98,39 +99,49 @@ class AnthropicProvider(LLMProvider):
             duration_ms = int((time.monotonic() - start_ms) * 1000)
 
             # Anthropic returns usage on every non-streaming response
-            prompt_tokens     = response.usage.input_tokens
+            prompt_tokens = response.usage.input_tokens
             completion_tokens = response.usage.output_tokens
 
             # Response content is a list of blocks — grab the first text block
             output = response.content[0].text
 
             return RunResult(
-                run_id              = config.run_id,
-                output_diagram_code = output,
-                prompt_tokens       = prompt_tokens,
-                completion_tokens   = completion_tokens,
-                duration_ms         = duration_ms,
-                cost_usd            = compute_cost(
-                    prompt_tokens, completion_tokens, self.pricing
-                ),
-                retry_count         = stats.retry_count,
+                run_id=config.run_id,
+                output_diagram_code=output,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                duration_ms=duration_ms,
+                cost_usd=compute_cost(prompt_tokens, completion_tokens, self.pricing),
+                retry_count=stats.retry_count,
             )
 
         except RateLimitError as e:
-            return self._error_result(config, start_ms, f"RateLimitError: {e}", stats.retry_count)
+            return self._error_result(
+                config, start_ms, f"RateLimitError: {e}", stats.retry_count
+            )
 
         except APITimeoutError as e:
-            return self._error_result(config, start_ms, f"TimeoutError: {e}", stats.retry_count)
+            return self._error_result(
+                config, start_ms, f"TimeoutError: {e}", stats.retry_count
+            )
 
         except APIError as e:
-            return self._error_result(config, start_ms, f"APIError: {e}", stats.retry_count)
+            return self._error_result(
+                config, start_ms, f"APIError: {e}", stats.retry_count
+            )
 
         except Exception as e:
             # Catch-all — unexpected failures should not crash the experiment
-            return self._error_result(config, start_ms, f"UnexpectedError: {e}", stats.retry_count)
+            return self._error_result(
+                config, start_ms, f"UnexpectedError: {e}", stats.retry_count
+            )
 
     def _error_result(
-        self, config: RunConfig, start_ms: float, error: str, retry_count: int = 0,
+        self,
+        config: RunConfig,
+        start_ms: float,
+        error: str,
+        retry_count: int = 0,
     ) -> RunResult:
         """
         Build a failed RunResult with zero token counts and the error message.
@@ -138,12 +149,12 @@ class AnthropicProvider(LLMProvider):
         retries failure still records how many attempts were made.
         """
         return RunResult(
-            run_id              = config.run_id,
-            output_diagram_code = None,
-            prompt_tokens       = 0,
-            completion_tokens   = 0,
-            duration_ms         = int((time.monotonic() - start_ms) * 1000),
-            cost_usd            = 0.0,
-            error               = error,
-            retry_count         = retry_count,
+            run_id=config.run_id,
+            output_diagram_code=None,
+            prompt_tokens=0,
+            completion_tokens=0,
+            duration_ms=int((time.monotonic() - start_ms) * 1000),
+            cost_usd=0.0,
+            error=error,
+            retry_count=retry_count,
         )

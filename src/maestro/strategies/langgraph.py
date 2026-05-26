@@ -30,7 +30,7 @@ import json
 import time
 from typing import TypedDict
 
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import END, START, StateGraph
 
 from maestro.providers.base import LLMProvider
 from maestro.schemas import (
@@ -39,7 +39,6 @@ from maestro.schemas import (
     RunResult,
     SubResult,
 )
-from maestro.strategies.base import BaseStrategy
 from maestro.strategies._extraction import (
     JSON_EXTRACTION_SYSTEM_PROMPT,
     MAX_RETRIES,
@@ -49,11 +48,12 @@ from maestro.strategies._extraction import (
     strip_fences,
     validate_step_payload,
 )
-
+from maestro.strategies.base import BaseStrategy
 
 # ---------------------------------------------------------------------------
 # Graph state — every channel the nodes can read or write
 # ---------------------------------------------------------------------------
+
 
 class GraphState(TypedDict, total=False):
     """
@@ -63,25 +63,27 @@ class GraphState(TypedDict, total=False):
     keys present in the dict get merged into the running state. ``total=False``
     lets us declare every channel up-front while leaving them unset on entry.
     """
-    input_data:         str
-    entities_json:      str
+
+    input_data: str
+    entities_json: str
     relationships_json: str
-    diagram_code:       str
-    sub_results:        list[SubResult]
-    error:              str | None
+    diagram_code: str
+    sub_results: list[SubResult]
+    error: str | None
 
 
 # ---------------------------------------------------------------------------
 # Per-step execution — shared by all three nodes
 # ---------------------------------------------------------------------------
 
+
 def _run_step(
     *,
-    provider:      LLMProvider,
-    config:        RunConfig,
-    step_number:   int,
-    step_name:     str,
-    prompt:        str,
+    provider: LLMProvider,
+    config: RunConfig,
+    step_number: int,
+    step_name: str,
+    prompt: str,
     system_prompt: str | None,
 ) -> SubResult:
     """
@@ -155,6 +157,7 @@ def _run_step(
 # ---------------------------------------------------------------------------
 # Node factory — closes over (provider, config) and returns the three nodes
 # ---------------------------------------------------------------------------
+
 
 def _make_nodes(provider: LLMProvider, config: RunConfig):
     """
@@ -230,6 +233,7 @@ def _make_nodes(provider: LLMProvider, config: RunConfig):
 # Conditional edge — short-circuit to END if a step set state["error"]
 # ---------------------------------------------------------------------------
 
+
 def _route_after_step(next_step: str):
     """
     Build a router function that LangGraph calls after each node to decide
@@ -239,16 +243,19 @@ def _route_after_step(next_step: str):
     Defining this once and parameterising it keeps the graph wiring symmetric
     across the three steps.
     """
+
     def router(state: GraphState) -> str:
         if state.get("error") is not None:
             return END
         return next_step
+
     return router
 
 
 # ---------------------------------------------------------------------------
 # Strategy
 # ---------------------------------------------------------------------------
+
 
 class LangGraphStrategy(BaseStrategy):
     """
@@ -296,9 +303,9 @@ class LangGraphStrategy(BaseStrategy):
         )
 
         graph = StateGraph(GraphState)
-        graph.add_node("extract_entities",      extract_entities)
+        graph.add_node("extract_entities", extract_entities)
         graph.add_node("extract_relationships", extract_relationships)
-        graph.add_node("generate_mermaid",      generate_mermaid)
+        graph.add_node("generate_mermaid", generate_mermaid)
 
         graph.add_edge(START, "extract_entities")
         graph.add_conditional_edges(
@@ -326,7 +333,9 @@ class LangGraphStrategy(BaseStrategy):
         diagram_code = final_state.get("diagram_code") if error is None else None
 
         return self._aggregate(
-            config, sub_results, total_start,
+            config,
+            sub_results,
+            total_start,
             diagram_code=diagram_code,
             error=error,
         )

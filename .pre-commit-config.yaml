@@ -1,0 +1,26 @@
+# Pre-commit hooks for MAESTRO.
+#
+# Mirrors the CI workflow's ruff steps so formatting / lint issues are
+# caught locally before they show up as red CI runs. pytest is *not* run
+# here on purpose — it's slow enough (LangGraph import takes a couple of
+# seconds) to make every commit annoying. CI handles the test gate.
+#
+# Setup (one-time, per clone):
+#   pip install -e ".[dev]"   # installs ruff + pre-commit
+#   pre-commit install        # wires the git hook
+#
+# Manual run over the whole repo:
+#   pre-commit run --all-files
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Pin to a specific tag for deterministic CI/dev parity. Bump when
+    # pyproject.toml's ruff>=X is bumped, so local and runtime versions
+    # stay in lockstep.
+    rev: v0.15.14
+    hooks:
+      - id: ruff-format
+      - id: ruff
+        # --fix lets the hook auto-resolve trivial issues (import order,
+        # quotes) so commits aren't blocked on things ruff can repair.
+        args: [--fix]

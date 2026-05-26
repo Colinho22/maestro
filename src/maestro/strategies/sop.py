@@ -23,7 +23,6 @@ from maestro.schemas import (
     RunResult,
     SubResult,
 )
-from maestro.strategies.base import BaseStrategy
 from maestro.strategies._extraction import (
     JSON_EXTRACTION_SYSTEM_PROMPT,
     MAX_RETRIES,
@@ -33,7 +32,7 @@ from maestro.strategies._extraction import (
     strip_fences,
     validate_step_payload,
 )
-
+from maestro.strategies.base import BaseStrategy
 
 # ---------------------------------------------------------------------------
 # Step table — the procedure as data
@@ -42,15 +41,31 @@ from maestro.strategies._extraction import (
 # provider's default Mermaid system prompt by passing system_prompt=None.
 
 STEPS = [
-    {"number": 1, "name": "extract_entities",      "prompt": STEP_1_PROMPT, "system_prompt": JSON_EXTRACTION_SYSTEM_PROMPT},
-    {"number": 2, "name": "extract_relationships", "prompt": STEP_2_PROMPT, "system_prompt": JSON_EXTRACTION_SYSTEM_PROMPT},
-    {"number": 3, "name": "generate_mermaid",      "prompt": STEP_3_PROMPT, "system_prompt": None},
+    {
+        "number": 1,
+        "name": "extract_entities",
+        "prompt": STEP_1_PROMPT,
+        "system_prompt": JSON_EXTRACTION_SYSTEM_PROMPT,
+    },
+    {
+        "number": 2,
+        "name": "extract_relationships",
+        "prompt": STEP_2_PROMPT,
+        "system_prompt": JSON_EXTRACTION_SYSTEM_PROMPT,
+    },
+    {
+        "number": 3,
+        "name": "generate_mermaid",
+        "prompt": STEP_3_PROMPT,
+        "system_prompt": None,
+    },
 ]
 
 
 # ---------------------------------------------------------------------------
 # Strategy
 # ---------------------------------------------------------------------------
+
 
 class SOPStrategy(BaseStrategy):
     """
@@ -98,21 +113,25 @@ class SOPStrategy(BaseStrategy):
             step_system_prompt = step["system_prompt"]
 
             # Build prompt with outputs from previous steps
-            prompt = self._build_prompt(
-                step, input_data, step_outputs
-            )
+            prompt = self._build_prompt(step, input_data, step_outputs)
 
             # Execute with retry
             sub, output_text = self._execute_step(
-                config, step_num, step_name, prompt, step_system_prompt,
+                config,
+                step_num,
+                step_name,
+                prompt,
+                step_system_prompt,
             )
             sub_results.append(sub)
 
             # If step failed after retry, abort the whole run
             if sub.error is not None:
                 return self._aggregate(
-                    config, sub_results, total_start,
-                    error=f"Step {step_num} ({step_name}) failed: {sub.error}"
+                    config,
+                    sub_results,
+                    total_start,
+                    error=f"Step {step_num} ({step_name}) failed: {sub.error}",
                 )
 
             # Store output for the next step
@@ -120,8 +139,10 @@ class SOPStrategy(BaseStrategy):
 
         # Success — step 3 output is the final Mermaid diagram
         return self._aggregate(
-            config, sub_results, total_start,
-            diagram_code=step_outputs["generate_mermaid"]
+            config,
+            sub_results,
+            total_start,
+            diagram_code=step_outputs["generate_mermaid"],
         )
 
     def _build_prompt(
@@ -183,7 +204,9 @@ class SOPStrategy(BaseStrategy):
                 # For steps 1-2, validate JSON output
                 output = strip_fences(result.output_diagram_code)
                 if step_number < 3:
-                    is_valid, validation_error = validate_step_payload(output, step_number)
+                    is_valid, validation_error = validate_step_payload(
+                        output, step_number
+                    )
                     if not is_valid:
                         last_error = (
                             f"Invalid {step_name} payload on attempt {attempt + 1}: "

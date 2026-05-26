@@ -9,7 +9,6 @@ import json
 from maestro.schemas import InputFile, RunConfig, RunResult, SubResult
 from maestro.strategies.base import BaseStrategy
 
-
 PROMPT_TEMPLATE = """\
 You are given a dataset describing entities and their relationships.
 Your task is to generate a Mermaid diagram that accurately represents this data.
@@ -47,7 +46,9 @@ class SingleAgentStrategy(BaseStrategy):
             input_data = json.loads(raw)
 
         except FileNotFoundError:
-            return self._file_error(config, f"Input file not found: {input_file.file_path}")
+            return self._file_error(
+                config, f"Input file not found: {input_file.file_path}"
+            )
         except json.JSONDecodeError as e:
             return self._file_error(config, f"Invalid JSON in input file: {e}")
         except Exception as e:
@@ -67,12 +68,12 @@ class SingleAgentStrategy(BaseStrategy):
         Return a failed RunResult for file-level errors before any LLM call.
         """
         result = RunResult(
-            run_id              = config.run_id,
-            output_diagram_code = None,
-            prompt_tokens       = 0,
-            completion_tokens   = 0,
-            duration_ms         = 0,
-            cost_usd            = 0.0,
-            error               = message,
+            run_id=config.run_id,
+            output_diagram_code=None,
+            prompt_tokens=0,
+            completion_tokens=0,
+            duration_ms=0,
+            cost_usd=0.0,
+            error=message,
         )
         return (result, [])

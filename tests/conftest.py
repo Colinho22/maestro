@@ -11,8 +11,7 @@ at import time, not silently in a test.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from uuid import uuid4
+from dataclasses import dataclass
 
 import pytest
 
