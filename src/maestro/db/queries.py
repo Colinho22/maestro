@@ -177,6 +177,13 @@ def insert_metric_result(conn: sqlite3.Connection, metric: MetricResult) -> None
              false_entities, duplicate_entities,
              missing_relationships, extra_relationships,
              false_relationships, duplicate_relationships)
+        -- Placeholder groupings mirror the column groupings above so a
+        -- visual scan can spot any bind-parameter misalignment:
+        --   4 (ids+parse) · 3 (id) · 3 (name) · 3 (lemma) ·
+        --   3 (rel relaxed) · 3 (rel strict) ·
+        --   2 (ent counts) · 2 (rel counts) ·
+        --   2 (missing/extra ent) · 2 (false/dup ent) ·
+        --   2 (missing/extra rel) · 2 (false/dup rel)  = 31
         VALUES
             (?, ?, ?, ?,
              ?, ?, ?,
@@ -184,9 +191,12 @@ def insert_metric_result(conn: sqlite3.Connection, metric: MetricResult) -> None
              ?, ?, ?,
              ?, ?, ?,
              ?, ?, ?,
-             ?, ?, ?, ?,
-             ?, ?, ?, ?,
-             ?, ?, ?, ?)
+             ?, ?,
+             ?, ?,
+             ?, ?,
+             ?, ?,
+             ?, ?,
+             ?, ?)
         """,
         (
             str(metric.metric_id),
