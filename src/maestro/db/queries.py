@@ -144,6 +144,53 @@ def fetch_results_by_strategy(
     ).fetchall()
 
 
+def fetch_completed_cells(conn: sqlite3.Connection) -> set[tuple[str, str, str, int]]:
+    """
+    Return the set of (example_id, strategy, model, run_number) tuples
+    that already have a *successful* RunResult persisted.
+
+    "Successful" mirrors ``RunResult.success`` (schemas.py): no error,
+    non-empty output_diagram_code. A row with ``error IS NOT NULL`` or
+    an empty/NULL diagram is *not* in this set — so resume logic will
+    re-execute those cells, giving transient failures another attempt.
+
+    Used by ``build_matrix`` to skip already-done work on resume.
+    """
+    rows = conn.execute(
+        """
+        SELECT c.example_id, c.strategy, c.model, c.run_number
+        FROM run_configs c
+        JOIN run_results r ON c.run_id = r.run_id
+        WHERE r.error IS NULL
+          AND r.output_diagram_code IS NOT NULL
+          AND TRIM(r.output_diagram_code) != ''
+        """
+    ).fetchall()
+    return {(row[0], row[1], row[2], row[3]) for row in rows}
+
+
+def fetch_failed_cells(conn: sqlite3.Connection) -> set[tuple[str, str, str, int]]:
+    """
+    Return the set of (example_id, strategy, model, run_number) tuples
+    that have a persisted RunResult but the run was *not* successful.
+
+    The exact mirror image of ``fetch_completed_cells`` over the same
+    joined rows. Used by ``--rerun-failed`` to narrow the matrix to
+    only previously-failed cells.
+    """
+    rows = conn.execute(
+        """
+        SELECT c.example_id, c.strategy, c.model, c.run_number
+        FROM run_configs c
+        JOIN run_results r ON c.run_id = r.run_id
+        WHERE r.error IS NOT NULL
+           OR r.output_diagram_code IS NULL
+           OR TRIM(r.output_diagram_code) = ''
+        """
+    ).fetchall()
+    return {(row[0], row[1], row[2], row[3]) for row in rows}
+
+
 def fetch_all_results(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     """Fetch all joined rows — used by the analysis script."""
     return conn.execute(
