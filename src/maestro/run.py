@@ -178,7 +178,11 @@ def preflight_check_env(models: list[ModelPricing]) -> None:
     synthetic ``control`` ModelPricing used by control strategies) —
     those don't make LLM calls and don't need keys.
     """
-    missing: dict[str, list[str]] = {}  # env_var -> list of model names needing it
+    # env_var -> set of distinct model names needing it. ``models`` is
+    # the post-filter matrix, which has one entry per *cell* — the same
+    # model name appears many times for a typical matrix. A set
+    # de-duplicates so the error message isn't padded with repetition.
+    missing: dict[str, set[str]] = {}
     for mp in models:
         dispatch = _dispatch_for_model(mp.model)
         if dispatch is None:
@@ -187,7 +191,7 @@ def preflight_check_env(models: list[ModelPricing]) -> None:
             continue
         _, _, env_var = dispatch
         if not os.environ.get(env_var):
-            missing.setdefault(env_var, []).append(mp.model)
+            missing.setdefault(env_var, set()).add(mp.model)
 
     if not missing:
         return
