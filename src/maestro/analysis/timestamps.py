@@ -34,7 +34,6 @@ from __future__ import annotations
 import os
 import sys
 from datetime import datetime, timezone
-from typing import Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 # Name of the environment variable that overrides the display timezone.
@@ -43,7 +42,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 ENV_VAR = "MAESTRO_DISPLAY_TZ"
 
 
-def resolve_display_tz(display_tz: Optional[str] = None) -> ZoneInfo | timezone:
+def resolve_display_tz(display_tz: str | None = None) -> ZoneInfo | timezone:
     """
     Resolve the timezone to use for display, applying the precedence
     chain documented at module level.
@@ -85,7 +84,7 @@ def resolve_display_tz(display_tz: Optional[str] = None) -> ZoneInfo | timezone:
 
 def format_for_display(
     utc_dt: datetime,
-    display_tz: Optional[str] = None,
+    display_tz: str | None = None,
     *,
     fmt: str = "%Y-%m-%d %H:%M %Z",
 ) -> str:

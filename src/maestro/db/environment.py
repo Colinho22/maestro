@@ -45,6 +45,11 @@ _LIB_WHITELIST: tuple[str, ...] = (
     "langgraph",
     "pydantic",
     "python-dotenv",
+    # Windows-only via env marker in pyproject.toml. On Linux/macOS this
+    # will record as None (not installed), which is correct — the system
+    # zoneinfo DB is in use there. On Windows, recording the tzdata wheel
+    # version closes the reproducibility loop for timestamp display.
+    "tzdata",
 )
 
 

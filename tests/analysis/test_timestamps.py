@@ -32,7 +32,10 @@ def test_explicit_tz_arg_wins(monkeypatch):
     # 21:43 UTC + 2h DST = 23:43 CEST
     assert "23:43" in out
     assert "CEST" in out
-    assert "Tokyo" not in out  # env var was ignored
+    # %Z produces zone abbreviations, not full names — assert the
+    # abbreviation Asia/Tokyo *would* have produced is absent, which
+    # is the meaningful "env var was ignored" check.
+    assert "JST" not in out
 
 
 def test_env_var_used_when_arg_absent(monkeypatch):
@@ -59,13 +62,31 @@ def test_system_local_default(monkeypatch):
 
 
 def test_malformed_tz_falls_back_to_utc(monkeypatch, capsys):
-    """An unknown zone name produces UTC + a stderr warning."""
+    """An unknown zone name (via kwarg) produces UTC + a stderr warning."""
     out = format_for_display(SUMMER_UTC, display_tz="Mars/Olympus_Mons")
     assert "UTC" in out
     assert "21:43" in out  # unchanged because UTC
     captured = capsys.readouterr()
     assert "WARN" in captured.err
     assert "Mars/Olympus_Mons" in captured.err
+    # The warning identifies the source as "argument" (the kwarg path).
+    assert "argument" in captured.err
+
+
+def test_malformed_env_var_falls_back_to_utc(monkeypatch, capsys):
+    """A malformed MAESTRO_DISPLAY_TZ takes the env-var branch of the
+    warning code path — different stderr text than the kwarg branch."""
+    monkeypatch.setenv(ENV_VAR, "Mars/Olympus_Mons")
+    out = format_for_display(SUMMER_UTC)
+    assert "UTC" in out
+    assert "21:43" in out
+    captured = capsys.readouterr()
+    assert "WARN" in captured.err
+    assert "Mars/Olympus_Mons" in captured.err
+    # The warning identifies the source as the env-var name, so the
+    # user knows where to look. Distinguishes from the kwarg branch
+    # above which says "argument".
+    assert f"${ENV_VAR}" in captured.err
 
 
 def test_naive_input_treated_as_utc():
