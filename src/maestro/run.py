@@ -142,19 +142,25 @@ def _create_provider(model_pricing):
     """
     Instantiate the correct LLM provider based on model name.
     API keys come from environment variables — never hardcoded.
-    Assumes preflight_check_env() has already verified the env var
-    exists; raises if dispatch fails entirely (unknown model name).
+
+    Raises ``RuntimeError`` on either failure mode (unknown model name,
+    missing env var). Both are caught by the cell-level try/except in
+    the main loop, so a transient env-var rotation or a typo in
+    ``MODELS`` fails that one cell rather than aborting the whole
+    experiment after potentially hours of work. ``preflight_check_env``
+    should normally have caught both up-front; these raises are the
+    defensive fallback.
     """
     dispatch = _dispatch_for_model(model_pricing.model)
     if dispatch is None:
-        print(f"ERROR: No provider registered for model '{model_pricing.model}'")
-        sys.exit(1)
+        raise RuntimeError(f"No provider registered for model '{model_pricing.model}'")
     _, cls, env_var = dispatch
     api_key = os.environ.get(env_var)
     if not api_key:
-        # Should be impossible if preflight ran first; defensive fallback.
-        print(f"ERROR: {env_var} not set in environment")
-        sys.exit(1)
+        raise RuntimeError(
+            f"{env_var} not set in environment "
+            f"(needed by model '{model_pricing.model}')"
+        )
     return cls(api_key=api_key, pricing=model_pricing)
 
 
@@ -377,9 +383,15 @@ def _apply_resume_filter(matrix: list[dict], args: argparse.Namespace) -> list[d
     if args.no_resume:
         return matrix
 
+    # Only fetch the set the active mode actually needs — on a big DB
+    # the unused query would scan thousands of rows for nothing.
     with get_connection(DB_PATH) as conn:
-        completed = fetch_completed_cells(conn)
-        failed = fetch_failed_cells(conn) if args.rerun_failed else set()
+        if args.rerun_failed:
+            failed = fetch_failed_cells(conn)
+            completed = set()  # unused in this branch
+        else:
+            completed = fetch_completed_cells(conn)
+            failed = set()  # unused in this branch
 
     def cell_key(cell: dict) -> tuple[str, str, str, int]:
         return (
@@ -440,8 +452,13 @@ def main():
     print(f"  Repeats:    {args.repeats}")
     print(f"  Total runs: {total}")
     if skipped:
-        mode = "rerun-failed mode" if args.rerun_failed else "resume mode"
-        print(f"  Skipped:    {skipped} (already complete, {mode})")
+        # In --rerun-failed mode the skipped set includes both
+        # successful prior runs AND cells with no DB row yet — neither
+        # is "already complete", so don't claim that.
+        if args.rerun_failed:
+            print(f"  Skipped:    {skipped} (no prior failure, rerun-failed mode)")
+        else:
+            print(f"  Skipped:    {skipped} (already complete, resume mode)")
     print("=" * 60)
 
     if args.dry_run:
@@ -506,29 +523,37 @@ def main():
             environment_id=environment.environment_id,
         )
 
-        # Instantiate strategy. Controls don't need a provider — they
-        # bypass the LLM entirely; passing one would just be unused state.
+        # Skip-not-an-error: an enum value with no class registered is a
+        # config gap, not a failure. Don't burn a row on it.
         strategy_cls = STRATEGY_MAP.get(strategy_enum)
         if strategy_cls is None:
             print(f"  SKIP — strategy {strategy_enum.value} not implemented")
             continue
-        if strategy_enum in CONTROL_STRATEGIES:
-            strategy = strategy_cls()
-        else:
-            provider = _create_provider(model_pricing)
-            strategy = strategy_cls(provider=provider)
 
         # Execute — cell-level error isolation. Any unhandled exception
-        # from strategy.run() (provider SDK bug, framework crash, a
-        # KeyError in a strategy's own bookkeeping, etc.) is captured
-        # into a failed RunResult and the matrix loop continues. For a
+        # from provider/strategy construction or strategy.run() (provider
+        # SDK bug, framework crash, a KeyError in a strategy's own
+        # bookkeeping, an env-var rotated mid-run, etc.) is captured into
+        # a failed RunResult and the matrix loop continues. For a
         # ~5000-cell run, having one buggy cell take down the whole
         # experiment would burn hours of API spend.
+        #
+        # Provider construction is *inside* the try because
+        # _create_provider can raise (unknown model, missing env var) —
+        # those are real failure modes worth recording as a failed cell
+        # rather than killing the process.
         #
         # KeyboardInterrupt / SystemExit are deliberately NOT caught —
         # the user pressing Ctrl+C or a sys.exit() from a helper should
         # still exit the runner.
         try:
+            # Controls don't need a provider — they bypass the LLM entirely;
+            # passing one would just be unused state.
+            if strategy_enum in CONTROL_STRATEGIES:
+                strategy = strategy_cls()
+            else:
+                provider = _create_provider(model_pricing)
+                strategy = strategy_cls(provider=provider)
             result, sub_results = strategy.run(
                 input_file=input_file,
                 config=config,
