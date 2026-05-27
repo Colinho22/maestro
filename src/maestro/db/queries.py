@@ -144,6 +144,78 @@ def fetch_results_by_strategy(
     ).fetchall()
 
 
+def fetch_completed_cells(conn: sqlite3.Connection) -> set[tuple[str, str, str, int]]:
+    """
+    Return the set of (example_id, strategy, model, run_number) tuples
+    that already have a *successful* RunResult persisted.
+
+    "Successful" mirrors ``RunResult.success`` (schemas.py): no error,
+    non-empty output_diagram_code. A row with ``error IS NOT NULL`` or
+    an empty/NULL diagram is *not* in this set — so resume logic will
+    re-execute those cells, giving transient failures another attempt.
+
+    Used by ``build_matrix`` to skip already-done work on resume.
+    """
+    rows = conn.execute(
+        """
+        SELECT c.example_id, c.strategy, c.model, c.run_number
+        FROM run_configs c
+        JOIN run_results r ON c.run_id = r.run_id
+        WHERE r.error IS NULL
+          AND r.output_diagram_code IS NOT NULL
+          AND TRIM(r.output_diagram_code) != ''
+        """
+    ).fetchall()
+    return {(row[0], row[1], row[2], row[3]) for row in rows}
+
+
+def fetch_failed_cells(conn: sqlite3.Connection) -> set[tuple[str, str, str, int]]:
+    """
+    Return the set of (example_id, strategy, model, run_number) tuples
+    whose persisted RunResults are *all* failures — i.e. there is at
+    least one failed attempt AND no successful attempt for that cell.
+
+    Why this matters: ``run_configs`` has no unique constraint on the
+    cell tuple, so the same cell can have multiple rows (e.g. an
+    initial failure followed by a successful ``--rerun-failed``
+    retry). If we returned every cell with any failure, the next
+    ``--rerun-failed`` invocation would re-execute cells that have
+    *already* been recovered — wasting API spend and overwriting
+    presumably-good metric rows.
+
+    Used by ``--rerun-failed`` to narrow the matrix to only cells
+    that still need fixing.
+    """
+    rows = conn.execute(
+        """
+        SELECT c.example_id, c.strategy, c.model, c.run_number
+        FROM run_configs c
+        JOIN run_results r ON c.run_id = r.run_id
+        WHERE (
+            r.error IS NOT NULL
+            OR r.output_diagram_code IS NULL
+            OR TRIM(r.output_diagram_code) = ''
+        )
+        AND NOT EXISTS (
+            -- Exclude cells that also have *any* successful attempt;
+            -- they have effectively been recovered and shouldn't be
+            -- re-run by --rerun-failed.
+            SELECT 1
+            FROM run_configs c2
+            JOIN run_results r2 ON c2.run_id = r2.run_id
+            WHERE c2.example_id = c.example_id
+              AND c2.strategy   = c.strategy
+              AND c2.model      = c.model
+              AND c2.run_number = c.run_number
+              AND r2.error IS NULL
+              AND r2.output_diagram_code IS NOT NULL
+              AND TRIM(r2.output_diagram_code) != ''
+        )
+        """
+    ).fetchall()
+    return {(row[0], row[1], row[2], row[3]) for row in rows}
+
+
 def fetch_all_results(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     """Fetch all joined rows — used by the analysis script."""
     return conn.execute(
