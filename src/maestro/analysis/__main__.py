@@ -126,17 +126,37 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def _run_dir(out_root: Path, now_utc: datetime) -> Path:
     """
-    Timestamped output subdirectory. The directory name uses a UTC,
-    filesystem-safe stamp (sortable, unambiguous); the human-readable
-    display-tz rendering goes inside report.md.
+    Create and return a unique timestamped output subdirectory.
+
+    The name uses a UTC, filesystem-safe, second-precision stamp (sortable,
+    unambiguous); the human-readable display-tz rendering goes inside
+    report.md. Two invocations within the same second would otherwise map to
+    the same directory and silently overwrite each other's outputs, so the
+    directory is created with ``exist_ok=False`` and, on collision, a short
+    numeric suffix (``-1``, ``-2``, …) is appended until an unused name is
+    found. The first run of any given second keeps the clean stamp.
     """
     stamp = now_utc.strftime("%Y%m%dT%H%M%SZ")
-    return out_root / stamp
+    candidate = out_root / stamp
+    suffix = 1
+    while True:
+        try:
+            candidate.mkdir(parents=True, exist_ok=False)
+            return candidate
+        except FileExistsError:
+            candidate = out_root / f"{stamp}-{suffix}"
+            suffix += 1
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    # allow_nan=False makes non-finite floats (NaN / inf) raise instead of
+    # emitting the non-standard ``NaN`` / ``Infinity`` tokens that strict
+    # JSON parsers (and the visualizer, #19) reject. The statistics layer
+    # already coerces non-finite values to null via _to_native, so this is
+    # a fail-fast guard: if something slips through, we want a loud error
+    # here, not a silently invalid file.
     path.write_text(
-        json.dumps(payload, indent=2, sort_keys=False) + "\n",
+        json.dumps(payload, indent=2, sort_keys=False, allow_nan=False) + "\n",
         encoding="utf-8",
     )
 
@@ -243,8 +263,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     now_utc = datetime.now(timezone.utc)
+    # _run_dir creates the (unique) directory itself.
     run_dir = _run_dir(args.out, now_utc)
-    run_dir.mkdir(parents=True, exist_ok=True)
 
     # Read-only DB access. get_connection commits on exit, but the analysis
     # issues no writes, so the commit is a no-op.

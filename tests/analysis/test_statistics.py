@@ -366,5 +366,120 @@ def test_all_outputs_json_serializable():
         stats.tradeoff_correctness_efficiency,
     ):
         payload = fn(df)
-        # Must not raise — proves no numpy float64 / NaN leaked through.
-        json.dumps(payload)
+        # allow_nan=False mirrors the writer in __main__._write_json: it
+        # must not raise, proving no numpy float64 leaked through (TypeError)
+        # AND no NaN/inf leaked through (ValueError). Infinite Cohen's d is
+        # emitted as a string sentinel, not float inf, so it is unaffected.
+        json.dumps(payload, allow_nan=False)
+
+
+# ---------------------------------------------------------------------------
+# Cohen's d — zero-variance edge case
+# ---------------------------------------------------------------------------
+
+
+def test_cohens_d_zero_variance_unequal_means_is_infinite():
+    """
+    Two deterministic groups (zero within-group variance) at different score
+    levels are maximally separated: Cohen's d is infinite, not 0.0. The
+    value is emitted as a signed string sentinel so it survives strict JSON.
+    """
+    import json
+
+    import pandas as pd
+
+    # Three strategies, every run identical within a strategy → zero pooled
+    # variance for each pair, but the means differ.
+    rows = []
+    for strat, score in (
+        (Strategy.SINGLE_AGENT, 0.5),
+        (Strategy.CREW_AI, 0.9),
+        (Strategy.LANG_GRAPH, 0.1),
+    ):
+        for _ in range(3):
+            rows.append({"strategy": strat.value, stats.PRIMARY_DV: score})
+    df = pd.DataFrame(rows)
+
+    out = stats.effect_sizes(df)
+    assert out["status"] == "ok"
+    ds = {(p["group_a"], p["group_b"]): p["cohens_d"] for p in out["pairs"]}
+    # crew_ai (0.9) > single_agent (0.5): groups sorted alphabetically, so
+    # group_a=crew_ai, group_b=single_agent → positive infinity.
+    assert ds[("crew_ai", "single_agent")] == "inf"
+    # lang_graph (0.1) < single_agent (0.5) → negative infinity.
+    assert ds[("lang_graph", "single_agent")] == "-inf"
+    # Still strict-JSON serializable (string, not float inf).
+    json.dumps(out, allow_nan=False)
+
+
+def test_cohens_d_zero_variance_equal_means_is_zero():
+    import pandas as pd
+
+    rows = [
+        {"strategy": s.value, stats.PRIMARY_DV: 0.7}
+        for s in (Strategy.SINGLE_AGENT, Strategy.CREW_AI)
+        for _ in range(3)
+    ]
+    df = pd.DataFrame(rows)
+    out = stats.effect_sizes(df)
+    assert out["pairs"][0]["cohens_d"] == 0.0
+
+
+# ---------------------------------------------------------------------------
+# CLI smoke test — public output contract
+# ---------------------------------------------------------------------------
+
+
+def test_cli_writes_output_contract(tmp_path):
+    """
+    End-to-end: invoke the module entry point against an on-disk DB and a
+    temp output dir, and assert the public output contract — a timestamped
+    run directory containing report.md, the JSON files, and the deferred
+    figures/README.md — with a zero return code.
+    """
+    import json
+
+    from maestro.analysis.__main__ import main
+
+    # Materialize the synthetic dataset to a file DB (the CLI opens a path).
+    db_path = tmp_path / "smoke.db"
+    file_conn = sqlite3.connect(db_path)
+    file_conn.row_factory = sqlite3.Row
+    file_conn.executescript(SCHEMA)
+    _populate_two_levels(file_conn)
+    file_conn.commit()
+    file_conn.close()
+
+    out_root = tmp_path / "analysis_out"
+    rc = main(["--db", str(db_path), "--out", str(out_root)])
+    assert rc == 0
+
+    # Exactly one timestamped run directory was created.
+    run_dirs = [p for p in out_root.iterdir() if p.is_dir()]
+    assert len(run_dirs) == 1
+    run_dir = run_dirs[0]
+
+    # Required artifacts exist.
+    assert (run_dir / "report.md").exists()
+    assert (run_dir / "figures" / "README.md").exists()
+    for filename in (
+        "descriptive.json",
+        "anova_strategy.json",
+        "anova_strategy_by_tier.json",
+        "anova_strategy_by_model.json",
+        "posthoc_strategy.json",
+        "effect_sizes.json",
+        "error_taxonomy_by_strategy.json",
+        "tradeoff_correctness_efficiency.json",
+    ):
+        path = run_dir / filename
+        assert path.exists(), f"missing output: {filename}"
+        # Every emitted JSON must be strict-valid (no NaN/Infinity tokens).
+        json.loads(path.read_text())
+
+
+def test_cli_missing_db_returns_error(tmp_path):
+    from maestro.analysis.__main__ import main
+
+    rc = main(["--db", str(tmp_path / "does_not_exist.db"), "--out", str(tmp_path)])
+    assert rc == 1

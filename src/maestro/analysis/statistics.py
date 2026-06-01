@@ -368,12 +368,31 @@ def posthoc_strategy(df: "pd.DataFrame") -> dict[str, Any]:
         groups=exp["strategy"].astype(str),
         alpha=0.05,
     )
-    # tukey._results_table.data is header + rows; map to dicts.
-    rows = tukey._results_table.data
-    header = [str(h) for h in rows[0]]
+    # Build the comparison rows from the *public* TukeyHSDResults attributes
+    # rather than the private ``_results_table``: groupsunique holds the
+    # group labels, and meandiffs / confint / pvalues / reject are aligned
+    # arrays over the upper-triangular (i < j) group pairs in the same order
+    # statsmodels generates them. Reproducing that ordering here keeps the
+    # output identical to the summary table without depending on a private
+    # attribute that can move between statsmodels releases.
+    group_names = [str(g) for g in tukey.groupsunique]
+    pairs = [
+        (i, j) for i in range(len(group_names)) for j in range(i + 1, len(group_names))
+    ]
     comparisons = []
-    for raw in rows[1:]:
-        comparisons.append(dict(zip(header, [_to_native(v) for v in raw])))
+    for k, (i, j) in enumerate(pairs):
+        lower, upper = tukey.confint[k]
+        comparisons.append(
+            {
+                "group1": group_names[i],
+                "group2": group_names[j],
+                "meandiff": _to_native(tukey.meandiffs[k]),
+                "p_adj": _to_native(tukey.pvalues[k]),
+                "lower": _to_native(lower),
+                "upper": _to_native(upper),
+                "reject": bool(tukey.reject[k]),
+            }
+        )
 
     return {
         **base_meta,
@@ -432,16 +451,43 @@ def effect_sizes(df: "pd.DataFrame") -> dict[str, Any]:
     return out
 
 
-def _cohens_d(a, b) -> float | None:
-    """Cohen's d with pooled SD. None when either group has < 2 observations."""
+def _cohens_d(a, b) -> float | str | None:
+    """
+    Cohen's d with pooled SD.
+
+    Returns ``None`` when either group has < 2 observations, ``0.0`` when
+    the groups are identical, the signed string ``"inf"`` / ``"-inf"`` when
+    pooled variance is zero but the means differ, and the float d otherwise.
+
+    Zero pooled variance is a real case here: every run in a cell can score
+    an identical F1 (e.g. a deterministic strategy on a single input). When
+    that happens, the effect size is *not* zero unless the means also match
+    — two perfectly-consistent strategies at different score levels are
+    maximally separated, i.e. an infinite standardized difference. Returning
+    a string sentinel (instead of 0.0 or null) preserves that signal in
+    JSON, which cannot represent infinity.
+    """
     na, nb = len(a), len(b)
     if na < 2 or nb < 2:
         return None
     va, vb = a.var(ddof=1), b.var(ddof=1)
     pooled = (((na - 1) * va) + ((nb - 1) * vb)) / (na + nb - 2)
-    if pooled <= 0:
-        return 0.0
-    return _to_native((a.mean() - b.mean()) / (pooled**0.5))
+    mean_diff = a.mean() - b.mean()
+    # Treat negligible pooled variance as zero. Identical scores stored as
+    # floats (e.g. three 0.1s) leave a ~1e-34 residual variance rather than
+    # an exact 0, which would otherwise divide a real mean difference by a
+    # near-zero SD and yield an absurd ~1e16 "finite" d instead of the
+    # correct infinity. The threshold is far below any real F1 spread.
+    if pooled <= 1e-12:
+        if abs(mean_diff) <= 1e-12:
+            return 0.0
+        # Infinite standardized difference. JSON has no infinity and the
+        # writer enforces allow_nan=False, so emit a signed string sentinel
+        # that survives serialization and still carries the sign — rather
+        # than letting _to_native collapse inf to null (indistinguishable
+        # from "not computed").
+        return "inf" if mean_diff > 0 else "-inf"
+    return _to_native(mean_diff / (pooled**0.5))
 
 
 # ---------------------------------------------------------------------------

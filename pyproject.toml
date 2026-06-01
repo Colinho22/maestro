@@ -43,6 +43,11 @@ dependencies = [
     # transitively via statsmodels and is not declared here directly.
     "statsmodels>=0.14",
     "pandas>=2.2",
+    # scipy is a transitive dependency of statsmodels (it supplies the
+    # underlying distributions for the F-test, Tukey HSD, etc.), so its
+    # version materially affects the statistics output. Not declared as a
+    # direct dependency, but listed in _LIB_WHITELIST (db/environment.py) so
+    # its installed version is captured in run_environments.lib_versions.
     # Windows-only: provides the IANA timezone database that zoneinfo
     # (used by analysis/timestamps.py) needs at runtime. macOS and most
     # Linux distros ship the DB with the OS, so this is a no-op there
