@@ -13,11 +13,12 @@
 # advisory only — CI itself runs just ruff + pytest (see
 # .github/workflows/ci.yml), so this is a periodic signal, not a hard gate.
 #
-# Only an exclusion pattern is used (no restrictive include), so everything
-# outside tests/ remains fully reviewed — we still want CodeRabbit flagging
-# real bugs in production code.
-version: 2
-
+# path_filters follow git sparse-checkout semantics: an exclusion alone does
+# NOT imply "include everything else" — with no include pattern, nothing is
+# included (which zeroed the docstring-coverage check). So include everything
+# first, then carve out tests/. This keeps all non-test code fully reviewed
+# while scoping the docstring metric to the code where docstrings matter.
 reviews:
   path_filters:
+    - "**"
     - "!tests/**"

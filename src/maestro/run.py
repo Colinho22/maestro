@@ -78,6 +78,7 @@ from maestro.experiment_config import (
     STRATEGIES,
 )
 from maestro.providers.anthropic import AnthropicProvider
+from maestro.providers.deepseek import DeepSeekProvider
 from maestro.providers.gemini import GeminiProvider
 from maestro.providers.mistral import MistralProvider
 from maestro.providers.openai import OpenAIProvider
@@ -122,10 +123,19 @@ STRATEGY_MAP = {
 
 _PROVIDER_DISPATCH = (
     # (model-name substring, provider class, env var name)
+    #
+    # Order matters: dispatch picks the first matching substring. The needles
+    # are mutually exclusive across the current model names, so the order is
+    # not load-bearing today — but keep new needles specific enough not to
+    # collide (e.g. "deepseek" must not be a prefix/suffix of another vendor's
+    # model id).
     ("claude", AnthropicProvider, "ANTHROPIC_API_KEY"),
     ("gpt", OpenAIProvider, "OPENAI_API_KEY"),
     ("mistral", MistralProvider, "MISTRAL_API_KEY"),
     ("gemini", GeminiProvider, "GEMINI_API_KEY"),
+    # DeepSeek uses an OpenAI-compatible endpoint (see providers/deepseek.py)
+    # but a distinct API key + base URL, so it needs its own dispatch entry.
+    ("deepseek", DeepSeekProvider, "DEEPSEEK_API_KEY"),
 )
 
 
