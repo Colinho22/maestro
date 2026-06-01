@@ -69,6 +69,16 @@ def test_provider_constructs_and_stores_fields(provider_cls, pricing):
 # ---------------------------------------------------------------------------
 
 
+def test_deepseek_exported_from_package():
+    """DeepSeekProvider is importable from the package root like the others."""
+    import maestro.providers as providers
+
+    assert "DeepSeekProvider" in providers.__all__
+    from maestro.providers import DeepSeekProvider as Exported
+
+    assert Exported is DeepSeekProvider
+
+
 def test_deepseek_is_openai_subclass():
     """DeepSeek reuses OpenAIProvider's implementation by subclassing it."""
     assert issubclass(DeepSeekProvider, OpenAIProvider)
@@ -77,6 +87,33 @@ def test_deepseek_is_openai_subclass():
     # let the two drift apart).
     assert "complete" not in DeepSeekProvider.__dict__
     assert "_is_retryable" not in DeepSeekProvider.__dict__
+
+
+def test_provider_name_overridden_for_retry_logs():
+    """
+    DeepSeek overrides _PROVIDER_NAME so retry log lines read 'deepseek',
+    not the inherited 'openai' — otherwise multi-provider run logs would
+    misattribute DeepSeek failures to OpenAI.
+    """
+    assert OpenAIProvider._PROVIDER_NAME == "openai"
+    assert DeepSeekProvider._PROVIDER_NAME == "deepseek"
+
+
+def test_deepseek_init_does_not_run_openai_init():
+    """
+    DeepSeek calls LLMProvider.__init__ directly (grandparent), skipping
+    OpenAIProvider.__init__, so its client points at DeepSeek not OpenAI.
+    This pins the intent against an accidental super() change.
+    """
+    from maestro.providers.base import LLMProvider
+
+    p = DeepSeekProvider(api_key="k", pricing=_DEEPSEEK_PRICING)
+    # Grandparent stored the fields...
+    assert p.api_key == "k"
+    assert p.pricing is _DEEPSEEK_PRICING
+    # ...and DeepSeek's own client wins (OpenAIProvider.__init__ did not run).
+    assert isinstance(p, LLMProvider)
+    assert "deepseek" in str(p._client.base_url)
 
 
 def test_base_url_diverges_between_providers():

@@ -30,6 +30,12 @@ class OpenAIProvider(LLMProvider):
     Uses the official openai SDK — add 'openai>=1.0.0' to pyproject.toml.
     """
 
+    # Name used in retry log lines. Defined as a class attribute (rather than
+    # the literal "openai") so OpenAI-compatible subclasses like
+    # DeepSeekProvider can override it — otherwise their retries would be
+    # logged as "openai", misattributing failures in multi-provider runs.
+    _PROVIDER_NAME = "openai"
+
     # Same role as AnthropicProvider.SYSTEM_PROMPT
     SYSTEM_PROMPT = (
         "You are a diagram generation assistant. "
@@ -101,7 +107,7 @@ class OpenAIProvider(LLMProvider):
             response, _ = call_with_retry(
                 _do_call,
                 is_retryable=self._is_retryable,
-                provider_name="openai",
+                provider_name=self._PROVIDER_NAME,
                 stats=stats,
             )
 

@@ -23,6 +23,7 @@ providers as a replication dimension).
 
 from openai import OpenAI
 
+from maestro.providers.base import LLMProvider
 from maestro.providers.openai import OpenAIProvider
 from maestro.schemas import ModelPricing
 
@@ -37,13 +38,19 @@ class DeepSeekProvider(OpenAIProvider):
 
     Reuses every method of :class:`OpenAIProvider` — only the SDK client is
     re-pointed at DeepSeek's OpenAI-compatible endpoint. ``config.model`` (the
-    DeepSeek model id) is passed straight through to the chat-completions
-    call by the inherited ``complete()``.
+    DeepSeek model id, e.g. ``deepseek-v4-flash``) is passed straight through
+    to the chat-completions call by the inherited ``complete()``.
     """
 
+    # Override so retry log lines read "deepseek", not the inherited "openai".
+    _PROVIDER_NAME = "deepseek"
+
     def __init__(self, api_key: str, pricing: ModelPricing) -> None:
-        # Skip OpenAIProvider.__init__ (which builds an api.openai.com client)
-        # and call the grandparent to store api_key + pricing, then build the
+        # Call LLMProvider.__init__ *explicitly* (not super(OpenAIProvider, ...))
+        # to store api_key + pricing without running OpenAIProvider.__init__,
+        # which would build an api.openai.com client. Naming the grandparent
+        # directly is grep-able and immune to MRO changes (e.g. a mixin
+        # inserted between LLMProvider and OpenAIProvider). We then build the
         # DeepSeek-pointed client ourselves.
-        super(OpenAIProvider, self).__init__(api_key, pricing)
+        LLMProvider.__init__(self, api_key, pricing)
         self._client = OpenAI(api_key=api_key, base_url=DEEPSEEK_BASE_URL)
