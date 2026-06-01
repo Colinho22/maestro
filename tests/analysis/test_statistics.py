@@ -236,9 +236,10 @@ def test_anova_strategy_ok_and_excludes_controls():
     assert out["reference_level"] == {"strategy": "single_agent"}
     # n must be the experimental rows only: 18, not 19 (control dropped).
     assert out["n"] == 18
-    # A strategy term with a finite F should be present.
+    # The strategy term (looked up by name, not by dict order) must carry a
+    # finite F and partial η².
     assert out["terms"]
-    term = next(iter(out["terms"].values()))
+    term = out["terms"][out["term_of_interest"]]
     assert term["F"] is not None
     assert term["partial_eta_sq"] is not None
 
@@ -474,8 +475,15 @@ def test_cli_writes_output_contract(tmp_path):
     ):
         path = run_dir / filename
         assert path.exists(), f"missing output: {filename}"
-        # Every emitted JSON must be strict-valid (no NaN/Infinity tokens).
-        json.loads(path.read_text())
+
+        # Every emitted JSON must be strict-valid. json.loads has no
+        # allow_nan kwarg (that's a dumps-only option); parse_constant is the
+        # loads-side hook — it fires on the non-standard NaN/Infinity/-Infinity
+        # tokens, so raising there fails the test if a non-finite value leaked.
+        def _reject(token):
+            raise ValueError(f"non-finite token in {filename}: {token}")
+
+        json.loads(path.read_text(), parse_constant=_reject)
 
 
 def test_cli_missing_db_returns_error(tmp_path):

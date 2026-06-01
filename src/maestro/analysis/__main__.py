@@ -93,6 +93,7 @@ _RQ_MAP: list[tuple[str, str, str]] = [
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse the CLI arguments (``--db``, ``--out``, ``--display-tz``)."""
     parser = argparse.ArgumentParser(
         prog="python -m maestro.analysis",
         description="Run the MAESTRO statistical analysis pipeline (compute only).",
@@ -149,6 +150,7 @@ def _run_dir(out_root: Path, now_utc: datetime) -> Path:
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    """Serialize ``payload`` to ``path`` as strict JSON (fails on NaN/inf)."""
     # allow_nan=False makes non-finite floats (NaN / inf) raise instead of
     # emitting the non-standard ``NaN`` / ``Infinity`` tokens that strict
     # JSON parsers (and the visualizer, #19) reject. The statistics layer
@@ -248,6 +250,7 @@ def _summarize_anova(lines: list[str], label: str, payload: dict[str, Any]) -> N
 
 
 def _fmt(x: Any) -> str:
+    """Format a stat value for the report: ``n/a`` for None, 4 sig-figs for floats."""
     if x is None:
         return "n/a"
     if isinstance(x, float):
@@ -256,6 +259,13 @@ def _fmt(x: Any) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """
+    Run the analysis pipeline end to end and write all outputs.
+
+    Returns a process exit code: 0 on success, 1 if the database path does
+    not exist. A missing/empty database is not an error — it produces
+    empty-status outputs and still returns 0.
+    """
     args = _parse_args(argv)
 
     if not args.db.exists():
