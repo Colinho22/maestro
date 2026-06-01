@@ -1,5 +1,22 @@
 """MAESTRO — analysis package (metrics + display helpers)."""
 
+# Statistical analysis pipeline (issue #24). Re-exported so callers can do
+# ``from maestro.analysis import describe, anova_strategy`` without reaching
+# into the submodule. The CLI lives in maestro.analysis.__main__.
+from maestro.analysis.statistics import (
+    PRIMARY_DV,
+    SCHEMA_VERSION,
+    anova_strategy,
+    anova_strategy_by_model,
+    anova_strategy_by_tier,
+    describe,
+    effect_sizes,
+    error_taxonomy_by_strategy,
+    load_dataframe,
+    posthoc_strategy,
+    tradeoff_correctness_efficiency,
+)
+
 # Two import blocks from the same module is intentional: ruff's isort
 # rules sort `as`-aliased imports separately from plain ones and will
 # split a merged block on every --fix. Leaving them split is the stable
@@ -16,4 +33,16 @@ __all__ = [
     "DISPLAY_TZ_ENV_VAR",
     "format_for_display",
     "resolve_display_tz",
+    # statistics
+    "PRIMARY_DV",
+    "SCHEMA_VERSION",
+    "anova_strategy",
+    "anova_strategy_by_model",
+    "anova_strategy_by_tier",
+    "describe",
+    "effect_sizes",
+    "error_taxonomy_by_strategy",
+    "load_dataframe",
+    "posthoc_strategy",
+    "tradeoff_correctness_efficiency",
 ]

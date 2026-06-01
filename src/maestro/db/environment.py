@@ -45,6 +45,14 @@ _LIB_WHITELIST: tuple[str, ...] = (
     "langgraph",
     "pydantic",
     "python-dotenv",
+    # Analysis pipeline deps — their version changes the statistics output
+    # (ANOVA implementation details, default ddof, etc.), so capture them.
+    # scipy is transitive (via statsmodels) rather than a declared dep, but
+    # it supplies the statistical distributions behind the F-test / Tukey
+    # HSD, so its version is recorded here for reproducibility.
+    "statsmodels",
+    "pandas",
+    "scipy",
     # Windows-only via env marker in pyproject.toml. On Linux/macOS this
     # will record as None (not installed), which is correct — the system
     # zoneinfo DB is in use there. On Windows, recording the tzdata wheel

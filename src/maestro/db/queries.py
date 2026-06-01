@@ -228,6 +228,63 @@ def fetch_all_results(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     ).fetchall()
 
 
+def fetch_analysis_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """
+    Three-way join (run_configs ⋈ run_results ⋈ metric_results) yielding
+    one row per metriced run, for the statistical analysis pipeline.
+
+    Read-only. Columns are listed *explicitly* rather than via ``c.*, r.*,
+    m.*`` on purpose: all three tables carry a ``run_id`` column, and a
+    star-join would emit it three times — sqlite3.Row keeps only the last
+    value under that key, silently shadowing the others. The other ``fetch_*``
+    helpers use star-joins and tolerate the collision because they don't read
+    the duplicated keys; this one selects every column it needs by name so the
+    resulting Row maps cleanly to a DataFrame with no ambiguous columns.
+
+    Only the columns the analysis consumes are selected: the experiment
+    dimensions (strategy, model, tier, example_id, run_number), the
+    efficiency DVs (cost_usd, duration_ms, retry_count), the correctness
+    F1 family, and the error-taxonomy counts. ``run_id`` is included once
+    for traceability. ``parses_valid`` rides along for structural-validity
+    breakdowns.
+
+    An INNER join means runs without a metric row (e.g. a failed run that
+    never got scored) are excluded — analysis operates on scored runs only.
+    """
+    return conn.execute(
+        """
+        SELECT
+            c.run_id        AS run_id,
+            c.strategy      AS strategy,
+            c.model         AS model,
+            c.example_id    AS example_id,
+            c.tier          AS tier,
+            c.run_number    AS run_number,
+            r.cost_usd      AS cost_usd,
+            r.duration_ms   AS duration_ms,
+            r.retry_count   AS retry_count,
+            m.parses_valid  AS parses_valid,
+            m.entity_id_f1            AS entity_id_f1,
+            m.entity_name_f1          AS entity_name_f1,
+            m.entity_lemma_f1         AS entity_lemma_f1,
+            m.relationship_relaxed_f1 AS relationship_relaxed_f1,
+            m.relationship_strict_f1  AS relationship_strict_f1,
+            m.missing_entities        AS missing_entities,
+            m.extra_entities          AS extra_entities,
+            m.false_entities          AS false_entities,
+            m.duplicate_entities      AS duplicate_entities,
+            m.missing_relationships   AS missing_relationships,
+            m.extra_relationships     AS extra_relationships,
+            m.false_relationships     AS false_relationships,
+            m.duplicate_relationships AS duplicate_relationships
+        FROM run_configs c
+        JOIN run_results r ON c.run_id = r.run_id
+        JOIN metric_results m ON c.run_id = m.run_id
+        ORDER BY c.timestamp
+        """,
+    ).fetchall()
+
+
 def insert_metric_result(conn: sqlite3.Connection, metric: MetricResult) -> None:
     """Persist evaluation metrics for one run."""
     conn.execute(
