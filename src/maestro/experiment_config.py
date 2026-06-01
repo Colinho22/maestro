@@ -81,6 +81,21 @@ MODELS: list[ModelPricing] = [
         input_price_per_1m=0.10,
         output_price_per_1m=0.40,
     ),
+    # DeepSeek — the cross-provider replication dimension's emerging-Chinese
+    # entry (proposal §3.2). Consumed via the OpenAI-compatible endpoint
+    # (see providers/deepseek.py). Efficiency-tier model only for now; the
+    # edge model (deepseek-v4-pro) can be added later.
+    #
+    # Pricing is the *cache-miss* (standard) rate as of 2026-06-01: DeepSeek
+    # also offers a ~10x-cheaper cache-hit input price, but ModelPricing has a
+    # single input rate, so we use cache-miss — every call is costed as a miss,
+    # making the tracked cost an upper bound on actual spend (never an
+    # under-count). Verify against the live console before the frozen main run.
+    ModelPricing(
+        model="deepseek-v4-flash",
+        input_price_per_1m=0.14,
+        output_price_per_1m=0.28,
+    ),
     # --- Add new models below ---
     # ModelPricing(
     #     model="claude-sonnet-4-20250514",
