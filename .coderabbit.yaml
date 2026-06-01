@@ -1,24 +1,30 @@
 # CodeRabbit configuration.
 # Schema: https://docs.coderabbit.ai/reference/configuration
 #
-# Rationale: CodeRabbit's docstring-coverage pre-merge check counted the
-# whole repository, including tests/. Per-test-function docstrings are noise
-# rather than signal, so they dragged the reported coverage well below the
-# threshold (~56%) even though production code (src/) sits comfortably above
-# it (~90%). Excluding tests/ from review scopes the metric to the code where
-# docstrings matter, so the threshold stays a real "are we still commenting
-# well?" nudge instead of a test-count artifact.
+# Rationale: the built-in docstring check can't be path-scoped (mode +
+# threshold only), and it counted tests/, sinking coverage to ~56% vs ~90%
+# in src/. So we disable the built-in check and re-add docstring enforcement
+# as a custom check scoped to src/ only. Tests stay fully reviewed but are
+# exempt from the docstring requirement.
 #
-# The docstring check is intentionally left ON at the default 80% threshold,
-# advisory only — CI itself runs just ruff + pytest (see
-# .github/workflows/ci.yml), so this is a periodic signal, not a hard gate.
-#
-# path_filters follow git sparse-checkout semantics: an exclusion alone does
-# NOT imply "include everything else" — with no include pattern, nothing is
-# included (which zeroed the docstring-coverage check). So include everything
-# first, then carve out tests/. This keeps all non-test code fully reviewed
-# while scoping the docstring metric to the code where docstrings matter.
+# NOTE: custom_checks require a CodeRabbit plan that supports them (Pro+). On
+# a plan without custom-check support this entry is ignored, leaving the
+# built-in check OFF — i.e. no docstring nudge at all. If that's the case,
+# prefer setting docstrings.mode "warning" with a low threshold instead.
+# Custom checks are LLM-evaluated (not an exact percentage), so this is an
+# advisory nudge, not arithmetic — matching the original intent. The real
+# merge gate is CI (ruff + pytest); see .github/workflows/ci.yml.
 reviews:
-  path_filters:
-    - "**"
-    - "!tests/**"
+  pre_merge_checks:
+    docstrings:
+      # Disable the un-scopable built-in version.
+      mode: "off"
+    custom_checks:
+      - name: "Docstring coverage (src only)"
+        mode: "warning"
+        instructions: >
+          Scope: consider ONLY changed files under src/. Completely ignore
+          files under tests/ and any other top-level directory.
+          Criterion: among public modules, classes, and functions in those
+          src/ files (names not starting with underscore), warn if fewer
+          than 80% have a docstring. Pass otherwise. This is advisory.
