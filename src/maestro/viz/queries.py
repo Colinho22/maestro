@@ -63,3 +63,27 @@ def has_any_runs(conn: sqlite3.Connection) -> bool:
 def has_any_metrics(conn: sqlite3.Connection) -> bool:
     """True if at least one run has been scored (metric_results populated)."""
     return count_rows(conn, "metric_results") > 0
+
+
+def mean_entity_id_f1_by_strategy(
+    conn: sqlite3.Connection,
+) -> list[tuple[str, float]]:
+    """
+    Mean ``entity_id_f1`` per strategy across all scored runs, as
+    ``(strategy, mean_f1)`` pairs ordered by strategy name.
+
+    Returns an empty list when there are no metric rows (callers show an
+    empty-state). Joins run_configs to metric_results on run_id.
+    """
+    if not (table_exists(conn, "metric_results") and table_exists(conn, "run_configs")):
+        return []
+    rows = conn.execute(
+        """
+        SELECT c.strategy AS strategy, AVG(m.entity_id_f1) AS mean_f1
+        FROM run_configs c
+        JOIN metric_results m ON c.run_id = m.run_id
+        GROUP BY c.strategy
+        ORDER BY c.strategy
+        """
+    ).fetchall()
+    return [(r["strategy"], float(r["mean_f1"])) for r in rows]

@@ -19,6 +19,9 @@ from collections.abc import Callable
 
 import streamlit as st
 
+from maestro.viz import settings as viz_settings
+from maestro.viz.charts_reference import render_reference_chart
+
 # Names of the planned data views, shown in the nav as placeholders so the
 # eventual structure is visible before each is implemented.
 _PLANNED_VIEWS: tuple[str, ...] = (
@@ -31,13 +34,22 @@ _PLANNED_VIEWS: tuple[str, ...] = (
 
 
 def _render_placeholder() -> None:
-    """The Home view: confirms the app is wired up."""
+    """
+    The Home view: confirms the app is wired up and shows the design-system
+    reference chart against the configured database.
+    """
     st.title("MAESTRO — Results Dashboard")
     st.write(
         "Navigation, read-only database access, settings, and empty-state "
         "handling are in place. Select a planned view from the sidebar to see "
         "its placeholder."
     )
+    st.divider()
+    # Bound the chart to a left-hand portion of the wide page so the figure
+    # sits in a defined region instead of dictating the full-width layout.
+    chart_col, _ = st.columns([2, 1])
+    with chart_col:
+        render_reference_chart(viz_settings.current_settings().db_path)
 
 
 def _make_planned_placeholder(name: str) -> Callable[[], None]:
