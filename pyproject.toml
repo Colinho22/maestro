@@ -60,7 +60,7 @@ dependencies = [
     # both the dashboard and the embedded thesis figures with no
     # browser-component fragility.
     "streamlit>=1.35,<2.0",
-    "matplotlib>=3.8",
+    "matplotlib>=3.8,<4",
     # Windows-only: provides the IANA timezone database that zoneinfo
     # (used by analysis/timestamps.py) needs at runtime. macOS and most
     # Linux distros ship the DB with the OS, so this is a no-op there

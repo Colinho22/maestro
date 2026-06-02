@@ -172,6 +172,15 @@ def strategy_color(strategy_value: str) -> str:
     return STRATEGY_COLORS[name]
 
 
+def strategy_display_name(strategy_value: str) -> str:
+    """
+    Human display name for a DB strategy value (e.g. ``"single_agent"`` →
+    ``"Single Agent"``), per the design guide. Falls back to the raw value for
+    anything unmapped (e.g. control strategies), so charts always have a label.
+    """
+    return _STRATEGY_VALUE_TO_NAME.get(strategy_value, strategy_value)
+
+
 def model_color(model_id: str) -> str:
     """
     Color for a model, given the id stored in ``run_configs.model`` (e.g.

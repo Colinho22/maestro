@@ -46,8 +46,13 @@ def _savefig_bytes(fig: Figure, fmt: str) -> bytes:
     """Render ``fig`` to ``fmt`` (png/svg) bytes via an in-memory buffer."""
     buf = io.BytesIO()
     # bbox_inches='tight' trims surrounding whitespace so exported figures
-    # embed cleanly without manual cropping.
-    fig.savefig(buf, format=fmt, bbox_inches="tight", dpi=200)
+    # embed cleanly without manual cropping. dpi applies only to raster (PNG):
+    # the guide's 200 DPI for slides/previews. SVG is vector, where dpi is a
+    # no-op, so it is omitted to avoid implying otherwise.
+    kwargs: dict = {"bbox_inches": "tight"}
+    if fmt == "png":
+        kwargs["dpi"] = 200
+    fig.savefig(buf, format=fmt, **kwargs)
     return buf.getvalue()
 
 
