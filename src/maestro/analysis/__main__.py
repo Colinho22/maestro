@@ -5,8 +5,8 @@ MAESTRO — analysis CLI entry point.
 
 Runs the statistical analysis pipeline against the experiment database
 (read-only) and writes canonical JSON outputs plus an assembled
-``report.md`` to ``<out>/<timestamp>/``. The visualizer (#19) consumes
-these JSON files; it does not recompute the statistics.
+``report.md`` to ``<out>/<timestamp>/``. The visualizer consumes these JSON
+files; it does not recompute the statistics.
 
 Single-command by design: the same invocation regenerates thesis figures'
 source data, defense-slide numbers, and conference-demo output with no
@@ -153,7 +153,7 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     """Serialize ``payload`` to ``path`` as strict JSON (fails on NaN/inf)."""
     # allow_nan=False makes non-finite floats (NaN / inf) raise instead of
     # emitting the non-standard ``NaN`` / ``Infinity`` tokens that strict
-    # JSON parsers (and the visualizer, #19) reject. The statistics layer
+    # JSON parsers (and the visualizer) reject. The statistics layer
     # already coerces non-finite values to null via _to_native, so this is
     # a fail-fast guard: if something slips through, we want a loud error
     # here, not a silently invalid file.
@@ -300,18 +300,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     (run_dir / "report.md").write_text(report, encoding="utf-8")
 
-    # figures/ is intentionally deferred to the visualizer (#19): figure
-    # styling must follow the overall plotting/export design, which is not
-    # settled. Leave a documented placeholder so the directory contract is
-    # visible to #19 without committing to a style here.
+    # figures/ is intentionally left to the visualizer: figure styling must
+    # follow the overall plotting/export design and is not produced by the
+    # compute pipeline. Leave a documented placeholder so the directory
+    # contract is visible without committing to a style here.
     figures = run_dir / "figures"
     figures.mkdir(exist_ok=True)
     (figures / "README.md").write_text(
-        "# Figures (deferred)\n\n"
-        "Figure generation belongs to the visualizer (#19), which consumes "
-        "the JSON files in the parent directory. Styling (thesis-serif vs. "
-        "slides-sans, export formats) is a #19 concern and is intentionally "
-        "not produced by the compute pipeline.\n",
+        "# Figures (not produced here)\n\n"
+        "Figure generation belongs to the visualizer, which consumes the JSON "
+        "files in the parent directory. Styling (thesis-serif vs. slides-sans, "
+        "export formats) is a visualization concern and is intentionally not "
+        "produced by the compute pipeline.\n",
         encoding="utf-8",
     )
 

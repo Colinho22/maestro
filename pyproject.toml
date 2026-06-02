@@ -48,6 +48,19 @@ dependencies = [
     # version materially affects the statistics output. Not declared as a
     # direct dependency, but listed in _LIB_WHITELIST (db/environment.py) so
     # its installed version is captured in run_environments.lib_versions.
+    # Visualizer (src/maestro/viz/) — a Streamlit dashboard reading the
+    # experiment DB read-only. Kept in core (not an extra) because this is a
+    # single-image monorepo: the container serves the experiment OR the viz,
+    # never both at once, and the extra footprint is negligible at the scale
+    # Docker already handles. One install (pip install -e .) covers everything.
+    #
+    # Charting library (e.g. streamlit-echarts) is intentionally NOT declared
+    # here: the #45 scaffold renders no charts. It is chosen and pinned in #46
+    # (design system), where it can be verified against the installed Streamlit
+    # — streamlit-echarts 0.6.x currently breaks on Streamlit's components.v2
+    # validation, so the choice needs real testing, not a blind pin in a
+    # scaffold PR.
+    "streamlit>=1.35",
     # Windows-only: provides the IANA timezone database that zoneinfo
     # (used by analysis/timestamps.py) needs at runtime. macOS and most
     # Linux distros ship the DB with the OS, so this is a no-op there

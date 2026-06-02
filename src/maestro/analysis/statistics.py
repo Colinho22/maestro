@@ -3,7 +3,7 @@ MAESTRO — Statistical analysis pipeline (compute only; no visualization).
 
 Reads the experiment database (read-only) and produces canonical,
 paper-ready statistics as JSON plus an assembled ``report.md``. The
-visualizer (#19) is a separate consumer of these JSON outputs — it does
+visualizer is a separate consumer of these JSON outputs — it does
 not duplicate the math here.
 
 ## What this module computes
@@ -55,8 +55,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     import pandas as pd
 
 # Version of the JSON output contract. Bump on any breaking change to the
-# shape of the emitted files so the visualizer (#19) can detect it. Locked
-# at 1.0 on first ship (recap open question #4).
+# shape of the emitted files so the visualizer can detect it.
 SCHEMA_VERSION = "1.0"
 
 # Primary correctness dependent variable. The metric_results table carries
@@ -537,7 +536,7 @@ def tradeoff_correctness_efficiency(df: "pd.DataFrame") -> dict[str, Any]:
     """
     Per-strategy mean correctness against mean cost and latency, plus a
     correctness-to-cost ratio — the numeric backing for the Pareto
-    trade-off figure (the figure itself is deferred to #19).
+    trade-off figure (the figure itself is rendered by the visualizer).
 
     Experimental rows only: the trade-off question compares the orchestration
     strategies and the baseline, not the zero-cost controls.
