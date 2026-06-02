@@ -15,6 +15,7 @@ a missing-streamlit environment into a clean skip.
 from __future__ import annotations
 
 import sqlite3
+import uuid
 
 import pytest
 
@@ -139,6 +140,69 @@ def test_has_any_runs_true_after_insert():
         "VALUES ('r1', 'single_agent', 'm', 'ex', 2, 1, '2026-01-01T00:00:00Z')"
     )
     assert viz_queries.has_any_runs(conn) is True
+
+
+def test_mean_f1_by_strategy_excludes_controls():
+    """Control strategies must not appear in the strategy-comparison query."""
+    conn = _mem_db(with_schema=True)
+
+    # The metric_results table has many NOT NULL numeric columns; build a row
+    # via a real MetricResult and persist it through the production insert so
+    # the test never drifts from the schema.
+    from maestro.db.queries import insert_metric_result
+    from maestro.schemas import MetricResult
+
+    def _insert(strategy, f1):
+        run_id = uuid.uuid4()
+        conn.execute(
+            "INSERT INTO run_configs "
+            "(run_id, strategy, model, example_id, tier, run_number, timestamp) "
+            "VALUES (?, ?, 'm', 'ex', 2, 1, '2026-01-01T00:00:00Z')",
+            (str(run_id), strategy),
+        )
+        insert_metric_result(
+            conn,
+            MetricResult(
+                run_id=run_id,
+                parses_valid=True,
+                entity_id_precision=f1,
+                entity_id_recall=f1,
+                entity_id_f1=f1,
+                entity_name_precision=0.0,
+                entity_name_recall=0.0,
+                entity_name_f1=0.0,
+                entity_lemma_precision=0.0,
+                entity_lemma_recall=0.0,
+                entity_lemma_f1=0.0,
+                relationship_relaxed_precision=0.0,
+                relationship_relaxed_recall=0.0,
+                relationship_relaxed_f1=0.0,
+                relationship_strict_precision=0.0,
+                relationship_strict_recall=0.0,
+                relationship_strict_f1=0.0,
+                entities_in_output=0,
+                entities_in_truth=0,
+                relationships_in_output=0,
+                relationships_in_truth=0,
+                missing_entities=0,
+                extra_entities=0,
+                false_entities=0,
+                duplicate_entities=0,
+                missing_relationships=0,
+                extra_relationships=0,
+                false_relationships=0,
+                duplicate_relationships=0,
+            ),
+        )
+
+    _insert("single_agent", 0.8)
+    _insert("null_control", 0.0)
+    _insert("ground_truth_control", 1.0)
+
+    result = dict(viz_queries.mean_entity_id_f1_by_strategy(conn))
+    assert "single_agent" in result
+    assert "null_control" not in result
+    assert "ground_truth_control" not in result
 
 
 # ---------------------------------------------------------------------------

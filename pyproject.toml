@@ -54,13 +54,13 @@ dependencies = [
     # never both at once, and the extra footprint is negligible at the scale
     # Docker already handles. One install (pip install -e .) covers everything.
     #
-    # Charting library (e.g. streamlit-echarts) is intentionally NOT declared
-    # here: the #45 scaffold renders no charts. It is chosen and pinned in #46
-    # (design system), where it can be verified against the installed Streamlit
-    # — streamlit-echarts 0.6.x currently breaks on Streamlit's components.v2
-    # validation, so the choice needs real testing, not a blind pin in a
-    # scaffold PR.
+    # Charts are rendered with matplotlib (displayed via st.pyplot), not a
+    # browser-component library: the thesis deliverable is static,
+    # publication-quality figures, and matplotlib gives one style system for
+    # both the dashboard and the embedded thesis figures with no
+    # browser-component fragility.
     "streamlit>=1.35,<2.0",
+    "matplotlib>=3.8,<4",
     # Windows-only: provides the IANA timezone database that zoneinfo
     # (used by analysis/timestamps.py) needs at runtime. macOS and most
     # Linux distros ship the DB with the OS, so this is a no-op there
