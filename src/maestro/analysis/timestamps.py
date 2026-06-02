@@ -13,7 +13,7 @@ formats them with an explicit abbreviation so the result is unambiguous
 when shared across timezones.
 
 Storage stays UTC; only display surfaces (analysis tables, plot axes, log
-output, CSV columns — once #19/#24 exist) call into here.
+output, CSV columns) call into here.
 
 ## Configuration precedence
 

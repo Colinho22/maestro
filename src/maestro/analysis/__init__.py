@@ -1,6 +1,6 @@
 """MAESTRO — analysis package (metrics + display helpers)."""
 
-# Statistical analysis pipeline (issue #24). Re-exported so callers can do
+# Statistical analysis pipeline. Re-exported so callers can do
 # ``from maestro.analysis import describe, anova_strategy`` without reaching
 # into the submodule. The CLI lives in maestro.analysis.__main__.
 from maestro.analysis.statistics import (
