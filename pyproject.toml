@@ -60,7 +60,7 @@ dependencies = [
     # — streamlit-echarts 0.6.x currently breaks on Streamlit's components.v2
     # validation, so the choice needs real testing, not a blind pin in a
     # scaffold PR.
-    "streamlit>=1.35",
+    "streamlit>=1.35,<2.0",
     # Windows-only: provides the IANA timezone database that zoneinfo
     # (used by analysis/timestamps.py) needs at runtime. macOS and most
     # Linux distros ship the DB with the OS, so this is a no-op there

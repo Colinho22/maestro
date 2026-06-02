@@ -72,15 +72,13 @@ def test_connection_is_read_only(tmp_path):
     w.commit()
     w.close()
 
-    # _connect_ro is the un-cached primitive (get_connection wraps it in
-    # st.cache_resource, which needs a script context). Test the primitive.
-    conn = viz_db._connect_ro(db_path)
-    with pytest.raises(sqlite3.OperationalError):
-        conn.execute(
-            "INSERT INTO run_environments (environment_id, captured_at) "
-            "VALUES ('x', 'y')"
-        )
-    conn.close()
+    # viz_db.connect yields a read-only connection; a write must raise.
+    with viz_db.connect(db_path) as conn:
+        with pytest.raises(sqlite3.OperationalError):
+            conn.execute(
+                "INSERT INTO run_environments (environment_id, captured_at) "
+                "VALUES ('x', 'y')"
+            )
 
 
 def test_database_exists(tmp_path):
@@ -126,6 +124,13 @@ def test_queries_on_missing_tables_do_not_raise():
     assert viz_queries.has_any_metrics(conn) is False
 
 
+def test_count_rows_rejects_invalid_identifier():
+    """A non-identifier table name raises rather than reaching the SQL."""
+    conn = _mem_db(with_schema=True)
+    with pytest.raises(ValueError):
+        viz_queries.count_rows(conn, "run_configs; DROP TABLE run_configs")
+
+
 def test_has_any_runs_true_after_insert():
     conn = _mem_db(with_schema=True)
     conn.execute(
@@ -154,11 +159,11 @@ def test_db_path_default_uses_env_when_set(monkeypatch):
 
 
 def test_display_tz_default_blank_means_system_local(monkeypatch):
-    monkeypatch.delenv("MAESTRO_DISPLAY_TZ", raising=False)
+    monkeypatch.delenv(viz_settings.TZ_ENV_VAR, raising=False)
     # Empty string sentinel (normalized to None in current_settings).
     assert viz_settings._default_display_tz() == ""
 
 
 def test_display_tz_default_uses_env_when_set(monkeypatch):
-    monkeypatch.setenv("MAESTRO_DISPLAY_TZ", "Europe/Zurich")
+    monkeypatch.setenv(viz_settings.TZ_ENV_VAR, "Europe/Zurich")
     assert viz_settings._default_display_tz() == "Europe/Zurich"
