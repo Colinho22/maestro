@@ -6,11 +6,10 @@ dashboard page (reading the DB via ``viz.db`` / ``viz.queries``). The sidebar
 navigation in ``app.py`` is driven by the ``VIEWS`` registry below: each entry
 is a (label, render-callable) pair, rendered when selected.
 
-The registry currently holds a live "Home" view that confirms the
-navigation + settings + empty-state wiring, plus placeholder entries for the
-planned data views. Each planned view becomes a ``views/<name>.py`` module
-exposing ``render()``, appended to ``VIEWS``; until implemented it shows a
-placeholder card.
+The registry holds a "Home" landing view plus the data views (Overview,
+Strategy Comparison, Pareto, Run Detail, Diagram Visualizer, Hallucination
+Taxonomy). Each data view lives in its own ``views/<name>.py`` module exposing
+``render()``.
 """
 
 from __future__ import annotations
@@ -21,28 +20,26 @@ import streamlit as st
 
 from maestro.viz import settings as viz_settings
 from maestro.viz.charts_reference import render_reference_chart
-
-# Names of the planned data views, shown in the nav as placeholders so the
-# eventual structure is visible before each is implemented.
-_PLANNED_VIEWS: tuple[str, ...] = (
-    "Overview",
-    "Strategy Comparison",
-    "Pareto",
-    "Run Detail",
-    "Hallucination Taxonomy",
+from maestro.viz.views import (
+    diagram_visualizer,
+    hallucination,
+    overview,
+    pareto,
+    run_detail,
+    strategy_comparison,
 )
 
 
-def _render_placeholder() -> None:
+def _render_home() -> None:
     """
-    The Home view: confirms the app is wired up and shows the design-system
+    The Home landing view: orients the user and shows the design-system
     reference chart against the configured database.
     """
     st.title("MAESTRO — Results Dashboard")
     st.write(
-        "Navigation, read-only database access, settings, and empty-state "
-        "handling are in place. Select a planned view from the sidebar to see "
-        "its placeholder."
+        "Read-only dashboard over the experiment database. Use the sidebar to "
+        "open a view; configure the database path and display timezone under "
+        "⚙️ Settings."
     )
     st.divider()
     # Bound the chart to a left-hand portion of the wide page so the figure
@@ -52,22 +49,13 @@ def _render_placeholder() -> None:
         render_reference_chart(viz_settings.current_settings().db_path)
 
 
-def _make_planned_placeholder(name: str) -> Callable[[], None]:
-    """Build a render() that shows a 'not yet implemented' card for ``name``."""
-
-    def _render() -> None:
-        st.title(name)
-        st.info(
-            f"The **{name}** view is not implemented yet.",
-            icon="🚧",
-        )
-
-    return _render
-
-
-# (label, render) pairs in nav order. The live placeholder first, then the
-# planned views as placeholders.
+# (label, render) pairs in sidebar order: Home landing, then the data views.
 VIEWS: list[tuple[str, Callable[[], None]]] = [
-    ("Home", _render_placeholder),
-    *[(name, _make_planned_placeholder(name)) for name in _PLANNED_VIEWS],
+    ("Home", _render_home),
+    ("Overview", overview.render),
+    ("Strategy Comparison", strategy_comparison.render),
+    ("Pareto", pareto.render),
+    ("Run Detail", run_detail.render),
+    ("Diagram Visualizer", diagram_visualizer.render),
+    ("Hallucination Taxonomy", hallucination.render),
 ]
