@@ -366,9 +366,27 @@ def run_detail(conn: sqlite3.Connection, run_id: str) -> dict[str, Any] | None:
     """
     if not (table_exists(conn, "run_configs") and table_exists(conn, "run_results")):
         return None
+    # Columns listed explicitly (not c.*, r.*, m.*): all three tables carry a
+    # run_id, and a star-join would emit it three times, with sqlite3.Row
+    # silently keeping only the last. Naming the consumed columns avoids the
+    # collision and documents exactly what the Run Detail / Diagram Visualizer
+    # views read.
     row = conn.execute(
         """
-        SELECT c.*, r.*, m.*
+        SELECT
+            c.run_id AS run_id, c.strategy AS strategy, c.model AS model,
+            c.tier AS tier, c.example_id AS example_id, c.timestamp AS timestamp,
+            r.output_diagram_code AS output_diagram_code,
+            r.prompt_tokens AS prompt_tokens,
+            r.completion_tokens AS completion_tokens,
+            r.duration_ms AS duration_ms, r.cost_usd AS cost_usd,
+            r.error AS error, r.retry_count AS retry_count,
+            m.parses_valid AS parses_valid,
+            m.entity_id_f1 AS entity_id_f1,
+            m.entity_name_f1 AS entity_name_f1,
+            m.entity_lemma_f1 AS entity_lemma_f1,
+            m.relationship_relaxed_f1 AS relationship_relaxed_f1,
+            m.relationship_strict_f1 AS relationship_strict_f1
         FROM run_configs c
         JOIN run_results r ON c.run_id = r.run_id
         LEFT JOIN metric_results m ON c.run_id = m.run_id

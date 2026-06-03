@@ -319,7 +319,7 @@ def test_taxonomy_rejects_bad_column():
 
 
 # ---------------------------------------------------------------------------
-# Graceful degradation — every query no-ops on an empty (schemaless) DB
+# Mermaid rendering (Diagram Visualizer)
 # ---------------------------------------------------------------------------
 
 
@@ -338,6 +338,11 @@ def test_mermaid_render_handles_missing_mmdc(monkeypatch):
     monkeypatch.setattr(mr.shutil, "which", lambda _: None)
     assert mr.mmdc_available() is False
     assert mr.render_mermaid_svg("graph TD; a-->b") is None
+
+
+# ---------------------------------------------------------------------------
+# Graceful degradation — every query no-ops on an empty (schemaless) DB
+# ---------------------------------------------------------------------------
 
 
 def test_queries_safe_on_schemaless_db():

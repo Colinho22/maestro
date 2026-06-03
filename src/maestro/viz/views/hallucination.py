@@ -95,6 +95,18 @@ def _category_of(column: str) -> str:
     return column.split("_", 1)[0]
 
 
+def _label_color(hex_color: str) -> str:
+    """
+    Pick a legible label color for text on ``hex_color`` (relative luminance,
+    per the design guide's cell-annotation rule): white on dark fills,
+    ``#333333`` on light fills.
+    """
+    h = hex_color.lstrip("#")
+    r, g, b = (int(h[i : i + 2], 16) / 255 for i in (0, 2, 4))
+    luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    return "#333333" if luminance > 0.5 else "white"
+
+
 def _stacked_bar(
     data: dict[str, dict[str, int]],
     *,
@@ -116,15 +128,18 @@ def _stacked_bar(
     fig, ax = new_figure(figsize=(9.0, 4.5))
     for col in columns:
         cat = _category_of(col)
+        fill = _ERROR_COLORS[cat]
+        text_color = _label_color(fill)
         heights = np.array([data[s].get(col, 0) for s in strategies], dtype=float)
         ax.bar(
             x,
             heights,
             bottom=bottom,
-            color=_ERROR_COLORS[cat],
+            color=fill,
             label=_CATEGORY_LABEL[cat],
         )
-        # Value labels for non-zero segments (no hover on static figures).
+        # Value labels for non-zero segments (no hover on static figures);
+        # label color picked for contrast against the segment fill.
         for xi, (h, b) in enumerate(zip(heights, bottom)):
             if h > 0:
                 ax.text(
@@ -134,7 +149,7 @@ def _stacked_bar(
                     ha="center",
                     va="center",
                     fontsize=8,
-                    color="white",
+                    color=text_color,
                 )
         bottom += heights
 

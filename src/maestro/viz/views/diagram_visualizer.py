@@ -142,8 +142,8 @@ def _render_diagram(source: str, *, render_visual: bool) -> None:
 
 
 def _read_or_note(path: Path) -> str:
-    """Read a text file, or return a short note if it's missing."""
+    """Read a text file, or return a short note if it's missing/unreadable."""
     try:
         return Path(path).read_text(encoding="utf-8")
-    except OSError:
-        return f"(file not found: {path})"
+    except (OSError, UnicodeDecodeError):
+        return f"(file not readable: {path})"

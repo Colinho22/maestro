@@ -87,10 +87,12 @@ def _fmt_ts(ts: str) -> str:
 
     from maestro.analysis.timestamps import format_for_display
 
+    if not ts:
+        return ""
     cfg = viz_settings.current_settings()
     try:
         dt = datetime.fromisoformat(ts)
-    except ValueError:
+    except (ValueError, TypeError):
         return ts
     return format_for_display(dt, cfg.display_tz)
 
@@ -132,11 +134,11 @@ def _render_io(detail: dict) -> None:
 
 
 def _read_or_note(path: Path) -> str:
-    """Read a text file, or return a short note if it's missing."""
+    """Read a text file, or return a short note if it's missing/unreadable."""
     try:
         return Path(path).read_text(encoding="utf-8")
-    except OSError:
-        return f"(file not found: {path})"
+    except (OSError, UnicodeDecodeError):
+        return f"(file not readable: {path})"
 
 
 def _render_metric_breakdown(detail: dict) -> None:
