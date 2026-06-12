@@ -1,0 +1,125 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    user_clients["User Clients\n[Person]\nWeb + Mobile"]
+    admin_clients["Admin / Audit Users\n[Person]"]
+    cdn_edge["CDN Edge\n[External System]\nEdge Cache + TLS"]
+    global_lb["Global Load Balancer\n[External System]\nDNS / Anycast"]
+    geofencing_svc["Geofencing Service\n[External System]\nZone + IP Check"]
+    telecom_provider["Telecom Provider\n[External System]\nCell Location + SMS MFA"]
+
+    subgraph enterprise_net["Enterprise Network"]
+        subgraph dc1["Data Center 1 — Primary"]
+            subgraph dmz1["DMZ"]
+                outer_fw1["Outer Firewall DC1\n[Device]"]
+                lb1["Load Balancer DC1\n[Device]"]
+            end
+            subgraph auth_zone1["Auth Zone"]
+                auth_gw1["Auth Gateway DC1\n[Server]\nPolicy Enforcement Point"]
+                iam_server["IAM Server\n[Server]\nIdP / Auth Server"]
+                token_store[("Token Store\n[Server]\nRedis")]
+            end
+            subgraph app_zone1["App Zone"]
+                inner_fw1["Inner Firewall DC1\n[Device]"]
+                web_app_1["Web App 1\n[Server]"]
+                ldap_directory[("LDAP Directory\n[Server]")]
+                db_primary[("PostgreSQL Primary\n[Server]")]
+                logging_server_1[("Logging Server DC1\n[Server]\nAdmin access only")]
+            end
+            subgraph monitoring_zone1["Monitoring Zone"]
+                siem_1[("SIEM DC1\n[Server]\nCorrelation + Alerting")]
+            end
+        end
+    
+        subgraph dc2["Data Center 2 — Standby"]
+            subgraph dmz2["DMZ"]
+                outer_fw2["Outer Firewall DC2\n[Device]"]
+                lb2["Load Balancer DC2\n[Device]"]
+            end
+            subgraph auth_zone2["Auth Zone"]
+                auth_gw2["Auth Gateway DC2\n[Server]\nPolicy Enforcement Point"]
+                iam_replica["IAM Replica\n[Server]"]
+                token_store_replica[("Token Store Replica\n[Server]\nRedis")]
+            end
+            subgraph app_zone2["App Zone"]
+                inner_fw2["Inner Firewall DC2\n[Device]"]
+                web_app_2["Web App 2\n[Server]"]
+                ldap_replica[("LDAP Replica\n[Server]")]
+                db_replica[("PostgreSQL Replica\n[Server]")]
+                logging_server_2[("Logging Server DC2\n[Server]\nAdmin access only")]
+            end
+            subgraph monitoring_zone2["Monitoring Zone"]
+                siem_2[("SIEM DC2\n[Server]\nCorrelation + Alerting")]
+            end
+        end
+    end
+
+    %% User traffic path
+    user_clients -->|"HTTPS"| cdn_edge
+    cdn_edge -->|"Cache miss / dynamic"| global_lb
+    global_lb -->|"Active"| outer_fw1
+    global_lb -.->|"Failover"| outer_fw2
+
+    %% DC1 — outer DMZ
+    outer_fw1 -->|"Filtered HTTPS"| lb1
+    lb1 -->|"HTTPS"| auth_gw1
+
+    %% DC1 — Auth Zone: geofencing + IAM gate
+    auth_gw1 -->|"Auth check · OAuth2/OIDC"| iam_server
+    iam_server -->|"Issue / validate token"| token_store
+    iam_server -->|"Zone + IP check"| geofencing_svc
+    geofencing_svc -->|"Cell location + MFA trigger"| telecom_provider
+    telecom_provider -->|"SMS MFA code"| user_clients
+
+    %% DC1 — Auth Zone → App Zone (only after auth passes)
+    auth_gw1 -->|"Authenticated session"| inner_fw1
+
+    %% DC1 — App Zone: user traffic
+    inner_fw1 -->|"Filtered HTTP"| web_app_1
+    web_app_1 -->|"Authorisation lookup · LDAP"| ldap_directory
+    web_app_1 -->|"Read / Write · SQL"| db_primary
+
+    %% DC1 — write logs (system-initiated, no LB)
+    db_primary -->|"DB access + edit logs"| logging_server_1
+    web_app_1 -->|"App event logs"| logging_server_1
+
+    %% DC1 — admin read access (bypasses user LB, through Auth Zone)
+    admin_clients -->|"Admin login · VPN / internal"| auth_gw1
+    inner_fw1 -->|"Admin read access"| logging_server_1
+
+    %% Cross-DC replication
+    db_primary -->|"Streaming replication · WAL"| db_replica
+    iam_server -->|"Sync"| iam_replica
+    token_store -->|"Redis replication"| token_store_replica
+    ldap_directory -->|"LDAP replication"| ldap_replica
+    logging_server_1 -->|"Log replication"| logging_server_2
+    outer_fw1 <-->|"Encrypted WAN · IPsec"| outer_fw2
+
+    %% DC2 — outer DMZ
+    outer_fw2 -->|"Filtered HTTPS"| lb2
+    lb2 -->|"HTTPS"| auth_gw2
+
+    %% DC2 — Auth Zone
+    auth_gw2 -->|"Auth check · OAuth2/OIDC"| iam_replica
+    iam_replica -->|"Issue / validate token"| token_store_replica
+    auth_gw2 -->|"Authenticated session"| inner_fw2
+
+    %% DC2 — App Zone: user traffic
+    inner_fw2 -->|"Filtered HTTP"| web_app_2
+    web_app_2 -->|"Authorisation lookup · LDAP"| ldap_replica
+    web_app_2 -->|"Read / Standby · SQL"| db_replica
+
+    %% DC2 — write logs
+    db_replica -->|"DB read logs"| logging_server_2
+    web_app_2 -->|"App event logs"| logging_server_2
+
+    %% DC2 — admin read access on failover
+    admin_clients -->|"Admin login · failover"| auth_gw2
+    inner_fw2 -->|"Admin read access"| logging_server_2
+
+    %% Per-DC SIEM aggregation + cross-DC replication
+    logging_server_1 -->|"Log forwarding"| siem_1
+    logging_server_2 -->|"Log forwarding"| siem_2
+    siem_1 <-->|"SIEM replication"| siem_2

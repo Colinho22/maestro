@@ -1,0 +1,15 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    task_1["Task 1"]
+    task_2["Task 2"]
+    task_3["Task 3"]
+    start_event(["Start Event"])
+    end_event(["End Event"])
+
+    start_event --> task_1
+    task_1 --> task_2
+    task_2 --> task_3
+    task_3 --> end_event

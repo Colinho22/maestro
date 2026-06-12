@@ -1,0 +1,126 @@
+{
+  "metadata": {
+    "id": "it_1_10",
+    "diagram_type": "network_topology",
+    "tier": 1,
+    "entity_count": 8,
+    "container_count": 1,
+    "attachment_count": 0,
+    "description": "Small office network topology. Internet traffic enters via a router, passes through a firewall, and is distributed by a core switch. The switch connects wired devices (NAS, printer, VoIP phones) and an access point serving WiFi clients (laptops)"
+  },
+  "system_boundary": {
+    "id": "office_lan",
+    "name": "Office LAN",
+    "type": "network_boundary"
+  },
+  "elements": [
+    {
+      "id": "router",
+      "name": "Router",
+      "type": "device",
+      "technology": "Router",
+      "boundary": "office_lan",
+      "description": "Edge router. WAN uplink to ISP, LAN downlink to firewall"
+    },
+    {
+      "id": "firewall",
+      "name": "Firewall",
+      "type": "device",
+      "technology": "Firewall",
+      "boundary": "office_lan",
+      "description": "Network firewall enforcing traffic policies between WAN and LAN"
+    },
+    {
+      "id": "switch",
+      "name": "Switch",
+      "type": "device",
+      "technology": "Network Switch",
+      "boundary": "office_lan",
+      "description": "Core office switch. Distributes traffic to all wired devices and the access point"
+    },
+    {
+      "id": "access_point",
+      "name": "Access Point",
+      "type": "device",
+      "technology": "WiFi Access Point",
+      "boundary": "office_lan",
+      "description": "Wireless access point providing WiFi connectivity to laptops"
+    },
+    {
+      "id": "nas",
+      "name": "NAS",
+      "type": "server",
+      "technology": "Network Attached Storage",
+      "boundary": "office_lan",
+      "description": "Shared file storage for the office, wired to the switch"
+    },
+    {
+      "id": "printer",
+      "name": "Printer",
+      "type": "peripheral",
+      "technology": "Network Printer",
+      "boundary": "office_lan",
+      "description": "Shared office printer, wired to the switch"
+    },
+    {
+      "id": "voip_phones",
+      "name": "VoIP Phones",
+      "type": "device",
+      "technology": "VoIP",
+      "boundary": "office_lan",
+      "description": "Wired VoIP phones connected to the switch"
+    },
+    {
+      "id": "user_clients",
+      "name": "User Clients",
+      "type": "device",
+      "technology": "Laptops (WiFi)",
+      "boundary": "office_lan",
+      "description": "Employee laptops connecting wirelessly via the access point"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "source": "router",
+      "target": "firewall",
+      "label": "WAN → LAN"
+    },
+    {
+      "id": "r2",
+      "source": "firewall",
+      "target": "switch",
+      "label": "Filtered traffic"
+    },
+    {
+      "id": "r3",
+      "source": "switch",
+      "target": "nas",
+      "label": "Wired"
+    },
+    {
+      "id": "r4",
+      "source": "switch",
+      "target": "printer",
+      "label": "Wired"
+    },
+    {
+      "id": "r5",
+      "source": "switch",
+      "target": "voip_phones",
+      "label": "Wired"
+    },
+    {
+      "id": "r6",
+      "source": "switch",
+      "target": "access_point",
+      "label": "Wired uplink"
+    },
+    {
+      "id": "r7",
+      "source": "access_point",
+      "target": "user_clients",
+      "label": "WiFi"
+    }
+  ]
+}

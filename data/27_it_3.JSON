@@ -1,0 +1,292 @@
+{
+  "metadata": {
+    "id": "it_3_27",
+    "diagram_type": "network_topology",
+    "tier": 3,
+    "entity_count": 28,
+    "container_count": 4,
+    "attachment_count": 0,
+    "description": "Two-office corporate network (HQ + branch) with AWS cloud hub. Each office has a full network stack (router, firewall, switch, VPN gateway, NAS, NVR + IP cameras, access control, POS, VoIP, WiFi AP, user clients). Both offices connect to AWS via site-to-site VPN. AWS hosts S3 backup buckets for NAS and video footage. Remote staff connect via client VPN to access company backups."
+  },
+  "system_boundary": {
+    "id": "enterprise_wan",
+    "name": "Enterprise WAN",
+    "type": "deployment_environment"
+  },
+  "elements": [
+    {
+      "id": "isp1",
+      "name": "ISP (Office 1)",
+      "type": "external_system",
+      "description": "Internet service provider for the HQ office. Provides WAN uplink to the HQ router"
+    },
+    {
+      "id": "isp2",
+      "name": "ISP (Office 2)",
+      "type": "external_system",
+      "description": "Internet service provider for the branch office. Provides WAN uplink to the branch router"
+    },
+    {
+      "id": "remote_users",
+      "name": "Remote Users",
+      "type": "person",
+      "description": "Company staff working remotely. Connect to the AWS VPN gateway via client VPN to access NAS backup and shared resources"
+    },
+    {
+      "id": "office_1",
+      "name": "Office 1 — HQ",
+      "type": "network_boundary",
+      "boundary": "enterprise_wan",
+      "description": "Headquarters office LAN. Full network stack including security systems, POS, VoIP, and a VPN gateway tunnelling to AWS"
+    },
+    {
+      "id": "router1",
+      "name": "Router (HQ)",
+      "type": "device",
+      "technology": "Router",
+      "boundary": "office_1",
+      "description": "Edge router at HQ. WAN uplink to ISP1, LAN downlink to the HQ firewall"
+    },
+    {
+      "id": "firewall1",
+      "name": "Firewall (HQ)",
+      "type": "device",
+      "technology": "Firewall",
+      "boundary": "office_1",
+      "description": "Network firewall enforcing traffic policies between WAN and the HQ LAN"
+    },
+    {
+      "id": "switch1",
+      "name": "Switch (HQ)",
+      "type": "device",
+      "technology": "Network Switch",
+      "boundary": "office_1",
+      "description": "Core HQ switch. Distributes traffic to all wired devices and the access point"
+    },
+    {
+      "id": "vpn_gw1",
+      "name": "VPN Gateway (HQ)",
+      "type": "device",
+      "technology": "Site-to-Site VPN Appliance",
+      "boundary": "office_1",
+      "description": "VPN gateway at HQ. Establishes an encrypted site-to-site tunnel to the AWS VPN gateway. Routes backup traffic for NAS and NVR to AWS S3"
+    },
+    {
+      "id": "nas1",
+      "name": "NAS (HQ)",
+      "type": "server",
+      "technology": "Network Attached Storage",
+      "boundary": "office_1",
+      "description": "Shared file storage for HQ. Wired to the switch. Backs up data to the AWS S3 NAS backup bucket via the VPN tunnel"
+    },
+    {
+      "id": "nvr1",
+      "name": "NVR (HQ)",
+      "type": "server",
+      "technology": "Network Video Recorder",
+      "boundary": "office_1",
+      "description": "Network Video Recorder at HQ. Stores local security camera footage and replicates video archives to the AWS S3 video archive bucket via VPN"
+    },
+    {
+      "id": "cameras1",
+      "name": "Security Cameras (HQ)",
+      "type": "device",
+      "technology": "IP Cameras (PoE)",
+      "boundary": "office_1",
+      "description": "IP security cameras at HQ, powered via PoE from the switch. Stream video to the HQ NVR"
+    },
+    {
+      "id": "access_control1",
+      "name": "Access Control (HQ)",
+      "type": "server",
+      "technology": "Badge / Entry System",
+      "boundary": "office_1",
+      "description": "Badge reader and door controller server managing physical access at HQ. Wired to the switch"
+    },
+    {
+      "id": "pos1",
+      "name": "POS Terminal (HQ)",
+      "type": "device",
+      "technology": "Point of Sale",
+      "boundary": "office_1",
+      "description": "Point-of-sale terminal at HQ. Wired to the switch"
+    },
+    {
+      "id": "voip_phones1",
+      "name": "VoIP Phones (HQ)",
+      "type": "device",
+      "technology": "VoIP",
+      "boundary": "office_1",
+      "description": "Wired VoIP phones at HQ, connected to the switch"
+    },
+    {
+      "id": "ap1",
+      "name": "Access Point (HQ)",
+      "type": "device",
+      "technology": "WiFi Access Point",
+      "boundary": "office_1",
+      "description": "Wireless access point at HQ providing WiFi connectivity to laptops"
+    },
+    {
+      "id": "user_clients1",
+      "name": "User Clients (HQ)",
+      "type": "device",
+      "technology": "Laptops (WiFi)",
+      "boundary": "office_1",
+      "description": "Employee laptops at HQ, connecting wirelessly via the access point"
+    },
+    {
+      "id": "office_2",
+      "name": "Office 2 — Branch",
+      "type": "network_boundary",
+      "boundary": "enterprise_wan",
+      "description": "Branch office LAN. Scaled-down network stack with VPN gateway connecting to the AWS hub"
+    },
+    {
+      "id": "router2",
+      "name": "Router (Branch)",
+      "type": "device",
+      "technology": "Router",
+      "boundary": "office_2",
+      "description": "Edge router at the branch. WAN uplink to ISP2, LAN downlink to the branch firewall"
+    },
+    {
+      "id": "firewall2",
+      "name": "Firewall (Branch)",
+      "type": "device",
+      "technology": "Firewall",
+      "boundary": "office_2",
+      "description": "Network firewall at the branch office"
+    },
+    {
+      "id": "switch2",
+      "name": "Switch (Branch)",
+      "type": "device",
+      "technology": "Network Switch",
+      "boundary": "office_2",
+      "description": "Core branch switch. Distributes traffic to all wired devices and the access point"
+    },
+    {
+      "id": "vpn_gw2",
+      "name": "VPN Gateway (Branch)",
+      "type": "device",
+      "technology": "Site-to-Site VPN Appliance",
+      "boundary": "office_2",
+      "description": "VPN gateway at the branch. Establishes an encrypted site-to-site tunnel to the AWS VPN gateway"
+    },
+    {
+      "id": "nas2",
+      "name": "NAS (Branch)",
+      "type": "server",
+      "technology": "Network Attached Storage",
+      "boundary": "office_2",
+      "description": "Shared file storage for the branch. Backs up data to AWS S3 via the VPN tunnel"
+    },
+    {
+      "id": "nvr2",
+      "name": "NVR (Branch)",
+      "type": "server",
+      "technology": "Network Video Recorder",
+      "boundary": "office_2",
+      "description": "Network Video Recorder at the branch. Replicates video archives to AWS S3 video archive via VPN"
+    },
+    {
+      "id": "cameras2",
+      "name": "Security Cameras (Branch)",
+      "type": "device",
+      "technology": "IP Cameras (PoE)",
+      "boundary": "office_2",
+      "description": "IP security cameras at the branch, powered via PoE. Stream video to the branch NVR"
+    },
+    {
+      "id": "pos2",
+      "name": "POS Terminal (Branch)",
+      "type": "device",
+      "technology": "Point of Sale",
+      "boundary": "office_2",
+      "description": "Point-of-sale terminal at the branch office"
+    },
+    {
+      "id": "ap2",
+      "name": "Access Point (Branch)",
+      "type": "device",
+      "technology": "WiFi Access Point",
+      "boundary": "office_2",
+      "description": "Wireless access point at the branch providing WiFi connectivity"
+    },
+    {
+      "id": "user_clients2",
+      "name": "User Clients (Branch)",
+      "type": "device",
+      "technology": "Laptops (WiFi)",
+      "boundary": "office_2",
+      "description": "Employee laptops at the branch, connecting wirelessly via the access point"
+    },
+    {
+      "id": "aws_cloud",
+      "name": "AWS Cloud",
+      "type": "cloud_environment",
+      "boundary": "enterprise_wan",
+      "description": "AWS cloud hub. Hosts VPN gateway, NAS backup bucket, and video archive bucket. Acts as the central hub in a hub-and-spoke VPN topology connecting both offices and remote users"
+    },
+    {
+      "id": "vpn_gw_aws",
+      "name": "AWS VPN Gateway",
+      "type": "server",
+      "technology": "AWS Virtual Private Gateway / Client VPN",
+      "boundary": "aws_cloud",
+      "description": "AWS VPN gateway. Terminates site-to-site tunnels from both offices and client VPN connections from remote users. Routes authenticated traffic to the S3 backup buckets"
+    },
+    {
+      "id": "s3_nas_backup",
+      "name": "S3 NAS Backup",
+      "type": "server",
+      "technology": "AWS S3 Bucket",
+      "boundary": "aws_cloud",
+      "description": "S3 object storage bucket for NAS backups. Receives backup jobs from both office NAS systems via the VPN tunnel. Accessible to remote users via company VPN"
+    },
+    {
+      "id": "s3_video_archive",
+      "name": "S3 Video Archive",
+      "type": "server",
+      "technology": "AWS S3 / S3 Glacier",
+      "boundary": "aws_cloud",
+      "description": "S3 / Glacier bucket for video footage archival. Receives video backup exports from both office NVRs via VPN. Long-term retention for compliance and security review"
+    }
+  ],
+  "relationships": [
+    { "id":"r1",  "source":"isp1",         "target":"router1",        "label":"WAN link" },
+    { "id":"r2",  "source":"router1",       "target":"firewall1",      "label":"WAN → LAN" },
+    { "id":"r3",  "source":"firewall1",     "target":"switch1",        "label":"Filtered traffic" },
+    { "id":"r4",  "source":"switch1",       "target":"nas1",           "label":"Wired" },
+    { "id":"r5",  "source":"switch1",       "target":"nvr1",           "label":"Wired" },
+    { "id":"r6",  "source":"switch1",       "target":"cameras1",       "label":"PoE" },
+    { "id":"r7",  "source":"cameras1",      "target":"nvr1",           "label":"Video stream" },
+    { "id":"r8",  "source":"switch1",       "target":"access_control1","label":"Wired" },
+    { "id":"r9",  "source":"switch1",       "target":"pos1",           "label":"Wired" },
+    { "id":"r10", "source":"switch1",       "target":"voip_phones1",   "label":"Wired" },
+    { "id":"r11", "source":"switch1",       "target":"ap1",            "label":"Wired uplink" },
+    { "id":"r12", "source":"ap1",           "target":"user_clients1",  "label":"WiFi" },
+    { "id":"r13", "source":"switch1",       "target":"vpn_gw1",        "label":"Wired" },
+    { "id":"r14", "source":"vpn_gw1",       "target":"vpn_gw_aws",     "label":"Site-to-site VPN", "technology":"IPsec" },
+    { "id":"r15", "source":"nas1",          "target":"s3_nas_backup",  "label":"NAS backup via VPN", "technology":"S3 API" },
+    { "id":"r16", "source":"nvr1",          "target":"s3_video_archive","label":"Video archive via VPN","technology":"S3 API" },
+    { "id":"r17", "source":"isp2",          "target":"router2",        "label":"WAN link" },
+    { "id":"r18", "source":"router2",       "target":"firewall2",      "label":"WAN → LAN" },
+    { "id":"r19", "source":"firewall2",     "target":"switch2",        "label":"Filtered traffic" },
+    { "id":"r20", "source":"switch2",       "target":"nas2",           "label":"Wired" },
+    { "id":"r21", "source":"switch2",       "target":"nvr2",           "label":"Wired" },
+    { "id":"r22", "source":"switch2",       "target":"cameras2",       "label":"PoE" },
+    { "id":"r23", "source":"cameras2",      "target":"nvr2",           "label":"Video stream" },
+    { "id":"r24", "source":"switch2",       "target":"pos2",           "label":"Wired" },
+    { "id":"r25", "source":"switch2",       "target":"ap2",            "label":"Wired uplink" },
+    { "id":"r26", "source":"ap2",           "target":"user_clients2",  "label":"WiFi" },
+    { "id":"r27", "source":"switch2",       "target":"vpn_gw2",        "label":"Wired" },
+    { "id":"r28", "source":"vpn_gw2",       "target":"vpn_gw_aws",     "label":"Site-to-site VPN", "technology":"IPsec" },
+    { "id":"r29", "source":"nas2",          "target":"s3_nas_backup",  "label":"NAS backup via VPN", "technology":"S3 API" },
+    { "id":"r30", "source":"nvr2",          "target":"s3_video_archive","label":"Video archive via VPN","technology":"S3 API" },
+    { "id":"r31", "source":"remote_users",  "target":"vpn_gw_aws",     "label":"Client VPN",       "technology":"VPN" },
+    { "id":"r32", "source":"vpn_gw_aws",    "target":"s3_nas_backup",  "label":"Route to NAS backup" },
+    { "id":"r33", "source":"vpn_gw_aws",    "target":"s3_video_archive","label":"Route to video archive" }
+  ]
+}

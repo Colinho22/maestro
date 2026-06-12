@@ -1,0 +1,24 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    start_vacation_request(["Vacation Request Received"])
+    task_get_vacation_status["Get Current Vacation Status"]
+    task_vacation_approval["Vacation Approval"]
+    gw_result{"Result"}
+    end_refused_auto(["Vacation Refused Automatically"])
+    end_approved(["Vacation Approved"])
+    task_manual_approve["Manually Approve Vacation"]
+    gw_manager_decision{"Manager Decision"}
+    end_refused_manager(["Vacation Refused by Manager"])
+
+    start_vacation_request --> task_get_vacation_status
+    task_get_vacation_status --> task_vacation_approval
+    task_vacation_approval --> gw_result
+    gw_result -->|"Refused"| end_refused_auto
+    gw_result -->|"Approved"| end_approved
+    gw_result -->|"Manual Validation Required"| task_manual_approve
+    task_manual_approve --> gw_manager_decision
+    gw_manager_decision -->|"Approved"| end_approved
+    gw_manager_decision -->|"Refused"| end_refused_manager

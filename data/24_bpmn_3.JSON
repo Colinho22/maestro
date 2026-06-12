@@ -1,0 +1,353 @@
+{
+  "metadata": {
+    "id": "bpmn_3_24",
+    "source": "C.9.2.bpmn (expanded)",
+    "diagram_type": "bpmn_collaboration",
+    "tier": 3,
+    "entity_count": 26,
+    "container_count": 1,
+    "attachment_count": 1,
+    "description": "Manual Check process (expanded from C.9.2). Adds a parallel split for concurrent fraud and risk checks, an escalation gateway routing detected fraud to a Senior Reviewer, and an intermediate message catch event awaiting additional documents. Three event sub-processes handle document, accelerated, and fraud flows."
+  },
+  "participants": [
+    {
+      "id": "pool_manual_check",
+      "name": "Manual Check",
+      "lanes": []
+    }
+  ],
+  "lanes": [],
+  "nodes": [
+    {
+      "id": "start_decide_manually",
+      "name": "Decide Manually",
+      "type": "startEvent",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "start_doc_requested",
+      "name": "Document requested",
+      "type": "startEvent",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "start_accelerated",
+      "name": "Accelerated decision",
+      "type": "startEvent",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "start_fraud_suspected",
+      "name": "Fraud suspected",
+      "type": "startEvent",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_doc_received",
+      "name": "Document Received",
+      "type": "endEvent",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_decision_accelerated",
+      "name": "Decision accelerated",
+      "type": "endEvent",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_fraud_detected",
+      "name": "Fraud Detected",
+      "type": "endEvent",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_fraud_not_detected",
+      "name": "Fraud not detected",
+      "type": "endEvent",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_timeout",
+      "name": "Timeout",
+      "type": "endEvent",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_manually_decided",
+      "name": "Manually Decided",
+      "type": "endEvent",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "user_decide_on_app",
+      "name": "Decide on application",
+      "type": "userTask",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "user_accelerate",
+      "name": "Accelerate decision making",
+      "type": "userTask",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "user_check_fraud",
+      "name": "Check for Fraud",
+      "type": "userTask",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "send_notify_delay",
+      "name": "Notify customer about delay",
+      "type": "sendTask",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "call_doc_request",
+      "name": "Document Request",
+      "type": "callActivity",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "boundary_timeout_7d",
+      "name": "Timeout (7 days)",
+      "type": "boundaryEvent",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": "user_decide_on_app"
+    },
+    {
+      "id": "xgw_fraud_detected",
+      "name": "Fraud detected?",
+      "type": "exclusiveGateway",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "sub_doc_validation",
+      "name": "Document Validation",
+      "type": "subProcess",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "sub_risk_assessment",
+      "name": "Risk Assessment Workflow",
+      "type": "subProcess",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "sub_compliance_check",
+      "name": "Compliance Check",
+      "type": "subProcess",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "pgw_split_fraud_risk",
+      "name": "Split: Fraud + Risk",
+      "type": "parallelGateway",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "user_assess_risk",
+      "name": "Assess Risk Level",
+      "type": "userTask",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "pgw_join_fraud_risk",
+      "name": "Join: Checks Complete",
+      "type": "parallelGateway",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "xgw_escalate",
+      "name": "Escalate to Senior?",
+      "type": "exclusiveGateway",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "user_senior_review",
+      "name": "Senior Reviewer Check",
+      "type": "userTask",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "icatch_additional_info",
+      "name": "Additional Info Received",
+      "type": "intermediateCatchEvent",
+      "pool": "pool_manual_check",
+      "lane": null,
+      "attached_to": null
+    }
+  ],
+  "sequence_flows": [
+    {
+      "id": "sf1",
+      "source": "start_decide_manually",
+      "target": "user_decide_on_app",
+      "name": ""
+    },
+    {
+      "id": "sf2",
+      "source": "user_decide_on_app",
+      "target": "end_manually_decided",
+      "name": ""
+    },
+    {
+      "id": "sf3",
+      "source": "boundary_timeout_7d",
+      "target": "end_timeout",
+      "name": ""
+    },
+    {
+      "id": "sf4",
+      "source": "start_doc_requested",
+      "target": "call_doc_request",
+      "name": ""
+    },
+    {
+      "id": "sf5",
+      "source": "call_doc_request",
+      "target": "icatch_additional_info",
+      "name": ""
+    },
+    {
+      "id": "sf6",
+      "source": "icatch_additional_info",
+      "target": "end_doc_received",
+      "name": ""
+    },
+    {
+      "id": "sf7",
+      "source": "start_accelerated",
+      "target": "send_notify_delay",
+      "name": ""
+    },
+    {
+      "id": "sf8",
+      "source": "send_notify_delay",
+      "target": "user_accelerate",
+      "name": ""
+    },
+    {
+      "id": "sf9",
+      "source": "user_accelerate",
+      "target": "end_decision_accelerated",
+      "name": ""
+    },
+    {
+      "id": "sf10",
+      "source": "start_fraud_suspected",
+      "target": "pgw_split_fraud_risk",
+      "name": ""
+    },
+    {
+      "id": "sf11",
+      "source": "pgw_split_fraud_risk",
+      "target": "user_check_fraud",
+      "name": ""
+    },
+    {
+      "id": "sf12",
+      "source": "pgw_split_fraud_risk",
+      "target": "user_assess_risk",
+      "name": ""
+    },
+    {
+      "id": "sf13",
+      "source": "user_check_fraud",
+      "target": "xgw_fraud_detected",
+      "name": ""
+    },
+    {
+      "id": "sf14",
+      "source": "user_assess_risk",
+      "target": "pgw_join_fraud_risk",
+      "name": ""
+    },
+    {
+      "id": "sf15",
+      "source": "xgw_fraud_detected",
+      "target": "pgw_join_fraud_risk",
+      "name": "No"
+    },
+    {
+      "id": "sf16",
+      "source": "pgw_join_fraud_risk",
+      "target": "end_fraud_not_detected",
+      "name": ""
+    },
+    {
+      "id": "sf17",
+      "source": "xgw_fraud_detected",
+      "target": "xgw_escalate",
+      "name": "Yes"
+    },
+    {
+      "id": "sf18",
+      "source": "xgw_escalate",
+      "target": "user_senior_review",
+      "name": "Escalate"
+    },
+    {
+      "id": "sf19",
+      "source": "xgw_escalate",
+      "target": "end_fraud_detected",
+      "name": "Confirmed"
+    },
+    {
+      "id": "sf20",
+      "source": "user_senior_review",
+      "target": "end_fraud_not_detected",
+      "name": "Cleared"
+    }
+  ],
+  "message_flows": []
+}

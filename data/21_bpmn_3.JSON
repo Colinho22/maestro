@@ -1,0 +1,450 @@
+{
+  "metadata": {
+    "id": "bpmn_3_21",
+    "source": "B.1.0.bpmn",
+    "diagram_type": "bpmn_collaboration",
+    "tier": 3,
+    "entity_count": 29,
+    "container_count": 5,
+    "attachment_count": 0,
+    "description": "Two-pool collaboration with lanes, mixed task types (abstract/user/service), collapsed and expanded sub-processes, three call activities (global task, expanded, collapsed), message start/end events, timer start, and terminate end event"
+  },
+  "participants": [
+    {
+      "id": "pool_participant",
+      "name": "Participant",
+      "lanes": []
+    },
+    {
+      "id": "pool_pool",
+      "name": "Pool",
+      "lanes": [
+        "lane_1",
+        "lane_2"
+      ]
+    },
+    {
+      "id": "pool_standalone",
+      "name": "Standalone Processes",
+      "lanes": []
+    }
+  ],
+  "lanes": [
+    {
+      "id": "lane_1",
+      "name": "Lane 1",
+      "pool": "pool_pool"
+    },
+    {
+      "id": "lane_2",
+      "name": "Lane 2",
+      "pool": "pool_pool"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start_none_1",
+      "name": "Start Event None 1",
+      "type": "startEvent",
+      "pool": "pool_standalone",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_4",
+      "name": "Abstract Task 4",
+      "type": "task",
+      "pool": "pool_standalone",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_none_2",
+      "name": "End Event None 2",
+      "type": "endEvent",
+      "pool": "pool_standalone",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "start_none_3",
+      "name": "Start Event None 3",
+      "type": "startEvent",
+      "pool": "pool_standalone",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_8",
+      "name": "Abstract Task 8",
+      "type": "task",
+      "pool": "pool_standalone",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_none_4",
+      "name": "End Event None 4",
+      "type": "endEvent",
+      "pool": "pool_standalone",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "start_timer",
+      "name": "Start Event Timer",
+      "type": "startEvent",
+      "pool": "pool_participant",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_1",
+      "name": "Abstract Task 1",
+      "type": "task",
+      "pool": "pool_participant",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "user_2",
+      "name": "User Task 2",
+      "type": "userTask",
+      "pool": "pool_participant",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "svc_3",
+      "name": "Service Task 3",
+      "type": "serviceTask",
+      "pool": "pool_participant",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_none_1",
+      "name": "End Event None 1",
+      "type": "endEvent",
+      "pool": "pool_participant",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "start_msg",
+      "name": "Start Event Message",
+      "type": "startEvent",
+      "pool": "pool_pool",
+      "lane": "lane_1",
+      "attached_to": null
+    },
+    {
+      "id": "pgw_div",
+      "name": "Parallel Gateway Divergence",
+      "type": "parallelGateway",
+      "pool": "pool_pool",
+      "lane": "lane_1",
+      "attached_to": null
+    },
+    {
+      "id": "gw_div_1",
+      "name": "Exclusive Gateway Divergence 1",
+      "type": "exclusiveGateway",
+      "pool": "pool_pool",
+      "lane": "lane_1",
+      "attached_to": null
+    },
+    {
+      "id": "gw_conv_1",
+      "name": "Exclusive Gateway Convergence 1",
+      "type": "exclusiveGateway",
+      "pool": "pool_pool",
+      "lane": "lane_1",
+      "attached_to": null
+    },
+    {
+      "id": "call_global",
+      "name": "Call Activity Calling a Global Task",
+      "type": "callActivity",
+      "pool": "pool_pool",
+      "lane": "lane_1",
+      "attached_to": null
+    },
+    {
+      "id": "call_expanded",
+      "name": "Call Activity - Expanded",
+      "type": "callActivity",
+      "pool": "pool_pool",
+      "lane": "lane_1",
+      "attached_to": null
+    },
+    {
+      "id": "call_collapsed",
+      "name": "Call Activity Collapsed",
+      "type": "callActivity",
+      "pool": "pool_pool",
+      "lane": "lane_1",
+      "attached_to": null
+    },
+    {
+      "id": "end_msg",
+      "name": "End Event Message",
+      "type": "endEvent",
+      "pool": "pool_pool",
+      "lane": "lane_1",
+      "attached_to": null
+    },
+    {
+      "id": "start_none_2",
+      "name": "Start Event None 2",
+      "type": "startEvent",
+      "pool": "pool_pool",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_6",
+      "name": "Abstract Task 6",
+      "type": "task",
+      "pool": "pool_pool",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_none_3",
+      "name": "End Event None 3",
+      "type": "endEvent",
+      "pool": "pool_pool",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "user_5",
+      "name": "User Task 5",
+      "type": "userTask",
+      "pool": "pool_pool",
+      "lane": "lane_2",
+      "attached_to": null
+    },
+    {
+      "id": "svc_7",
+      "name": "Service Task 7",
+      "type": "serviceTask",
+      "pool": "pool_pool",
+      "lane": "lane_2",
+      "attached_to": null
+    },
+    {
+      "id": "sub_collapsed",
+      "name": "Collapsed Sub-Process",
+      "type": "subProcess",
+      "pool": "pool_pool",
+      "lane": "lane_2",
+      "attached_to": null
+    },
+    {
+      "id": "sub_expanded",
+      "name": "Sub Process - Expanded",
+      "type": "subProcess",
+      "pool": "pool_pool",
+      "lane": "lane_2",
+      "attached_to": null
+    },
+    {
+      "id": "gw_div_2",
+      "name": "Exclusive Gateway Divergence 2",
+      "type": "exclusiveGateway",
+      "pool": "pool_pool",
+      "lane": "lane_2",
+      "attached_to": null
+    },
+    {
+      "id": "gw_conv_2",
+      "name": "Exclusive Gateway Convergence 2",
+      "type": "exclusiveGateway",
+      "pool": "pool_pool",
+      "lane": "lane_2",
+      "attached_to": null
+    },
+    {
+      "id": "end_terminate",
+      "name": "End Event Terminate",
+      "type": "endEvent",
+      "pool": "pool_pool",
+      "lane": "lane_2",
+      "attached_to": null
+    }
+  ],
+  "sequence_flows": [
+    {
+      "id": "sf1",
+      "source": "start_none_1",
+      "target": "task_4",
+      "name": ""
+    },
+    {
+      "id": "sf2",
+      "source": "task_4",
+      "target": "end_none_2",
+      "name": ""
+    },
+    {
+      "id": "sf3",
+      "source": "start_none_3",
+      "target": "task_8",
+      "name": ""
+    },
+    {
+      "id": "sf4",
+      "source": "task_8",
+      "target": "end_none_4",
+      "name": ""
+    },
+    {
+      "id": "sf5",
+      "source": "start_timer",
+      "target": "task_1",
+      "name": ""
+    },
+    {
+      "id": "sf6",
+      "source": "task_1",
+      "target": "user_2",
+      "name": ""
+    },
+    {
+      "id": "sf7",
+      "source": "user_2",
+      "target": "svc_3",
+      "name": ""
+    },
+    {
+      "id": "sf8",
+      "source": "svc_3",
+      "target": "end_none_1",
+      "name": ""
+    },
+    {
+      "id": "sf9",
+      "source": "start_none_2",
+      "target": "task_6",
+      "name": ""
+    },
+    {
+      "id": "sf10",
+      "source": "task_6",
+      "target": "end_none_3",
+      "name": ""
+    },
+    {
+      "id": "sf11",
+      "source": "start_msg",
+      "target": "pgw_div",
+      "name": ""
+    },
+    {
+      "id": "sf12",
+      "source": "pgw_div",
+      "target": "user_5",
+      "name": ""
+    },
+    {
+      "id": "sf13",
+      "source": "pgw_div",
+      "target": "gw_div_1",
+      "name": ""
+    },
+    {
+      "id": "sf14",
+      "source": "gw_div_1",
+      "target": "call_collapsed",
+      "name": ""
+    },
+    {
+      "id": "sf15",
+      "source": "gw_div_1",
+      "target": "call_global",
+      "name": ""
+    },
+    {
+      "id": "sf16",
+      "source": "call_collapsed",
+      "target": "call_expanded",
+      "name": ""
+    },
+    {
+      "id": "sf17",
+      "source": "call_global",
+      "target": "gw_conv_1",
+      "name": ""
+    },
+    {
+      "id": "sf18",
+      "source": "call_expanded",
+      "target": "gw_conv_1",
+      "name": ""
+    },
+    {
+      "id": "sf19",
+      "source": "gw_conv_1",
+      "target": "end_msg",
+      "name": ""
+    },
+    {
+      "id": "sf20",
+      "source": "user_5",
+      "target": "gw_div_2",
+      "name": ""
+    },
+    {
+      "id": "sf21",
+      "source": "gw_div_2",
+      "target": "sub_collapsed",
+      "name": ""
+    },
+    {
+      "id": "sf22",
+      "source": "gw_div_2",
+      "target": "svc_7",
+      "name": ""
+    },
+    {
+      "id": "sf23",
+      "source": "sub_collapsed",
+      "target": "sub_expanded",
+      "name": ""
+    },
+    {
+      "id": "sf24",
+      "source": "sub_expanded",
+      "target": "gw_conv_2",
+      "name": ""
+    },
+    {
+      "id": "sf25",
+      "source": "svc_7",
+      "target": "gw_conv_2",
+      "name": ""
+    },
+    {
+      "id": "sf26",
+      "source": "gw_conv_2",
+      "target": "end_terminate",
+      "name": ""
+    }
+  ],
+  "message_flows": [
+    {
+      "id": "mf1",
+      "source": "task_1",
+      "target": "start_msg",
+      "name": "Message Flow 1"
+    },
+    {
+      "id": "mf2",
+      "source": "end_msg",
+      "target": "svc_3",
+      "name": "Message Flow 2"
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "metadata": {
+    "id": "bpmn_1_02",
+    "source": "A.2.0.bpmn",
+    "diagram_type": "bpmn_process",
+    "tier": 1,
+    "entity_count": 8,
+    "container_count": 0,
+    "attachment_count": 0,
+    "description": "Process with exclusive gateway splitting into three paths: Task 2 goes directly to End Event, Tasks 3 and 4 merge before End Event"
+  },
+  "nodes": [
+    {
+      "id": "start_event",
+      "name": "Start Event",
+      "type": "startEvent",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_1",
+      "name": "Task 1",
+      "type": "task",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "gw_split",
+      "name": "Gateway\n(Split Flow)",
+      "type": "exclusiveGateway",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_2",
+      "name": "Task 2",
+      "type": "task",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_3",
+      "name": "Task 3",
+      "type": "task",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_4",
+      "name": "Task 4",
+      "type": "task",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "gw_merge",
+      "name": "Gateway\n(Merge Flows)",
+      "type": "exclusiveGateway",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_event",
+      "name": "End Event",
+      "type": "endEvent",
+      "lane": null,
+      "attached_to": null
+    }
+  ],
+  "sequence_flows": [
+    {
+      "id": "sf_1",
+      "name": "",
+      "source": "start_event",
+      "target": "task_1"
+    },
+    {
+      "id": "sf_2",
+      "name": "",
+      "source": "task_1",
+      "target": "gw_split"
+    },
+    {
+      "id": "sf_3",
+      "name": "",
+      "source": "gw_split",
+      "target": "task_2"
+    },
+    {
+      "id": "sf_4",
+      "name": "",
+      "source": "gw_split",
+      "target": "task_3"
+    },
+    {
+      "id": "sf_5",
+      "name": "",
+      "source": "gw_split",
+      "target": "task_4"
+    },
+    {
+      "id": "sf_6",
+      "name": "",
+      "source": "task_2",
+      "target": "end_event"
+    },
+    {
+      "id": "sf_7",
+      "name": "",
+      "source": "task_3",
+      "target": "gw_merge"
+    },
+    {
+      "id": "sf_8",
+      "name": "",
+      "source": "task_4",
+      "target": "gw_merge"
+    },
+    {
+      "id": "sf_9",
+      "name": "",
+      "source": "gw_merge",
+      "target": "end_event"
+    }
+  ]
+}

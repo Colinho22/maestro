@@ -1,0 +1,212 @@
+{
+  "metadata": {
+    "id": "it_2_18",
+    "diagram_type": "c4_container",
+    "tier": 2,
+    "entity_count": 11,
+    "container_count": 2,
+    "attachment_count": 0,
+    "description": "C4 Container diagram of an extended GCP data analysis stack. Extends it_1_09 with async job processing via Cloud Tasks and a Background Worker, Cloud Storage for file handling, Secret Manager for credential management, and Cloud Monitoring for observability"
+  },
+  "system_boundary": {
+    "id": "google_cloud",
+    "name": "Google Cloud",
+    "type": "cloud_environment"
+  },
+  "elements": [
+    {
+      "id": "user",
+      "name": "User",
+      "type": "person",
+      "description": "Analyst accessing the web app via browser"
+    },
+    {
+      "id": "iap",
+      "name": "Google IAP",
+      "type": "container",
+      "technology": "Identity-Aware Proxy",
+      "boundary": "google_cloud",
+      "description": "Google Identity-Aware Proxy. Enforces authentication before forwarding requests to the web app"
+    },
+    {
+      "id": "web_app",
+      "name": "Web App",
+      "type": "container",
+      "technology": "Web Application / MCP Host",
+      "boundary": "google_cloud",
+      "description": "GCP-hosted web application acting as the MCP host. Sends prompts to Gemini, calls MCP tools, enqueues async jobs, and reads/writes Cloud Storage"
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini",
+      "type": "container",
+      "technology": "Vertex AI (Google-managed)",
+      "boundary": "google_cloud",
+      "description": "Gemini model served via Vertex AI. Processes user prompts and drives MCP tool selection"
+    },
+    {
+      "id": "mcp_server",
+      "name": "MCP Server",
+      "type": "container",
+      "technology": "MCP Server",
+      "boundary": "google_cloud",
+      "description": "MCP server exposing the orders view as a read-only query tool"
+    },
+    {
+      "id": "cloud_tasks",
+      "name": "Cloud Tasks",
+      "type": "container",
+      "technology": "GCP Cloud Tasks",
+      "boundary": "google_cloud",
+      "description": "Managed async task queue. Receives jobs enqueued by the web app and dispatches them to the background worker"
+    },
+    {
+      "id": "background_worker",
+      "name": "Background Worker",
+      "type": "container",
+      "technology": "Cloud Run / Worker Service",
+      "boundary": "google_cloud",
+      "description": "Long-running worker service triggered by Cloud Tasks. Reads and writes data to PostgreSQL and stores results in Cloud Storage"
+    },
+    {
+      "id": "cloud_storage",
+      "name": "Cloud Storage",
+      "type": "container",
+      "technology": "GCS Bucket",
+      "boundary": "google_cloud",
+      "description": "Google Cloud Storage bucket. Used by the web app for file uploads/downloads and by the background worker to store job results"
+    },
+    {
+      "id": "cloud_monitoring",
+      "name": "Cloud Monitoring",
+      "type": "container",
+      "technology": "GCP Cloud Monitoring",
+      "boundary": "google_cloud",
+      "description": "Centralized monitoring and logging service. Collects metrics and logs from the web app and background worker"
+    },
+    {
+      "id": "secret_manager",
+      "name": "Secret Manager",
+      "type": "container",
+      "technology": "GCP Secret Manager",
+      "boundary": "google_cloud",
+      "description": "Manages and vends API keys, database credentials, and other secrets to authorised services"
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "type": "container",
+      "technology": "Relational Database",
+      "boundary": "google_cloud",
+      "description": "PostgreSQL database on GCP hosting the orders view and application data"
+    },
+    {
+      "id": "orders_view",
+      "name": "orders",
+      "type": "container",
+      "technology": "Data Store (DB View)",
+      "boundary": "postgres",
+      "description": "Read-only PostgreSQL view exposing order data. Accessed by the MCP server"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "source": "user",
+      "target": "iap",
+      "label": "Authenticates",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r2",
+      "source": "iap",
+      "target": "web_app",
+      "label": "Forwards authenticated request",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r3",
+      "source": "web_app",
+      "target": "gemini",
+      "label": "Prompts / responses",
+      "technology": "Gemini API"
+    },
+    {
+      "id": "r4",
+      "source": "web_app",
+      "target": "mcp_server",
+      "label": "Calls MCP tools",
+      "technology": "MCP"
+    },
+    {
+      "id": "r5",
+      "source": "mcp_server",
+      "target": "orders_view",
+      "label": "Read-only query",
+      "technology": "SQL"
+    },
+    {
+      "id": "r6",
+      "source": "web_app",
+      "target": "cloud_tasks",
+      "label": "Enqueue async job",
+      "technology": "Cloud Tasks API"
+    },
+    {
+      "id": "r7",
+      "source": "cloud_tasks",
+      "target": "background_worker",
+      "label": "Trigger job",
+      "technology": "HTTP callback"
+    },
+    {
+      "id": "r8",
+      "source": "background_worker",
+      "target": "postgres",
+      "label": "Read / write data",
+      "technology": "SQL"
+    },
+    {
+      "id": "r9",
+      "source": "background_worker",
+      "target": "cloud_storage",
+      "label": "Store results",
+      "technology": "GCS API"
+    },
+    {
+      "id": "r10",
+      "source": "web_app",
+      "target": "cloud_storage",
+      "label": "Upload / download files",
+      "technology": "GCS API"
+    },
+    {
+      "id": "r11",
+      "source": "web_app",
+      "target": "secret_manager",
+      "label": "Fetch API keys",
+      "technology": "Secret Manager API"
+    },
+    {
+      "id": "r12",
+      "source": "background_worker",
+      "target": "secret_manager",
+      "label": "Fetch credentials",
+      "technology": "Secret Manager API"
+    },
+    {
+      "id": "r13",
+      "source": "web_app",
+      "target": "cloud_monitoring",
+      "label": "Emit metrics / logs",
+      "technology": "Cloud Monitoring API"
+    },
+    {
+      "id": "r14",
+      "source": "background_worker",
+      "target": "cloud_monitoring",
+      "label": "Emit metrics / logs",
+      "technology": "Cloud Monitoring API"
+    }
+  ]
+}

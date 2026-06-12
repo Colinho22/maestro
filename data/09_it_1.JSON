@@ -1,0 +1,109 @@
+{
+  "metadata": {
+    "id": "it_1_09",
+    "diagram_type": "c4_container",
+    "tier": 1,
+    "entity_count": 6,
+    "container_count": 2,
+    "attachment_count": 0,
+    "description": "C4 Container diagram of a GCP-hosted data analysis stack. A user authenticates via Google IAP to reach a web app that acts as an MCP host. The web app queries Gemini as the AI model and calls an MCP server with read-only access to an orders view on a PostgreSQL database"
+  },
+  "system_boundary": {
+    "id": "google_cloud",
+    "name": "Google Cloud",
+    "type": "cloud_environment"
+  },
+  "elements": [
+    {
+      "id": "user",
+      "name": "User",
+      "type": "person",
+      "description": "Analyst accessing the web app via browser"
+    },
+    {
+      "id": "iap",
+      "name": "Google IAP",
+      "type": "container",
+      "technology": "Identity-Aware Proxy",
+      "boundary": "google_cloud",
+      "description": "Google Identity-Aware Proxy. Enforces authentication before forwarding requests to the web app"
+    },
+    {
+      "id": "web_app",
+      "name": "Web App",
+      "type": "container",
+      "technology": "Web Application / MCP Host",
+      "boundary": "google_cloud",
+      "description": "GCP-hosted web application acting as the MCP host. Sends prompts to Gemini and dispatches MCP tool calls to the MCP server"
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini",
+      "type": "container",
+      "technology": "Vertex AI (Google-managed)",
+      "boundary": "google_cloud",
+      "description": "Gemini model served via Vertex AI within the GCP project. Processes user prompts and drives MCP tool selection"
+    },
+    {
+      "id": "mcp_server",
+      "name": "MCP Server",
+      "type": "container",
+      "technology": "MCP Server",
+      "boundary": "google_cloud",
+      "description": "MCP server exposing the orders view as a read-only query tool"
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "type": "container",
+      "technology": "Relational Database",
+      "boundary": "google_cloud",
+      "description": "PostgreSQL database on GCP hosting the orders view"
+    },
+    {
+      "id": "orders_view",
+      "name": "orders",
+      "type": "container",
+      "technology": "Data Store (DB View)",
+      "boundary": "postgres",
+      "description": "Read-only PostgreSQL view exposing order data. Accessed exclusively by the MCP server"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "source": "user",
+      "target": "iap",
+      "label": "Authenticates",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r2",
+      "source": "iap",
+      "target": "web_app",
+      "label": "Forwards authenticated request",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r3",
+      "source": "web_app",
+      "target": "gemini",
+      "label": "Sends prompts / receives responses",
+      "technology": "Gemini API"
+    },
+    {
+      "id": "r4",
+      "source": "web_app",
+      "target": "mcp_server",
+      "label": "Calls MCP tools",
+      "technology": "MCP"
+    },
+    {
+      "id": "r5",
+      "source": "mcp_server",
+      "target": "orders_view",
+      "label": "Read-only query",
+      "technology": "SQL"
+    }
+  ]
+}

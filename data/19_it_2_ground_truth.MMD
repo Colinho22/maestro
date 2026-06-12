@@ -1,0 +1,48 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    user_clients["User Clients\n[Person]"]
+    global_lb["Global Load Balancer\n[External System]\nDNS / Anycast"]
+
+    subgraph enterprise_net["Enterprise Network"]
+        subgraph dc1["Data Center 1 — Primary"]
+            subgraph dmz1["DMZ"]
+                fw1["Firewall\n[Device]"]
+                lb1["Load Balancer\n[Device]"]
+            end
+            subgraph lan1["Internal LAN"]
+                web_app_1["Web App 1\n[Server]"]
+                auth_iam["Auth / IAM\n[Server]\nPrimary"]
+                db_primary[("PostgreSQL Primary\n[Server]")]
+            end
+        end
+    
+        subgraph dc2["Data Center 2 — Standby"]
+            subgraph dmz2["DMZ"]
+                fw2["Firewall\n[Device]"]
+                lb2["Load Balancer\n[Device]"]
+            end
+            subgraph lan2["Internal LAN"]
+                web_app_2["Web App 2\n[Server]"]
+                auth_iam_replica["Auth / IAM\n[Server]\nReplica"]
+                db_replica[("PostgreSQL Replica\n[Server]")]
+            end
+        end
+    end
+
+    user_clients -->|"HTTPS"| global_lb
+    global_lb -->|"Active"| fw1
+    global_lb -.->|"Failover"| fw2
+    fw1 -->|"Filtered HTTPS"| lb1
+    lb1 -->|"HTTP"| web_app_1
+    web_app_1 -->|"Auth request"| auth_iam
+    web_app_1 -->|"Read / Write · SQL"| db_primary
+    fw2 -->|"Filtered HTTPS"| lb2
+    lb2 -->|"HTTP"| web_app_2
+    web_app_2 -->|"Auth request"| auth_iam_replica
+    web_app_2 -->|"Read / Standby · SQL"| db_replica
+    db_primary -->|"Streaming replication · WAL"| db_replica
+    auth_iam -->|"Sync"| auth_iam_replica
+    fw1 <-->|"Encrypted WAN · IPsec"| fw2

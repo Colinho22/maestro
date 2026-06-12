@@ -1,0 +1,21 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    start_event(["Start Event"])
+    task_1["Task 1"]
+    sub_process[["Collapsed\nSub-Process"]]
+    task_2["Task 2"]
+    task_3["Task 3"]
+    end_event_1(["End Event 1"])
+    end_event_2(["End Event 2"])
+
+    start_event --> task_1
+    task_1 --> sub_process
+    task_2 --> end_event_1
+    task_3 --> end_event_2
+    sub_process o--o bnd_message(("Boundary Intermediate Event Non-Interrupting Message"))
+    bnd_message --> task_2
+    sub_process o--o bnd_escalation(("Boundary Intermediate Event Interrupting Escalation"))
+    bnd_escalation --> task_3

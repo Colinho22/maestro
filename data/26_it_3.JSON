@@ -1,0 +1,576 @@
+{
+  "metadata": {
+    "id": "it_3_26",
+    "diagram_type": "network_topology",
+    "tier": 3,
+    "entity_count": 28,
+    "container_count": 11,
+    "attachment_count": 0,
+    "description": "Dual data center with active/standby load balancing and three-zone defense-in-depth architecture per DC: outer DMZ, Auth Zone (auth gateway + IAM + token cache), and App Zone (inner firewall + web app + LDAP + DB + internal logging server). A CDN edge fronts the global load balancer for user traffic. Each DC has its own Monitoring Zone with a local SIEM that ingests from its DC logging server; the two SIEMs cross-replicate to keep monitoring self-sufficient on failover. Users pass geofencing (zone + IP + telecom MFA) and IAM auth in the Auth Zone before the inner firewall admits them to the App Zone. Admin/audit users authenticate separately through the Auth Zone to access internal logging servers directly \u2014 no load balancer involved for log access. DB and app components write logs directly to the logging server. Log data replicates between DCs."
+  },
+  "system_boundary": {
+    "id": "enterprise_net",
+    "name": "Enterprise Network",
+    "type": "deployment_environment"
+  },
+  "elements": [
+    {
+      "id": "user_clients",
+      "name": "User Clients",
+      "type": "person",
+      "description": "End users accessing the web application via browser; receive SMS MFA codes on their mobile phones"
+    },
+    {
+      "id": "global_lb",
+      "name": "Global Load Balancer",
+      "type": "external_system",
+      "description": "DNS-based / anycast global traffic manager. Routes requests to DC1 (active) and DC2 (failover)"
+    },
+    {
+      "id": "geofencing_svc",
+      "name": "Geofencing Service",
+      "type": "external_system",
+      "description": "External SaaS that enforces geographic access policies. Validates user zone via IP geolocation and cell-tower location data provided by the telecom provider, then coordinates the MFA challenge"
+    },
+    {
+      "id": "telecom_provider",
+      "name": "Telecom Provider",
+      "type": "external_system",
+      "description": "Mobile network operator. Supplies cell-tower location data to the geofencing service and delivers SMS MFA codes to user mobile devices"
+    },
+    {
+      "id": "cdn_edge",
+      "name": "CDN Edge",
+      "type": "external_system",
+      "description": "Content delivery network edge cache. Terminates user TLS, serves cached static assets, and forwards dynamic requests to the global load balancer"
+    },
+    {
+      "id": "dc1",
+      "name": "Data Center 1 \u2014 Primary",
+      "type": "deployment_environment",
+      "boundary": "enterprise_net",
+      "description": "Primary data center. Handles live traffic across three network zones: DMZ, Auth Zone, and App Zone"
+    },
+    {
+      "id": "dmz1",
+      "name": "DMZ",
+      "type": "network_boundary",
+      "boundary": "dc1",
+      "description": "Outer perimeter zone in DC1. Terminates inbound TLS from the global load balancer and forwards to the Auth Zone; no direct path to the App Zone"
+    },
+    {
+      "id": "outer_fw1",
+      "name": "Outer Firewall DC1",
+      "type": "device",
+      "technology": "Stateful Firewall",
+      "boundary": "dmz1",
+      "description": "Outer stateful firewall. Permits only HTTPS inbound and blocks all direct traffic to the App Zone"
+    },
+    {
+      "id": "lb1",
+      "name": "Load Balancer DC1",
+      "type": "device",
+      "technology": "Application Load Balancer",
+      "boundary": "dmz1",
+      "description": "Application load balancer in the DC1 DMZ. Routes HTTPS traffic to the Auth Zone gateway"
+    },
+    {
+      "id": "auth_zone1",
+      "name": "Auth Zone",
+      "type": "network_boundary",
+      "boundary": "dc1",
+      "description": "Authentication and policy-enforcement zone in DC1. All sessions must pass geofencing and IAM checks here before a token is issued and the inner firewall is opened"
+    },
+    {
+      "id": "auth_gw1",
+      "name": "Auth Gateway DC1",
+      "type": "server",
+      "technology": "Policy Enforcement Point / Reverse Proxy",
+      "boundary": "auth_zone1",
+      "description": "Auth gateway acting as the policy enforcement point. Receives sessions from the LB, delegates auth to the IAM server and geofencing check, and forwards validated sessions through the inner firewall to the App Zone"
+    },
+    {
+      "id": "iam_server",
+      "name": "IAM Server",
+      "type": "server",
+      "technology": "Identity and Access Management (IdP / Auth Server)",
+      "boundary": "auth_zone1",
+      "description": "Primary IAM server (e.g., Keycloak). Issues and validates JWT tokens, enforces RBAC policies, and calls the geofencing service for zone and MFA verification. Writes issued tokens to the token store"
+    },
+    {
+      "id": "token_store",
+      "name": "Token Store",
+      "type": "server",
+      "technology": "Redis (Session / Token Cache)",
+      "boundary": "auth_zone1",
+      "description": "In-memory token and session cache in the Auth Zone. Enables fast token validation by the auth gateway without hitting the IAM server on every request"
+    },
+    {
+      "id": "app_zone1",
+      "name": "App Zone",
+      "type": "network_boundary",
+      "boundary": "dc1",
+      "description": "Inner application zone in DC1. Only reachable through the inner firewall after a valid token has been issued in the Auth Zone"
+    },
+    {
+      "id": "inner_fw1",
+      "name": "Inner Firewall DC1",
+      "type": "device",
+      "technology": "Stateful Firewall",
+      "boundary": "app_zone1",
+      "description": "Inner stateful firewall. Permits only traffic carrying a valid session token from the Auth Zone; blocks all unauthenticated paths"
+    },
+    {
+      "id": "web_app_1",
+      "name": "Web App 1",
+      "type": "server",
+      "technology": "Web Application Server",
+      "boundary": "app_zone1",
+      "description": "Primary web application server. Processes authenticated requests from the inner firewall, queries LDAP for user attributes, and reads/writes the primary database"
+    },
+    {
+      "id": "ldap_directory",
+      "name": "LDAP Directory",
+      "type": "server",
+      "technology": "LDAP / Active Directory",
+      "boundary": "app_zone1",
+      "description": "Authoritative user directory. Stores identities, group memberships, and access policies. Queried by the web app for authorisation decisions after the auth check"
+    },
+    {
+      "id": "db_primary",
+      "name": "PostgreSQL Primary",
+      "type": "server",
+      "technology": "PostgreSQL (Read / Write)",
+      "boundary": "app_zone1",
+      "description": "Primary PostgreSQL database. Handles all read and write operations; streams WAL replication to DC2; ships structured access and edit audit events to the logging service"
+    },
+    {
+      "id": "dc2",
+      "name": "Data Center 2 \u2014 Standby",
+      "type": "deployment_environment",
+      "boundary": "enterprise_net",
+      "description": "Standby data center. Receives continuous replication from DC1 across all three zones; promoted to active on DC1 failure"
+    },
+    {
+      "id": "dmz2",
+      "name": "DMZ",
+      "type": "network_boundary",
+      "boundary": "dc2",
+      "description": "Outer perimeter zone in DC2. Ready to accept failover traffic"
+    },
+    {
+      "id": "outer_fw2",
+      "name": "Outer Firewall DC2",
+      "type": "device",
+      "technology": "Stateful Firewall",
+      "boundary": "dmz2",
+      "description": "Outer stateful firewall in DC2 DMZ"
+    },
+    {
+      "id": "lb2",
+      "name": "Load Balancer DC2",
+      "type": "device",
+      "technology": "Application Load Balancer",
+      "boundary": "dmz2",
+      "description": "Application load balancer in DC2 DMZ. Activated on failover"
+    },
+    {
+      "id": "auth_zone2",
+      "name": "Auth Zone",
+      "type": "network_boundary",
+      "boundary": "dc2",
+      "description": "Authentication and policy-enforcement zone in DC2. Mirrors DC1 Auth Zone; uses replicated IAM and token store for standalone operation on failover"
+    },
+    {
+      "id": "auth_gw2",
+      "name": "Auth Gateway DC2",
+      "type": "server",
+      "technology": "Policy Enforcement Point / Reverse Proxy",
+      "boundary": "auth_zone2",
+      "description": "Auth gateway in DC2 Auth Zone. Enforces the same geofencing and IAM policy as DC1 during failover"
+    },
+    {
+      "id": "iam_replica",
+      "name": "IAM Replica",
+      "type": "server",
+      "technology": "Identity and Access Management (Replica)",
+      "boundary": "auth_zone2",
+      "description": "Replicated IAM server in DC2 Auth Zone. Stays in sync with the DC1 primary; provides full auth capability locally on failover"
+    },
+    {
+      "id": "token_store_replica",
+      "name": "Token Store Replica",
+      "type": "server",
+      "technology": "Redis (Replica)",
+      "boundary": "auth_zone2",
+      "description": "Replica of the DC1 token cache. Ensures active sessions remain valid when traffic fails over to DC2"
+    },
+    {
+      "id": "app_zone2",
+      "name": "App Zone",
+      "type": "network_boundary",
+      "boundary": "dc2",
+      "description": "Inner application zone in DC2. Only reachable after successful auth in the DC2 Auth Zone"
+    },
+    {
+      "id": "inner_fw2",
+      "name": "Inner Firewall DC2",
+      "type": "device",
+      "technology": "Stateful Firewall",
+      "boundary": "app_zone2",
+      "description": "Inner stateful firewall in DC2 App Zone"
+    },
+    {
+      "id": "web_app_2",
+      "name": "Web App 2",
+      "type": "server",
+      "technology": "Web Application Server",
+      "boundary": "app_zone2",
+      "description": "Standby web application server. Serves traffic when DC2 is promoted to active"
+    },
+    {
+      "id": "ldap_replica",
+      "name": "LDAP Replica",
+      "type": "server",
+      "technology": "LDAP Read Replica",
+      "boundary": "app_zone2",
+      "description": "Read replica of the LDAP directory. Keeps DC2 self-sufficient for authorisation lookups on failover"
+    },
+    {
+      "id": "db_replica",
+      "name": "PostgreSQL Replica",
+      "type": "server",
+      "technology": "PostgreSQL (Standby / Read)",
+      "boundary": "app_zone2",
+      "description": "Standby PostgreSQL replica. Receives streaming replication from DC1 primary; promoted to read-write on failover; ships read-access audit events to the logging service"
+    },
+    {
+      "id": "admin_clients",
+      "name": "Admin / Audit Users",
+      "type": "person",
+      "description": "Administrators and auditors. Access the internal logging servers via a dedicated admin login through the Auth Zone \u2014 not through the user load balancer"
+    },
+    {
+      "id": "logging_server_1",
+      "name": "Logging Server DC1",
+      "type": "server",
+      "technology": "Centralised Log Store",
+      "boundary": "app_zone1",
+      "description": "Internal centralised logging server in DC1 App Zone. Receives DB access and edit events from db_primary and app event logs from web_app_1. Accessible only to authenticated admin users via the Auth Zone inner firewall. Replicates log data to DC2."
+    },
+    {
+      "id": "logging_server_2",
+      "name": "Logging Server DC2",
+      "type": "server",
+      "technology": "Centralised Log Store (Replica)",
+      "boundary": "app_zone2",
+      "description": "Internal centralised logging server in DC2 App Zone. Receives DB read events from db_replica and app event logs from web_app_2. Accessible to admins on failover. Receives replicated log data from DC1."
+    },
+    {
+      "id": "monitoring_zone1",
+      "name": "Monitoring Zone DC1",
+      "type": "network_boundary",
+      "boundary": "dc1",
+      "description": "DC1 monitoring zone. Hosts the local SIEM that ingests logs from logging_server_1 and replicates state to DC2"
+    },
+    {
+      "id": "siem_1",
+      "name": "SIEM DC1",
+      "type": "server",
+      "technology": "Security Information and Event Management",
+      "boundary": "monitoring_zone1",
+      "description": "Local SIEM in DC1. Pulls logs from logging_server_1, performs correlation and threat detection, and replicates state to the DC2 SIEM for failover continuity"
+    },
+    {
+      "id": "monitoring_zone2",
+      "name": "Monitoring Zone DC2",
+      "type": "network_boundary",
+      "boundary": "dc2",
+      "description": "DC2 monitoring zone. Hosts the local SIEM that ingests logs from logging_server_2 and receives replicated state from DC1"
+    },
+    {
+      "id": "siem_2",
+      "name": "SIEM DC2",
+      "type": "server",
+      "technology": "Security Information and Event Management (Replica)",
+      "boundary": "monitoring_zone2",
+      "description": "Local SIEM in DC2. Pulls logs from logging_server_2, receives replicated detection state from siem_1, and takes over correlation duties on failover"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "source": "user_clients",
+      "target": "cdn_edge",
+      "label": "HTTPS",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r1a",
+      "source": "cdn_edge",
+      "target": "global_lb",
+      "label": "Cache miss / dynamic",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r2",
+      "source": "global_lb",
+      "target": "outer_fw1",
+      "label": "Active route",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r3",
+      "source": "global_lb",
+      "target": "outer_fw2",
+      "label": "Failover route",
+      "technology": "HTTPS",
+      "note": "Dashed \u2014 standby path"
+    },
+    {
+      "id": "r4",
+      "source": "outer_fw1",
+      "target": "lb1",
+      "label": "Filtered HTTPS"
+    },
+    {
+      "id": "r5",
+      "source": "lb1",
+      "target": "auth_gw1",
+      "label": "HTTPS"
+    },
+    {
+      "id": "r6",
+      "source": "auth_gw1",
+      "target": "iam_server",
+      "label": "Auth check",
+      "technology": "OAuth2 / OIDC"
+    },
+    {
+      "id": "r7",
+      "source": "iam_server",
+      "target": "token_store",
+      "label": "Issue / validate token",
+      "technology": "Redis"
+    },
+    {
+      "id": "r8",
+      "source": "iam_server",
+      "target": "geofencing_svc",
+      "label": "Zone + IP check",
+      "technology": "HTTPS / API"
+    },
+    {
+      "id": "r9",
+      "source": "geofencing_svc",
+      "target": "telecom_provider",
+      "label": "Cell location + MFA trigger",
+      "technology": "Telecom API"
+    },
+    {
+      "id": "r10",
+      "source": "telecom_provider",
+      "target": "user_clients",
+      "label": "SMS MFA code",
+      "technology": "SMS"
+    },
+    {
+      "id": "r11",
+      "source": "auth_gw1",
+      "target": "inner_fw1",
+      "label": "Authenticated session",
+      "note": "Only after geofencing + IAM pass"
+    },
+    {
+      "id": "r12",
+      "source": "inner_fw1",
+      "target": "web_app_1",
+      "label": "Filtered HTTP"
+    },
+    {
+      "id": "r13",
+      "source": "web_app_1",
+      "target": "ldap_directory",
+      "label": "Authorisation lookup",
+      "technology": "LDAP"
+    },
+    {
+      "id": "r14",
+      "source": "web_app_1",
+      "target": "db_primary",
+      "label": "Read / Write",
+      "technology": "SQL"
+    },
+    {
+      "id": "r16",
+      "source": "db_primary",
+      "target": "db_replica",
+      "label": "Streaming replication",
+      "technology": "PostgreSQL WAL"
+    },
+    {
+      "id": "r17",
+      "source": "iam_server",
+      "target": "iam_replica",
+      "label": "Sync",
+      "technology": "Internal replication"
+    },
+    {
+      "id": "r18",
+      "source": "token_store",
+      "target": "token_store_replica",
+      "label": "Redis replication"
+    },
+    {
+      "id": "r19",
+      "source": "ldap_directory",
+      "target": "ldap_replica",
+      "label": "LDAP replication"
+    },
+    {
+      "id": "r20",
+      "source": "outer_fw1",
+      "target": "outer_fw2",
+      "label": "Encrypted WAN",
+      "technology": "IPsec",
+      "note": "Bidirectional inter-DC link"
+    },
+    {
+      "id": "r21",
+      "source": "outer_fw2",
+      "target": "lb2",
+      "label": "Filtered HTTPS"
+    },
+    {
+      "id": "r22",
+      "source": "lb2",
+      "target": "auth_gw2",
+      "label": "HTTPS"
+    },
+    {
+      "id": "r23",
+      "source": "auth_gw2",
+      "target": "iam_replica",
+      "label": "Auth check",
+      "technology": "OAuth2 / OIDC"
+    },
+    {
+      "id": "r24",
+      "source": "iam_replica",
+      "target": "token_store_replica",
+      "label": "Issue / validate token",
+      "technology": "Redis"
+    },
+    {
+      "id": "r25",
+      "source": "auth_gw2",
+      "target": "inner_fw2",
+      "label": "Authenticated session",
+      "note": "Only after geofencing + IAM pass"
+    },
+    {
+      "id": "r26",
+      "source": "inner_fw2",
+      "target": "web_app_2",
+      "label": "Filtered HTTP"
+    },
+    {
+      "id": "r27",
+      "source": "web_app_2",
+      "target": "ldap_replica",
+      "label": "Authorisation lookup",
+      "technology": "LDAP"
+    },
+    {
+      "id": "r28",
+      "source": "web_app_2",
+      "target": "db_replica",
+      "label": "Read / Standby",
+      "technology": "SQL"
+    },
+    {
+      "id": "r30",
+      "source": "db_primary",
+      "target": "logging_server_1",
+      "label": "DB access + edit logs",
+      "technology": "Internal"
+    },
+    {
+      "id": "r31",
+      "source": "web_app_1",
+      "target": "logging_server_1",
+      "label": "App event logs",
+      "technology": "Internal"
+    },
+    {
+      "id": "r32",
+      "source": "db_replica",
+      "target": "logging_server_2",
+      "label": "DB read logs",
+      "technology": "Internal"
+    },
+    {
+      "id": "r33",
+      "source": "web_app_2",
+      "target": "logging_server_2",
+      "label": "App event logs",
+      "technology": "Internal"
+    },
+    {
+      "id": "r34",
+      "source": "logging_server_1",
+      "target": "logging_server_2",
+      "label": "Log replication"
+    },
+    {
+      "id": "r35",
+      "source": "admin_clients",
+      "target": "auth_gw1",
+      "label": "Admin login \u00b7 VPN / internal",
+      "technology": "OAuth2 / OIDC",
+      "note": "Bypasses user LB"
+    },
+    {
+      "id": "r36",
+      "source": "inner_fw1",
+      "target": "logging_server_1",
+      "label": "Admin read access",
+      "note": "Only admin-role tokens admitted"
+    },
+    {
+      "id": "r37",
+      "source": "admin_clients",
+      "target": "auth_gw2",
+      "label": "Admin login \u00b7 failover",
+      "technology": "OAuth2 / OIDC"
+    },
+    {
+      "id": "r38",
+      "source": "inner_fw2",
+      "target": "logging_server_2",
+      "label": "Admin read access"
+    },
+    {
+      "id": "r39",
+      "source": "logging_server_1",
+      "target": "siem_1",
+      "label": "Log forwarding",
+      "technology": "Internal"
+    },
+    {
+      "id": "r40",
+      "source": "logging_server_2",
+      "target": "siem_2",
+      "label": "Log forwarding",
+      "technology": "Internal"
+    },
+    {
+      "id": "r41",
+      "source": "siem_1",
+      "target": "siem_2",
+      "label": "SIEM replication",
+      "technology": "Internal",
+      "note": "Bidirectional cross-DC threat correlation"
+    }
+  ]
+}

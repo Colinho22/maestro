@@ -1,0 +1,90 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    isp1["ISP (Office 1)\n[External System]"]
+    isp2["ISP (Office 2)\n[External System]"]
+    remote_users["Remote Users\n[Person]\nClient VPN"]
+
+    subgraph enterprise_wan["Enterprise WAN"]
+        subgraph office_1["Office 1 — HQ"]
+            direction LR
+            router1["Router\n[Device]"]
+            firewall1["Firewall\n[Device]"]
+            switch1["Switch\n[Device]"]
+            vpn_gw1["VPN Gateway\n[Device]\nSite-to-Site"]
+            nas1[("NAS\n[Server]\nFile Storage")]
+            nvr1[("NVR\n[Server]\nVideo Recorder")]
+            cameras1["Security Cameras\n[Device]\nIP PoE"]
+            access_control1[("Access Control\n[Server]\nBadge / Entry")]
+            pos1["POS Terminal\n[Device]"]
+            voip_phones1["VoIP Phones\n[Device]"]
+            ap1["Access Point\n[Device]\nWiFi"]
+            user_clients1["User Clients\n[Device]\nLaptops (WiFi)"]
+        end
+    
+        subgraph office_2["Office 2 — Branch"]
+            direction LR
+            router2["Router\n[Device]"]
+            firewall2["Firewall\n[Device]"]
+            switch2["Switch\n[Device]"]
+            vpn_gw2["VPN Gateway\n[Device]\nSite-to-Site"]
+            nas2[("NAS\n[Server]\nFile Storage")]
+            nvr2[("NVR\n[Server]\nVideo Recorder")]
+            cameras2["Security Cameras\n[Device]\nIP PoE"]
+            pos2["POS Terminal\n[Device]"]
+            ap2["Access Point\n[Device]\nWiFi"]
+            user_clients2["User Clients\n[Device]\nLaptops (WiFi)"]
+        end
+    
+        subgraph aws_cloud["AWS Cloud"]
+            direction LR
+            vpn_gw_aws["AWS VPN Gateway\n[Server]\nHub"]
+            s3_nas_backup[("S3 NAS Backup\n[Server]\nAWS S3")]
+            s3_video_archive[("S3 Video Archive\n[Server]\nAWS S3 / Glacier")]
+        end
+    end
+
+    %% Office 1 internal
+    isp1 -->|"WAN link"| router1
+    router1 -->|"WAN → LAN"| firewall1
+    firewall1 -->|"Filtered traffic"| switch1
+    switch1 -->|"Wired"| nas1
+    switch1 -->|"Wired"| nvr1
+    switch1 -->|"PoE"| cameras1
+    cameras1 -->|"Video stream"| nvr1
+    switch1 -->|"Wired"| access_control1
+    switch1 -->|"Wired"| pos1
+    switch1 -->|"Wired"| voip_phones1
+    switch1 -->|"Wired uplink"| ap1
+    ap1 -->|"WiFi"| user_clients1
+    switch1 -->|"Wired"| vpn_gw1
+
+    %% Office 2 internal
+    isp2 -->|"WAN link"| router2
+    router2 -->|"WAN → LAN"| firewall2
+    firewall2 -->|"Filtered traffic"| switch2
+    switch2 -->|"Wired"| nas2
+    switch2 -->|"Wired"| nvr2
+    switch2 -->|"PoE"| cameras2
+    cameras2 -->|"Video stream"| nvr2
+    switch2 -->|"Wired"| pos2
+    switch2 -->|"Wired uplink"| ap2
+    ap2 -->|"WiFi"| user_clients2
+    switch2 -->|"Wired"| vpn_gw2
+
+    %% VPN tunnels to AWS hub
+    vpn_gw1 -->|"Site-to-site VPN · IPsec"| vpn_gw_aws
+    vpn_gw2 -->|"Site-to-site VPN · IPsec"| vpn_gw_aws
+    remote_users -->|"Client VPN"| vpn_gw_aws
+
+    %% Backup flows via VPN
+    nas1 -->|"NAS backup via VPN · S3"| s3_nas_backup
+    nvr1 -->|"Video archive via VPN · S3"| s3_video_archive
+    nas2 -->|"NAS backup via VPN · S3"| s3_nas_backup
+    nvr2 -->|"Video archive via VPN · S3"| s3_video_archive
+
+    %% Remote user access via VPN
+    vpn_gw_aws -->|"Route to NAS backup"| s3_nas_backup
+    vpn_gw_aws -->|"Route to video archive"| s3_video_archive

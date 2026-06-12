@@ -1,0 +1,93 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    subgraph pool_standalone["Standalone Processes"]
+        direction LR
+        start_none_1(["Start Event None 1"])
+        task_4["Abstract Task 4"]
+        end_none_2(["End Event None 2"])
+        start_none_3(["Start Event None 3"])
+        task_8["Abstract Task 8"]
+        end_none_4(["End Event None 4"])
+    end
+
+    subgraph pool_participant["Participant"]
+        direction LR
+        start_timer(["Start Event Timer"])
+        task_1["Abstract Task 1"]
+        user_2["User Task 2"]
+        svc_3["Service Task 3"]
+        end_none_1(["End Event None 1"])
+    end
+
+    subgraph pool_pool["Pool"]
+        direction LR
+        start_none_2(["Start Event None 2"])
+        task_6["Abstract Task 6"]
+        end_none_3(["End Event None 3"])
+
+        subgraph lane_1["Lane 1"]
+            direction LR
+            start_msg(["Start Event Message"])
+            pgw_div{{"Parallel Gateway Divergence"}}
+            gw_div_1{"Exclusive Gateway Divergence 1"}
+            gw_conv_1{"Exclusive Gateway Convergence 1"}
+            call_global[["Call Activity Calling a Global Task"]]
+            call_expanded[["Call Activity - Expanded"]]
+            call_collapsed[["Call Activity Collapsed"]]
+            end_msg(["End Event Message"])
+        end
+
+        subgraph lane_2["Lane 2"]
+            direction LR
+            user_5["User Task 5"]
+            svc_7["Service Task 7"]
+            sub_collapsed[["Collapsed Sub-Process"]]
+            sub_expanded[["Sub Process - Expanded"]]
+            gw_div_2{"Exclusive Gateway Divergence 2"}
+            gw_conv_2{"Exclusive Gateway Convergence 2"}
+            end_terminate(["End Event Terminate"])
+        end
+    end
+
+    %% Standalone processes
+    start_none_1 --> task_4
+    task_4 --> end_none_2
+    start_none_3 --> task_8
+    task_8 --> end_none_4
+
+    %% Participant pool
+    start_timer --> task_1
+    task_1 --> user_2
+    user_2 --> svc_3
+    svc_3 --> end_none_1
+
+    %% Pool — no-lane path
+    start_none_2 --> task_6
+    task_6 --> end_none_3
+
+    %% Pool — message path
+    start_msg --> pgw_div
+    pgw_div --> user_5
+    pgw_div --> gw_div_1
+    gw_div_1 --> call_collapsed
+    gw_div_1 --> call_global
+    call_collapsed --> call_expanded
+    call_global --> gw_conv_1
+    call_expanded --> gw_conv_1
+    gw_conv_1 --> end_msg
+
+    %% Pool — Lane 2 path
+    user_5 --> gw_div_2
+    gw_div_2 --> sub_collapsed
+    gw_div_2 --> svc_7
+    sub_collapsed --> sub_expanded
+    sub_expanded --> gw_conv_2
+    svc_7 --> gw_conv_2
+    gw_conv_2 --> end_terminate
+
+    %% Message flows
+    task_1 -.->|"Message Flow 1"| start_msg
+    end_msg -.->|"Message Flow 2"| svc_3

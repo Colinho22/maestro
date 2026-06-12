@@ -1,0 +1,347 @@
+{
+  "metadata": {
+    "id": "bpmn_2_12",
+    "source": "C.1.0.bpmn",
+    "diagram_type": "bpmn_collaboration",
+    "tier": 2,
+    "entity_count": 21,
+    "container_count": 5,
+    "attachment_count": 0,
+    "description": "Invoice receipt collaboration: Team-Assistant pool handles scan/archive/approval-assignment with event-based waiting; Process Engine pool (with Approver, Team Assistant, Accountant lanes) handles approval workflow and bank transfer"
+  },
+  "pools": [
+    {
+      "id": "pool_team_assistant",
+      "name": "Team-Assistant"
+    },
+    {
+      "id": "Process_Engine_1",
+      "name": "Process Engine - Invoice Receipt"
+    }
+  ],
+  "lanes": [
+    {
+      "id": "lane_ta",
+      "name": "",
+      "pool": "pool_team_assistant"
+    },
+    {
+      "id": "Approver",
+      "name": "Approver",
+      "pool": "Process_Engine_1"
+    },
+    {
+      "id": "teamAssistant",
+      "name": "Team Assistant",
+      "pool": "Process_Engine_1"
+    },
+    {
+      "id": "Accountant",
+      "name": "Accountant",
+      "pool": "Process_Engine_1"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start_ta",
+      "name": "Invoice received",
+      "type": "startEvent",
+      "lane": "lane_ta",
+      "attached_to": null
+    },
+    {
+      "id": "task_scan_invoice",
+      "name": "Scan Invoice",
+      "type": "task",
+      "lane": "lane_ta",
+      "attached_to": null
+    },
+    {
+      "id": "task_archive_original",
+      "name": "Archive original",
+      "type": "task",
+      "lane": "lane_ta",
+      "attached_to": null
+    },
+    {
+      "id": "icatch_approver_assigned",
+      "name": "Approver to be assigned",
+      "type": "intermediateCatchEvent",
+      "lane": "lane_ta",
+      "attached_to": null
+    },
+    {
+      "id": "task_assign_approver",
+      "name": "Assign approver",
+      "type": "task",
+      "lane": "lane_ta",
+      "attached_to": null
+    },
+    {
+      "id": "gw_event_based",
+      "name": "",
+      "type": "eventBasedGateway",
+      "lane": "lane_ta",
+      "attached_to": null
+    },
+    {
+      "id": "icatch_review_needed",
+      "name": "Invoice review needed",
+      "type": "intermediateCatchEvent",
+      "lane": "lane_ta",
+      "attached_to": null
+    },
+    {
+      "id": "task_review_document",
+      "name": "Review and document result",
+      "type": "task",
+      "lane": "lane_ta",
+      "attached_to": null
+    },
+    {
+      "id": "icatch_7_days",
+      "name": "7 days",
+      "type": "intermediateCatchEvent",
+      "lane": "lane_ta",
+      "attached_to": null
+    },
+    {
+      "id": "end_ta_1",
+      "name": "End Process",
+      "type": "endEvent",
+      "lane": "lane_ta",
+      "attached_to": null
+    },
+    {
+      "id": "end_ta_2",
+      "name": "End Process",
+      "type": "endEvent",
+      "lane": "lane_ta",
+      "attached_to": null
+    },
+    {
+      "id": "StartEvent_1",
+      "name": "Invoice received",
+      "type": "startEvent",
+      "lane": "teamAssistant",
+      "attached_to": null
+    },
+    {
+      "id": "assignApprover",
+      "name": "Assign Approver",
+      "type": "userTask",
+      "lane": "teamAssistant",
+      "attached_to": null
+    },
+    {
+      "id": "reviewInvoice",
+      "name": "Review Invoice",
+      "type": "userTask",
+      "lane": "teamAssistant",
+      "attached_to": null
+    },
+    {
+      "id": "reviewSuccessful_gw",
+      "name": "Review successful?",
+      "type": "exclusiveGateway",
+      "lane": "teamAssistant",
+      "attached_to": null
+    },
+    {
+      "id": "invoiceNotProcessed",
+      "name": "Invoice not processed",
+      "type": "endEvent",
+      "lane": "teamAssistant",
+      "attached_to": null
+    },
+    {
+      "id": "approveInvoice",
+      "name": "Approve Invoice",
+      "type": "userTask",
+      "lane": "Approver",
+      "attached_to": null
+    },
+    {
+      "id": "invoice_approved",
+      "name": "Invoice approved?",
+      "type": "exclusiveGateway",
+      "lane": "Approver",
+      "attached_to": null
+    },
+    {
+      "id": "prepareBankTransfer",
+      "name": "Prepare Bank Transfer",
+      "type": "userTask",
+      "lane": "Accountant",
+      "attached_to": null
+    },
+    {
+      "id": "archiveInvoice",
+      "name": "Archive Invoice",
+      "type": "serviceTask",
+      "lane": "Accountant",
+      "attached_to": null
+    },
+    {
+      "id": "invoiceProcessed",
+      "name": "Invoice processed",
+      "type": "endEvent",
+      "lane": "Accountant",
+      "attached_to": null
+    }
+  ],
+  "sequence_flows": [
+    {
+      "id": "sf_1",
+      "name": "",
+      "source": "start_ta",
+      "target": "task_scan_invoice"
+    },
+    {
+      "id": "sf_2",
+      "name": "",
+      "source": "task_scan_invoice",
+      "target": "task_archive_original"
+    },
+    {
+      "id": "sf_3",
+      "name": "",
+      "source": "task_archive_original",
+      "target": "icatch_approver_assigned"
+    },
+    {
+      "id": "sf_4",
+      "name": "",
+      "source": "icatch_approver_assigned",
+      "target": "task_assign_approver"
+    },
+    {
+      "id": "sf_5",
+      "name": "",
+      "source": "task_assign_approver",
+      "target": "gw_event_based"
+    },
+    {
+      "id": "sf_6",
+      "name": "",
+      "source": "gw_event_based",
+      "target": "icatch_7_days"
+    },
+    {
+      "id": "sf_7",
+      "name": "",
+      "source": "gw_event_based",
+      "target": "icatch_review_needed"
+    },
+    {
+      "id": "sf_8",
+      "name": "",
+      "source": "icatch_7_days",
+      "target": "end_ta_1"
+    },
+    {
+      "id": "sf_9",
+      "name": "",
+      "source": "icatch_review_needed",
+      "target": "task_review_document"
+    },
+    {
+      "id": "sf_10",
+      "name": "",
+      "source": "task_review_document",
+      "target": "end_ta_2"
+    },
+    {
+      "id": "sf_11",
+      "name": "",
+      "source": "StartEvent_1",
+      "target": "assignApprover"
+    },
+    {
+      "id": "sf_12",
+      "name": "",
+      "source": "assignApprover",
+      "target": "approveInvoice"
+    },
+    {
+      "id": "sf_13",
+      "name": "",
+      "source": "approveInvoice",
+      "target": "invoice_approved"
+    },
+    {
+      "id": "sf_14",
+      "name": "yes",
+      "source": "invoice_approved",
+      "target": "prepareBankTransfer"
+    },
+    {
+      "id": "sf_15",
+      "name": "no",
+      "source": "invoice_approved",
+      "target": "reviewInvoice"
+    },
+    {
+      "id": "sf_16",
+      "name": "",
+      "source": "reviewInvoice",
+      "target": "reviewSuccessful_gw"
+    },
+    {
+      "id": "sf_17",
+      "name": "yes",
+      "source": "reviewSuccessful_gw",
+      "target": "approveInvoice"
+    },
+    {
+      "id": "sf_18",
+      "name": "no",
+      "source": "reviewSuccessful_gw",
+      "target": "invoiceNotProcessed"
+    },
+    {
+      "id": "sf_19",
+      "name": "",
+      "source": "prepareBankTransfer",
+      "target": "archiveInvoice"
+    },
+    {
+      "id": "sf_20",
+      "name": "",
+      "source": "archiveInvoice",
+      "target": "invoiceProcessed"
+    }
+  ],
+  "message_flows": [
+    {
+      "id": "mf_1",
+      "name": "",
+      "source": "task_scan_invoice",
+      "target": "StartEvent_1"
+    },
+    {
+      "id": "mf_2",
+      "name": "",
+      "source": "task_assign_approver",
+      "target": "assignApprover"
+    },
+    {
+      "id": "mf_3",
+      "name": "",
+      "source": "assignApprover",
+      "target": "icatch_approver_assigned"
+    },
+    {
+      "id": "mf_4",
+      "name": "",
+      "source": "task_review_document",
+      "target": "reviewInvoice"
+    },
+    {
+      "id": "mf_5",
+      "name": "",
+      "source": "reviewInvoice",
+      "target": "icatch_review_needed"
+    }
+  ]
+}

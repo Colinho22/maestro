@@ -1,0 +1,23 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    user["User\n[Person]"]
+
+    subgraph google_cloud["Google Cloud"]
+        direction LR
+        iap["Google IAP\n[Container]"]
+        web_app["Web App\n[Container]\nMCP Host"]
+        gemini["Gemini\n[Container]\nVertex AI"]
+        mcp_server["MCP Server\n[Container]"]
+        subgraph postgres["PostgreSQL\n[Container]"]
+            orders_view[("orders\n[Data Store]")]
+        end
+    end
+
+    user -->|"HTTPS"| iap
+    iap -->|"Forwards request"| web_app
+    web_app -->|"Prompts · Vertex AI API"| gemini
+    web_app -->|"MCP tool calls"| mcp_server
+    mcp_server -->|"Read-only · SQL"| orders_view

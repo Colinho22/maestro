@@ -107,104 +107,163 @@ def _lemmatize_label(label: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+# Mermaid keywords that are syntax, never node ids.
+_SKIP = {
+    "graph", "flowchart", "subgraph", "end", "direction",
+    "style", "classdef", "class", "linkstyle", "click",
+}
+
+# A node definition: an id, an opening shape bracket, a label that is EITHER a
+# quoted string (consumed whole — so brackets/newlines INSIDE a label such as
+# "Web App\n[Device]\nLaptops (WiFi)" cannot spawn phantom nodes) or unquoted
+# text up to the closing bracket, then the closing bracket(s). An empty label
+# ("" or '') is allowed, so nodes like gw{""} are still captured.
+_NODE_DEF = re.compile(
+    r"(\w+)\s*"  # 1: node id
+    r"[\[\(\{]+"  # opening bracket(s): [ ( { ([ [[ (( {{ [( {{
+    r'(?:"([^"]*)"|\'([^\']*)\'|([^"\'\]\)\}|]*?))'  # 2/3/4: quoted or unquoted label
+    r"\s*[\]\)\}]+"  # closing bracket(s)
+)
+
+# Edge label between pipes, e.g. -->|"Green (no risk)"| — stripped before node
+# scanning so its text is never mistaken for a node definition.
+_PIPE_LABEL = re.compile(r"\|[^|]*\|")
+
+# Subgraph (container) header: subgraph id  OR  subgraph id["Label"]
+_SUBGRAPH = re.compile(
+    r'^\s*subgraph\s+(\w+)\s*(?:\[\s*"?([^"\]]*)"?\s*\])?', re.MULTILINE
+)
+
+# Edge operators. Order in the alternation matters (longest / bidirectional
+# first). o--o / --o / --x are association/attachment edges, NOT flow edges.
+_EDGE = re.compile(
+    r"(\w+)\s*"
+    r"(<-\.->|<-->|-\.->|o--o|--o|--x|-->)"
+    r"\s*(?:\|[^|]*\|)?\s*"
+    r"(\w+)"
+)
+# Inline dot-delimited label form: source -. some text .-> target  (message flow)
+_EDGE_DOTLABEL = re.compile(r"(\w+)\s+-\.[^.|>]*\.->\s*(\w+)")
+# Attachment / association edge: host o--o event  (undirected, o-ended)
+_ATTACH = re.compile(r"(\w+)\s*o--o\s*(?:\|[^|]*\|)?\s*(\w+)")
+
+
+def _iter_node_defs(mermaid_code: str):
+    """
+    Yield (id, label) for every node definition. Robust to labels that contain
+    brackets/newlines and to nodes defined inline on an edge line (e.g.
+    ``host o--o evt(("Label"))``). Skips comment lines and edge-label text.
+    """
+    for raw in mermaid_code.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("%%"):
+            continue
+        # remove |edge labels| so their words can't be read as node defs
+        line = _PIPE_LABEL.sub(" ", line)
+        for m in _NODE_DEF.finditer(line):
+            nid = m.group(1)
+            if nid.lower() in _SKIP:
+                continue
+            label = (m.group(2) or m.group(3) or m.group(4) or "").strip()
+            yield nid, label
+
+
+def extract_containers(mermaid_code: str) -> list[dict]:
+    """
+    Extract subgraph containers (pools / lanes / boundaries / expanded
+    sub-processes). Scored as a separate dimension from entities.
+    Returns list of {"id": str, "label": str}.
+    """
+    containers = []
+    seen = set()
+    for m in _SUBGRAPH.finditer(mermaid_code):
+        cid = m.group(1)
+        if cid not in seen:
+            containers.append({"id": cid, "label": (m.group(2) or "").strip()})
+            seen.add(cid)
+    return containers
+
+
 def extract_nodes(mermaid_code: str) -> list[dict]:
     """
-    Extract node definitions from Mermaid code.
+    Extract ENTITY definitions (inline nodes) from Mermaid code.
     Returns list of {"id": str, "label": str}.
 
-    Handles two common formats:
-      - Standalone:  node_id["Label"]  or  node_id(Label)
-      - Inline:      node_id(Label) --> other_id(Other Label)
+    Per the scoring contract, an entity is a node drawn inline; a node drawn as
+    a ``subgraph`` is a container (see ``extract_containers``) and is excluded
+    here so it does not inflate the entity metric or the complexity tiers.
     """
+    container_ids = {c["id"] for c in extract_containers(mermaid_code)}
     nodes = []
-    seen_ids = set()
-
-    # Keywords to skip — these are Mermaid syntax, not nodes
-    SKIP = {"graph", "flowchart", "subgraph", "end", "direction", "style", "classDef"}
-
-    # Inline node pattern: matches id(Label), id["Label"], id[Label], id{Label}
-    # Works anywhere in a line — catches nodes inside arrow chains
-    inline_pattern = re.compile(
-        r"(\w+)\s*"  # node id
-        r"[\[\(\{]+"  # opening bracket(s)
-        r'["\']?\s*'  # optional quote
-        r'([^"\]\)\}]+?)'  # label (non-greedy)
-        r'\s*["\']?'  # optional closing quote
-        r"[\]\)\}]+"  # closing bracket(s)
-    )
-
-    for line in mermaid_code.splitlines():
-        for match in inline_pattern.finditer(line):
-            node_id = match.group(1)
-            label = match.group(2).strip().strip('"').strip("'")
-            if node_id.lower() not in SKIP and node_id not in seen_ids:
-                nodes.append({"id": node_id, "label": label})
-                seen_ids.add(node_id)
-
-    # Subgraph definitions: subgraph id["Label"]
-    subgraph_pattern = r'subgraph\s+(\w+)\s*\["?([^"\]]*)"?\]'
-    for match in re.finditer(subgraph_pattern, mermaid_code):
-        sg_id = match.group(1)
-        if sg_id not in seen_ids:
-            nodes.append({"id": sg_id, "label": match.group(2).strip()})
-            seen_ids.add(sg_id)
-
+    seen = set()
+    for nid, label in _iter_node_defs(mermaid_code):
+        if nid in container_ids or nid in seen:
+            continue
+        nodes.append({"id": nid, "label": label})
+        seen.add(nid)
     return nodes
 
 
 def extract_relationships(mermaid_code: str) -> list[dict]:
     """
-    Extract relationship definitions from Mermaid code.
+    Extract flow relationships from Mermaid code.
     Returns list of {"source": str, "target": str, "type": str}.
-    Handles multiple arrow and label formats.
+
+    Rules:
+      - ``-->``   directed sequence_flow.
+      - ``-.->``  directed message_flow (dotted), also ``-. label .->``.
+      - ``<-->`` / ``<-.->``  one UNDIRECTED relationship — endpoints are
+        canonicalised (sorted) so orientation does not matter when matching.
+      - ``o--o`` / ``--o`` / ``--x``  attachment / association edges — NOT
+        relationships; excluded here and scored via ``extract_attachments``.
     """
     relationships = []
-
-    patterns = [
-        # source -->|label| target | source -.->|label| target | source --> target
-        r"(\w+)\s+(-->|-.->)\s*(?:\|([^|]*)\|)?\s*(\w+)",
-        # Format: source -.label.-> target (inline dot-delimited label)
-        r"(\w+)\s+-\..*?\.->?\s*(\w+)",
-    ]
-
     seen = set()
 
-    # Pattern 1: standard arrows with optional pipe labels
-    for match in re.finditer(patterns[0], mermaid_code):
-        source = match.group(1)
-        arrow = match.group(2)
-        label = match.group(3) or ""
-        target = match.group(4)
-        # Determine type: message_flow if arrow uses dots OR label contains "message"
-        is_message = "-." in arrow or "message" in label.lower()
-        rel_type = "message_flow" if is_message else "sequence_flow"
-        key = (source, target)
+    def _add(src: str, tgt: str, rel_type: str, undirected: bool = False) -> None:
+        if undirected:
+            src, tgt = sorted((src, tgt))
+        key = (src, tgt)
         if key not in seen:
-            relationships.append(
-                {
-                    "source": source,
-                    "target": target,
-                    "type": rel_type,
-                }
-            )
             seen.add(key)
+            relationships.append({"source": src, "target": tgt, "type": rel_type})
 
-    # Pattern 2: inline label between dots  e.g. -.Message Flow 1.->
-    for match in re.finditer(patterns[1], mermaid_code):
-        source = match.group(1)
-        target = match.group(2)
-        key = (source, target)
-        if key not in seen:
-            relationships.append(
-                {
-                    "source": source,
-                    "target": target,
-                    "type": "message_flow",
-                }
-            )
-            seen.add(key)
+    for raw in mermaid_code.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("%%"):
+            continue
+        for m in _EDGE.finditer(line):
+            src, op, tgt = m.group(1), m.group(2), m.group(3)
+            if op in ("o--o", "--o", "--x"):
+                continue  # attachment / association, not a flow relationship
+            undirected = op.startswith("<")
+            dotted = "." in op
+            _add(src, tgt, "message_flow" if dotted else "sequence_flow", undirected)
+        for m in _EDGE_DOTLABEL.finditer(line):
+            _add(m.group(1), m.group(2), "message_flow")
 
     return relationships
+
+
+def extract_attachments(mermaid_code: str) -> list[dict]:
+    """
+    Extract attachment / compensation-association edges (``host o--o event``).
+    Undirected: endpoints are canonicalised (sorted). Scored as its own
+    dimension, separate from flow relationships.
+    Returns list of {"a": str, "b": str}.
+    """
+    attachments = []
+    seen = set()
+    for raw in mermaid_code.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("%%"):
+            continue
+        for m in _ATTACH.finditer(line):
+            a, b = sorted((m.group(1), m.group(2)))
+            if (a, b) not in seen:
+                seen.add((a, b))
+                attachments.append({"a": a, "b": b})
+    return attachments
 
 
 # ---------------------------------------------------------------------------
@@ -336,6 +395,55 @@ def compute_relationship_metrics_strict(
     correct = output_tuples & truth_tuples
     precision = round(len(correct) / len(output_tuples), 4) if output_tuples else 0.0
     recall = round(len(correct) / len(truth_tuples), 4) if truth_tuples else 0.0
+    return (precision, recall, _f1(precision, recall))
+
+
+# ---------------------------------------------------------------------------
+# Container metrics (subgraphs: pools / lanes / boundaries / expanded subprocs)
+# ---------------------------------------------------------------------------
+
+
+def compute_container_metrics(
+    output_containers: list[dict], truth_containers: list[dict]
+) -> tuple | None:
+    """
+    Score containers as a separate dimension. Returns
+    (id_p, id_r, id_f1, name_p, name_r, name_f1) or ``None`` when the ground
+    truth has no containers (metric not applicable for this diagram).
+
+    Reuses the entity matchers: containers are {"id", "label"} dicts, so exact
+    ID and fuzzy name matching apply unchanged.
+    """
+    if not truth_containers:
+        return None
+    id_p, id_r, id_f1 = compute_entity_metrics_exact(
+        output_containers, truth_containers
+    )
+    nm_p, nm_r, nm_f1 = compute_entity_metrics_fuzzy(
+        output_containers, truth_containers
+    )
+    return (id_p, id_r, id_f1, nm_p, nm_r, nm_f1)
+
+
+# ---------------------------------------------------------------------------
+# Attachment metrics (o--o edges: boundary attachments + compensation assocs)
+# ---------------------------------------------------------------------------
+
+
+def compute_attachment_metrics(
+    output_attachments: list[dict], truth_attachments: list[dict]
+) -> tuple | None:
+    """
+    Score attachment edges as undirected pairs. Returns (precision, recall, f1)
+    or ``None`` when the ground truth has no attachments (metric N/A).
+    """
+    truth_pairs = {tuple(sorted((a["a"], a["b"]))) for a in truth_attachments}
+    if not truth_pairs:
+        return None
+    output_pairs = {tuple(sorted((a["a"], a["b"]))) for a in output_attachments}
+    correct = len(output_pairs & truth_pairs)
+    precision = round(correct / len(output_pairs), 4) if output_pairs else 0.0
+    recall = round(correct / len(truth_pairs), 4)
     return (precision, recall, _f1(precision, recall))
 
 
@@ -480,11 +588,15 @@ def evaluate_run(
     # 1. Structural validity
     parses_valid, parse_error = check_mermaid_valid(output_diagram_code)
 
-    # 2. Extract nodes and relationships
+    # 2. Extract nodes, containers, relationships, attachments
     output_nodes = extract_nodes(output_diagram_code)
     truth_nodes = extract_nodes(truth_code)
+    output_containers = extract_containers(output_diagram_code)
+    truth_containers = extract_containers(truth_code)
     output_relationships = extract_relationships(output_diagram_code)
     truth_relationships = extract_relationships(truth_code)
+    output_attachments = extract_attachments(output_diagram_code)
+    truth_attachments = extract_attachments(truth_code)
 
     # 3. Entity metrics — three levels
     id_p, id_r, id_f1 = compute_entity_metrics_exact(output_nodes, truth_nodes)
@@ -504,6 +616,14 @@ def evaluate_run(
     relationship_tax = compute_relationship_taxonomy(
         output_relationships, truth_relationships
     )
+
+    # 6. Container + attachment dimensions (None when truth has none -> N/A)
+    container = compute_container_metrics(output_containers, truth_containers)
+    c_id_p, c_id_r, c_id_f1, c_nm_p, c_nm_r, c_nm_f1 = (
+        container if container is not None else (None,) * 6
+    )
+    attach = compute_attachment_metrics(output_attachments, truth_attachments)
+    a_p, a_r, a_f1 = attach if attach is not None else (None, None, None)
 
     return MetricResult(
         run_id=run_id,
@@ -536,4 +656,17 @@ def evaluate_run(
         extra_relationships=relationship_tax["extra"],
         false_relationships=relationship_tax["false"],
         duplicate_relationships=relationship_tax["duplicate"],
+        container_id_precision=c_id_p,
+        container_id_recall=c_id_r,
+        container_id_f1=c_id_f1,
+        container_name_precision=c_nm_p,
+        container_name_recall=c_nm_r,
+        container_name_f1=c_nm_f1,
+        containers_in_output=len(output_containers),
+        containers_in_truth=len(truth_containers),
+        attachment_precision=a_p,
+        attachment_recall=a_r,
+        attachment_f1=a_f1,
+        attachments_in_output=len(output_attachments),
+        attachments_in_truth=len(truth_attachments),
     )

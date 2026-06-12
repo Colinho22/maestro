@@ -1,0 +1,467 @@
+{
+  "metadata": {
+    "id": "bpmn_3_23",
+    "source": "C.6.0.bpmn",
+    "diagram_type": "bpmn_process",
+    "tier": 3,
+    "entity_count": 32,
+    "container_count": 1,
+    "attachment_count": 8,
+    "description": "Single-pool Travel Booking process with compensation patterns: event-based gateway, parallel split/join, 6 send tasks, 6 service tasks (book/cancel hotel & flight, charge card, update record), intermediate catch events, 4 boundary events (2 compensation on the booking tasks, 2 error on charge-card and the Make Booking sub-process), and two compensate-throw events that compensate the Make Booking sub-process on payment or booking failure."
+  },
+  "participants": [],
+  "lanes": [],
+  "nodes": [
+    {
+      "id": "start_travel_request",
+      "name": "Receive Travel Request",
+      "type": "startEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "start_blank",
+      "name": "",
+      "type": "startEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": null,
+      "parent_subprocess": "sub_make_booking"
+    },
+    {
+      "id": "end_offer_expired",
+      "name": "Offer Expired",
+      "type": "endEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_req_cancelled",
+      "name": "Request Cancelled",
+      "type": "endEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_booking_confirmed",
+      "name": "Booking Confirmed",
+      "type": "endEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_failed_credit",
+      "name": "Failed Credit Transaction",
+      "type": "endEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_failed_booking",
+      "name": "Failed Booking",
+      "type": "endEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_travel_booked",
+      "name": "Travel Booked",
+      "type": "endEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": null,
+      "parent_subprocess": "sub_make_booking"
+    },
+    {
+      "id": "svc_book_hotel",
+      "name": "Book Hotel",
+      "type": "serviceTask",
+      "pool": null,
+      "lane": null,
+      "attached_to": null,
+      "parent_subprocess": "sub_make_booking"
+    },
+    {
+      "id": "svc_book_flight",
+      "name": "Book Flight",
+      "type": "serviceTask",
+      "pool": null,
+      "lane": null,
+      "attached_to": null,
+      "parent_subprocess": "sub_make_booking"
+    },
+    {
+      "id": "svc_cancel_hotel",
+      "name": "Cancel Hotel",
+      "type": "serviceTask",
+      "pool": null,
+      "lane": null,
+      "attached_to": null,
+      "parent_subprocess": "sub_make_booking"
+    },
+    {
+      "id": "svc_cancel_flight",
+      "name": "Cancel Flight",
+      "type": "serviceTask",
+      "pool": null,
+      "lane": null,
+      "attached_to": null,
+      "parent_subprocess": "sub_make_booking"
+    },
+    {
+      "id": "svc_charge_card",
+      "name": "Charge Credit Card",
+      "type": "serviceTask",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "svc_update_customer",
+      "name": "Update Customer Record",
+      "type": "serviceTask",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "send_cc_info",
+      "name": "Request Credit Card Information",
+      "type": "sendTask",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "send_confirm",
+      "name": "Confirm Booking",
+      "type": "sendTask",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "send_failed_booking",
+      "name": "Notify Failed Booking",
+      "type": "sendTask",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "send_offer",
+      "name": "Make Flights and Hotel Offer",
+      "type": "sendTask",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "send_offer_expired",
+      "name": "Notify Customer Offer Expired",
+      "type": "sendTask",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "send_failed_credit",
+      "name": "Notify Failed Credit Transaction",
+      "type": "sendTask",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "sub_make_booking",
+      "name": "Make Booking",
+      "type": "subProcess",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "pgw_3",
+      "name": "",
+      "type": "parallelGateway",
+      "pool": null,
+      "lane": null,
+      "attached_to": null,
+      "parent_subprocess": "sub_make_booking"
+    },
+    {
+      "id": "pgw_4",
+      "name": "",
+      "type": "parallelGateway",
+      "pool": null,
+      "lane": null,
+      "attached_to": null,
+      "parent_subprocess": "sub_make_booking"
+    },
+    {
+      "id": "ebgw_1",
+      "name": "",
+      "type": "eventBasedGateway",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "ithrow_booking_comp",
+      "name": "Compensate Bookings",
+      "type": "intermediateThrowEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "ithrow_comp_booking",
+      "name": "Compensate Bookings",
+      "type": "intermediateThrowEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "icatch_offer_approved",
+      "name": "Offer Approved",
+      "type": "intermediateCatchEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "icatch_cancel",
+      "name": "Cancel Request",
+      "type": "intermediateCatchEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "icatch_24h",
+      "name": "24 Hours",
+      "type": "intermediateCatchEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "boundary_hotel_comp",
+      "name": "Hotel",
+      "type": "boundaryEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": "svc_book_hotel",
+      "parent_subprocess": "sub_make_booking"
+    },
+    {
+      "id": "boundary_flight_comp",
+      "name": "Flight",
+      "type": "boundaryEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": "svc_book_flight",
+      "parent_subprocess": "sub_make_booking"
+    },
+    {
+      "id": "boundary_card_err",
+      "name": "",
+      "type": "boundaryEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": "svc_charge_card"
+    },
+    {
+      "id": "boundary_booking_err",
+      "name": "",
+      "type": "boundaryEvent",
+      "pool": null,
+      "lane": null,
+      "attached_to": "sub_make_booking"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "id": "sf1",
+      "source": "start_travel_request",
+      "target": "send_offer",
+      "name": ""
+    },
+    {
+      "id": "sf2",
+      "source": "send_offer",
+      "target": "ebgw_1",
+      "name": ""
+    },
+    {
+      "id": "sf3",
+      "source": "ebgw_1",
+      "target": "icatch_offer_approved",
+      "name": ""
+    },
+    {
+      "id": "sf4",
+      "source": "ebgw_1",
+      "target": "icatch_cancel",
+      "name": ""
+    },
+    {
+      "id": "sf5",
+      "source": "ebgw_1",
+      "target": "icatch_24h",
+      "name": ""
+    },
+    {
+      "id": "sf6",
+      "source": "icatch_offer_approved",
+      "target": "send_cc_info",
+      "name": ""
+    },
+    {
+      "id": "sf7",
+      "source": "send_cc_info",
+      "target": "sub_make_booking",
+      "name": ""
+    },
+    {
+      "id": "sf8",
+      "source": "sub_make_booking",
+      "target": "svc_charge_card",
+      "name": ""
+    },
+    {
+      "id": "sf9",
+      "source": "svc_charge_card",
+      "target": "send_confirm",
+      "name": ""
+    },
+    {
+      "id": "sf10",
+      "source": "send_confirm",
+      "target": "end_booking_confirmed",
+      "name": ""
+    },
+    {
+      "id": "sf11",
+      "source": "start_blank",
+      "target": "pgw_3",
+      "name": ""
+    },
+    {
+      "id": "sf12",
+      "source": "pgw_3",
+      "target": "svc_book_hotel",
+      "name": ""
+    },
+    {
+      "id": "sf13",
+      "source": "pgw_3",
+      "target": "svc_book_flight",
+      "name": ""
+    },
+    {
+      "id": "sf14",
+      "source": "svc_book_hotel",
+      "target": "pgw_4",
+      "name": ""
+    },
+    {
+      "id": "sf15",
+      "source": "svc_book_flight",
+      "target": "pgw_4",
+      "name": ""
+    },
+    {
+      "id": "sf16",
+      "source": "pgw_4",
+      "target": "end_travel_booked",
+      "name": ""
+    },
+    {
+      "id": "sf23",
+      "source": "boundary_card_err",
+      "target": "ithrow_booking_comp",
+      "name": ""
+    },
+    {
+      "id": "sf24",
+      "source": "ithrow_booking_comp",
+      "target": "send_failed_credit",
+      "name": ""
+    },
+    {
+      "id": "sf25",
+      "source": "send_failed_credit",
+      "target": "end_failed_credit",
+      "name": ""
+    },
+    {
+      "id": "sf26",
+      "source": "boundary_booking_err",
+      "target": "ithrow_comp_booking",
+      "name": ""
+    },
+    {
+      "id": "sf27",
+      "source": "send_failed_booking",
+      "target": "end_failed_booking",
+      "name": ""
+    },
+    {
+      "id": "sf29",
+      "source": "icatch_cancel",
+      "target": "svc_update_customer",
+      "name": ""
+    },
+    {
+      "id": "sf30",
+      "source": "svc_update_customer",
+      "target": "end_req_cancelled",
+      "name": ""
+    },
+    {
+      "id": "sf31",
+      "source": "icatch_24h",
+      "target": "send_offer_expired",
+      "name": ""
+    },
+    {
+      "id": "sf32",
+      "source": "send_offer_expired",
+      "target": "end_offer_expired",
+      "name": ""
+    },
+    {
+      "id": "sf33",
+      "source": "ithrow_comp_booking",
+      "target": "send_failed_booking",
+      "name": ""
+    }
+  ],
+  "message_flows": [],
+  "compensation_associations": [
+    {
+      "source": "boundary_hotel_comp",
+      "target": "svc_cancel_hotel"
+    },
+    {
+      "source": "boundary_flight_comp",
+      "target": "svc_cancel_flight"
+    },
+    {
+      "source": "ithrow_booking_comp",
+      "target": "sub_make_booking"
+    },
+    {
+      "source": "ithrow_comp_booking",
+      "target": "sub_make_booking"
+    }
+  ]
+}

@@ -1,0 +1,280 @@
+{
+  "metadata": {
+    "id": "it_3_30",
+    "diagram_type": "c4_container",
+    "tier": 3,
+    "entity_count": 26,
+    "container_count": 4,
+    "attachment_count": 0,
+    "description": "IoT edge and stream processing platform. Field sensors publish data via an edge gateway and MQTT broker into a Kafka event stream. A schema registry governs Kafka payload contracts. A data validator cleanses incoming events before the stream processor writes metrics to a time-series database and a Redis hot cache. A rule engine and an ML anomaly detector both feed an alert manager that routes notifications via an external gateway to the maintenance team. Cold data is archived to cloud storage; the relational DB is backed up to a dedicated bucket. An OTA service pushes firmware and config updates to field devices. A central secret manager vends device certificates and service credentials, and a central IAM service authenticates operators and services. An operator manages the platform via a REST API and Grafana dashboard. All data access is logged to an internal audit log."
+  },
+  "system_boundary": {
+    "id": "iot_platform",
+    "name": "IoT & Edge Processing Platform",
+    "type": "deployment_environment"
+  },
+  "elements": [
+    {
+      "id": "iot_sensors",
+      "name": "IoT Sensors",
+      "type": "external_system",
+      "description": "Field instruments and smart devices (e.g., temperature, pressure, energy meters). Publish telemetry to the edge gateway using MQTT or CoAP"
+    },
+    {
+      "id": "operator",
+      "name": "Operator",
+      "type": "person",
+      "description": "Platform administrator. Manages device configuration, monitors dashboards, and queries the REST API"
+    },
+    {
+      "id": "maintenance_team",
+      "name": "Maintenance Team",
+      "type": "person",
+      "description": "Field technicians and on-call engineers who receive alert notifications when thresholds are breached or anomalies are detected"
+    },
+    {
+      "id": "cloud_archive",
+      "name": "Cloud Archive",
+      "type": "external_system",
+      "description": "Long-term cold storage (e.g., AWS S3 / Azure Blob). Receives periodic exports of historical time-series data from the time-series database for compliance and long-term analysis"
+    },
+    {
+      "id": "notification_gateway",
+      "name": "Notification Gateway",
+      "type": "external_system",
+      "description": "External alert delivery service (e.g., PagerDuty, SMS gateway, or Slack integration). Routes alert payloads from the alert manager to the maintenance team"
+    },
+    {
+      "id": "edge_layer",
+      "name": "Edge Layer",
+      "type": "deployment_environment",
+      "boundary": "iot_platform",
+      "description": "Physical edge infrastructure co-located with field devices. Aggregates, normalises, and buffers sensor data before forwarding to the processing layer"
+    },
+    {
+      "id": "edge_gateway",
+      "name": "Edge Gateway",
+      "type": "container",
+      "technology": "IoT Edge Gateway",
+      "boundary": "edge_layer",
+      "description": "Protocol-translation gateway. Accepts MQTT and CoAP messages from IoT sensors, authenticates devices against the device registry, normalises payloads, and publishes to the MQTT broker. Buffers to local storage if connectivity to the processing layer is lost"
+    },
+    {
+      "id": "mqtt_broker",
+      "name": "MQTT Broker",
+      "type": "container",
+      "technology": "Mosquitto / EMQX",
+      "boundary": "edge_layer",
+      "description": "MQTT message broker. Receives normalised device messages from the edge gateway and forwards them to the Kafka event stream in the processing layer"
+    },
+    {
+      "id": "device_registry",
+      "name": "Device Registry",
+      "type": "container",
+      "technology": "Device Identity Service",
+      "boundary": "edge_layer",
+      "description": "Device identity and authentication service. Stores device certificates, provisioning state, and registration metadata; persists records to the relational database"
+    },
+    {
+      "id": "local_buffer",
+      "name": "Local Buffer",
+      "type": "container",
+      "technology": "Edge Data Store (SQLite / RocksDB)",
+      "boundary": "edge_layer",
+      "description": "Short-term local data buffer at the edge. Stores unforwarded messages when connectivity to the processing layer is interrupted; flushes to Kafka on reconnection"
+    },
+    {
+      "id": "ota_service",
+      "name": "OTA Service",
+      "type": "container",
+      "technology": "Firmware / Config Update Service",
+      "boundary": "edge_layer",
+      "description": "Over-the-air update service. Pushes signed firmware images and configuration updates to field sensors via the edge gateway. Triggered by operators and looks up target devices in the device registry"
+    },
+    {
+      "id": "processing_layer",
+      "name": "Processing Layer",
+      "type": "deployment_environment",
+      "boundary": "iot_platform",
+      "description": "Stream processing core. Validates, transforms, and analyses incoming events in real time before writing to storage and triggering alerts"
+    },
+    {
+      "id": "kafka",
+      "name": "Kafka",
+      "type": "container",
+      "technology": "Apache Kafka",
+      "boundary": "processing_layer",
+      "description": "Distributed event streaming backbone. Receives messages from the MQTT broker and local buffer; fans them out to the data validator, stream processor, and other consumers"
+    },
+    {
+      "id": "data_validator",
+      "name": "Data Validator",
+      "type": "container",
+      "technology": "Stream Validation Service",
+      "boundary": "processing_layer",
+      "description": "Consumes raw events from Kafka, validates schema and value ranges, enriches with device metadata, and publishes validated events back to Kafka for downstream processing"
+    },
+    {
+      "id": "stream_processor",
+      "name": "Stream Processor",
+      "type": "container",
+      "technology": "Apache Flink / Kafka Streams",
+      "boundary": "processing_layer",
+      "description": "Real-time stream processing engine. Consumes validated events, computes aggregations and rolling statistics, writes metrics to the time-series database, caches recent readings in Redis, and routes events to the rule engine and anomaly detector"
+    },
+    {
+      "id": "rule_engine",
+      "name": "Rule Engine",
+      "type": "container",
+      "technology": "Threshold / CEP Rules",
+      "boundary": "processing_layer",
+      "description": "Evaluates configurable threshold rules against processed metrics. Triggers the alert manager when defined conditions (e.g., temperature > 80°C, power > limit) are met"
+    },
+    {
+      "id": "anomaly_detector",
+      "name": "Anomaly Detector",
+      "type": "container",
+      "technology": "ML Inference Service",
+      "boundary": "processing_layer",
+      "description": "Machine-learning model that detects statistical anomalies in sensor streams not covered by static threshold rules. Publishes anomaly events to the alert manager"
+    },
+    {
+      "id": "alert_manager",
+      "name": "Alert Manager",
+      "type": "container",
+      "technology": "Alert Routing Service",
+      "boundary": "processing_layer",
+      "description": "Aggregates and deduplicates alerts from the rule engine and anomaly detector, applies escalation policies, and routes alert payloads to the external notification gateway"
+    },
+    {
+      "id": "api_server",
+      "name": "API Server",
+      "type": "container",
+      "technology": "REST API",
+      "boundary": "processing_layer",
+      "description": "REST API for operator interactions. Supports device management, configuration updates, metric queries, and alert history retrieval. Logs all access to the audit log"
+    },
+    {
+      "id": "schema_registry",
+      "name": "Schema Registry",
+      "type": "container",
+      "technology": "Confluent Schema Registry",
+      "boundary": "processing_layer",
+      "description": "Central registry of Kafka message schemas (Avro / Protobuf). Consulted by the data validator and stream processor to enforce payload contracts across producers and consumers"
+    },
+    {
+      "id": "secret_manager",
+      "name": "Secret Manager",
+      "type": "container",
+      "technology": "HashiCorp Vault",
+      "boundary": "processing_layer",
+      "description": "Central secret store. Vends device certificates and provisioning tokens to the edge gateway and device registry, and service credentials (DB passwords, API keys) to the stream processor and API server"
+    },
+    {
+      "id": "iam_service",
+      "name": "IAM Service",
+      "type": "container",
+      "technology": "Identity & Access Management",
+      "boundary": "processing_layer",
+      "description": "Central identity and access management service. Authenticates operators against the API server and dashboard and issues service tokens validated by the API server"
+    },
+    {
+      "id": "storage_layer",
+      "name": "Storage Layer",
+      "type": "deployment_environment",
+      "boundary": "iot_platform",
+      "description": "Persistence layer. Stores time-series metrics, device metadata, cached recent readings, monitoring dashboards, and the compliance audit log"
+    },
+    {
+      "id": "timeseries_db",
+      "name": "Time-Series DB",
+      "type": "container",
+      "technology": "InfluxDB / TimescaleDB",
+      "boundary": "storage_layer",
+      "description": "Primary time-series database for sensor metrics. Queried by the dashboard and API server; periodically exports cold data to the cloud archive"
+    },
+    {
+      "id": "relational_db",
+      "name": "Relational DB",
+      "type": "container",
+      "technology": "PostgreSQL",
+      "boundary": "storage_layer",
+      "description": "Relational database for device metadata, configuration, alert rules, and alert history. Used by the device registry and API server"
+    },
+    {
+      "id": "hot_cache",
+      "name": "Hot Cache",
+      "type": "container",
+      "technology": "Redis",
+      "boundary": "storage_layer",
+      "description": "In-memory cache of the most recent sensor readings per device. Queried by the dashboard and API server for low-latency current-state lookups"
+    },
+    {
+      "id": "dashboard",
+      "name": "Dashboard",
+      "type": "container",
+      "technology": "Grafana",
+      "boundary": "storage_layer",
+      "description": "Real-time Grafana monitoring dashboard. Queries the time-series database for historical metrics and the hot cache for live readings. Accessible only to the operator"
+    },
+    {
+      "id": "audit_log",
+      "name": "Audit Log",
+      "type": "container",
+      "technology": "Centralised Log Store",
+      "boundary": "storage_layer",
+      "description": "Internal compliance and access audit log. Receives data-processing events from the stream processor and access events from the API server. Accessible only via admin login"
+    },
+    {
+      "id": "relational_db_backup",
+      "name": "Relational DB Backup",
+      "type": "container",
+      "technology": "S3-compatible Backup Bucket",
+      "boundary": "storage_layer",
+      "description": "Dedicated backup bucket for the relational database. Receives scheduled snapshots of device metadata, alert rules, and configuration"
+    }
+  ],
+  "relationships": [
+    { "id":"r1",  "source":"iot_sensors",       "target":"edge_gateway",      "label":"Sensor data · MQTT/CoAP" },
+    { "id":"r2",  "source":"edge_gateway",       "target":"device_registry",   "label":"Device auth" },
+    { "id":"r3",  "source":"edge_gateway",       "target":"mqtt_broker",       "label":"Normalised MQTT" },
+    { "id":"r4",  "source":"edge_gateway",       "target":"local_buffer",      "label":"Buffer on disconnect" },
+    { "id":"r5",  "source":"mqtt_broker",        "target":"kafka",             "label":"Publish events" },
+    { "id":"r6",  "source":"local_buffer",       "target":"kafka",             "label":"Flush on reconnect" },
+    { "id":"r7",  "source":"kafka",              "target":"data_validator",    "label":"Raw events" },
+    { "id":"r8",  "source":"data_validator",     "target":"kafka",             "label":"Validated events" },
+    { "id":"r9",  "source":"kafka",              "target":"stream_processor",  "label":"Consume validated events" },
+    { "id":"r10", "source":"stream_processor",   "target":"timeseries_db",     "label":"Write metrics" },
+    { "id":"r11", "source":"stream_processor",   "target":"hot_cache",         "label":"Cache recent readings · Redis" },
+    { "id":"r12", "source":"stream_processor",   "target":"rule_engine",       "label":"Evaluate thresholds" },
+    { "id":"r13", "source":"stream_processor",   "target":"anomaly_detector",  "label":"ML inference" },
+    { "id":"r14", "source":"stream_processor",   "target":"audit_log",         "label":"Processing event log" },
+    { "id":"r15", "source":"rule_engine",        "target":"alert_manager",     "label":"Threshold alert" },
+    { "id":"r16", "source":"anomaly_detector",   "target":"alert_manager",     "label":"Anomaly alert" },
+    { "id":"r17", "source":"alert_manager",      "target":"notification_gateway","label":"Route alert" },
+    { "id":"r18", "source":"notification_gateway","target":"maintenance_team", "label":"Alert notification" },
+    { "id":"r19", "source":"device_registry",    "target":"relational_db",     "label":"Device metadata · SQL" },
+    { "id":"r20", "source":"timeseries_db",      "target":"cloud_archive",     "label":"Cold data archival · S3" },
+    { "id":"r21", "source":"operator",           "target":"api_server",        "label":"Manage / query" },
+    { "id":"r22", "source":"operator",           "target":"dashboard",         "label":"Monitor" },
+    { "id":"r23", "source":"api_server",         "target":"timeseries_db",     "label":"Query metrics · SQL" },
+    { "id":"r24", "source":"api_server",         "target":"relational_db",     "label":"Query devices · SQL" },
+    { "id":"r25", "source":"api_server",         "target":"hot_cache",         "label":"Live readings · Redis" },
+    { "id":"r26", "source":"api_server",         "target":"audit_log",         "label":"Access log" },
+    { "id":"r27", "source":"dashboard",          "target":"timeseries_db",     "label":"Historical metrics" },
+    { "id":"r28", "source":"dashboard",          "target":"hot_cache",         "label":"Live readings" },
+    { "id":"r29", "source":"data_validator",     "target":"schema_registry",   "label":"Fetch schema" },
+    { "id":"r30", "source":"stream_processor",   "target":"schema_registry",   "label":"Fetch schema" },
+    { "id":"r31", "source":"edge_gateway",       "target":"secret_manager",    "label":"Fetch device certs" },
+    { "id":"r32", "source":"device_registry",    "target":"secret_manager",    "label":"Fetch provisioning tokens" },
+    { "id":"r33", "source":"stream_processor",   "target":"secret_manager",    "label":"Fetch credentials" },
+    { "id":"r34", "source":"api_server",         "target":"secret_manager",    "label":"Fetch credentials" },
+    { "id":"r35", "source":"operator",           "target":"iam_service",       "label":"Authenticate" },
+    { "id":"r36", "source":"api_server",         "target":"iam_service",       "label":"Validate token" },
+    { "id":"r37", "source":"dashboard",          "target":"iam_service",       "label":"Validate token" },
+    { "id":"r38", "source":"operator",           "target":"ota_service",       "label":"Trigger firmware update" },
+    { "id":"r39", "source":"ota_service",        "target":"device_registry",   "label":"Lookup target devices" },
+    { "id":"r40", "source":"ota_service",        "target":"edge_gateway",      "label":"Push firmware / config" },
+    { "id":"r41", "source":"relational_db",      "target":"relational_db_backup","label":"Scheduled backup · S3" }
+  ]
+}

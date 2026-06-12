@@ -96,6 +96,23 @@ CREATE TABLE IF NOT EXISTS metric_results (
     extra_relationships     INTEGER NOT NULL,
     false_relationships     INTEGER NOT NULL,
     duplicate_relationships INTEGER NOT NULL,
+    -- Container dimension (subgraphs). P/R/F1 nullable: NULL = no containers
+    -- in the ground truth (metric not applicable for that diagram).
+    container_id_precision   REAL,
+    container_id_recall      REAL,
+    container_id_f1          REAL,
+    container_name_precision REAL,
+    container_name_recall    REAL,
+    container_name_f1        REAL,
+    containers_in_output     INTEGER NOT NULL DEFAULT 0,
+    containers_in_truth      INTEGER NOT NULL DEFAULT 0,
+    -- Attachment dimension (o--o edges). P/R/F1 nullable: NULL = no
+    -- attachments in the ground truth.
+    attachment_precision     REAL,
+    attachment_recall        REAL,
+    attachment_f1            REAL,
+    attachments_in_output    INTEGER NOT NULL DEFAULT 0,
+    attachments_in_truth     INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (run_id) REFERENCES run_configs(run_id)
 );
 """
@@ -117,6 +134,7 @@ def init_db(db_path: Path) -> None:
         conn.executescript(SCHEMA)
         _migrate_add_environment_id_column(conn)
         _migrate_add_retry_count_column(conn)
+        _migrate_add_container_attachment_columns(conn)
         conn.commit()
 
 
@@ -148,6 +166,34 @@ def _migrate_add_retry_count_column(conn: sqlite3.Connection) -> None:
         conn.execute(
             "ALTER TABLE run_results ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0"
         )
+
+
+def _migrate_add_container_attachment_columns(conn: sqlite3.Connection) -> None:
+    """
+    Add the container + attachment metric columns to databases that predate
+    them (Phase 3b). Each is added only if missing. Nullable REAL columns get
+    no default (NULL = metric not applicable); count columns default to 0.
+    Old rows keep NULL P/R/F1 and 0 counts; no backfill is attempted.
+    """
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(metric_results)")}
+    additions = [
+        ("container_id_precision", "REAL"),
+        ("container_id_recall", "REAL"),
+        ("container_id_f1", "REAL"),
+        ("container_name_precision", "REAL"),
+        ("container_name_recall", "REAL"),
+        ("container_name_f1", "REAL"),
+        ("containers_in_output", "INTEGER NOT NULL DEFAULT 0"),
+        ("containers_in_truth", "INTEGER NOT NULL DEFAULT 0"),
+        ("attachment_precision", "REAL"),
+        ("attachment_recall", "REAL"),
+        ("attachment_f1", "REAL"),
+        ("attachments_in_output", "INTEGER NOT NULL DEFAULT 0"),
+        ("attachments_in_truth", "INTEGER NOT NULL DEFAULT 0"),
+    ]
+    for name, decl in additions:
+        if name not in cols:
+            conn.execute(f"ALTER TABLE metric_results ADD COLUMN {name} {decl}")
 
 
 @contextmanager

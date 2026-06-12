@@ -1,0 +1,84 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    internal_user["Internal User\n[Person]"]
+    external_user["External User\n[Person]\nPartner / Client"]
+    claude_api["Claude API\n[External System]\nAnthropic"]
+    oauth_provider["OAuth2 Provider\n[External System]\nAuth0 / OIDC"]
+    cdn["CDN\n[External System]\nEdge / Cloudflare"]
+    external_webhook["Partner Webhook\n[External System]"]
+
+    subgraph google_cloud["Google Cloud"]
+        direction LR
+        iap["Google IAP\n[Container]\nIdentity-Aware Proxy"]
+        cloud_armor["Cloud Armor\n[Container]\nWAF / DDoS"]
+        api_gateway["API Gateway\n[Container]\nCloud Endpoints"]
+        web_app["Web App\n[Container]\nMCP Host"]
+        mcp_server["MCP Server\n[Container]"]
+        vector_store[("Vector Store\n[Container]\nRAG Embeddings")]
+        redis_cache[("Redis Cache\n[Container]\nMemorystore")]
+        cloud_tasks["Cloud Tasks\n[Container]\nAsync Queue"]
+        scheduler["Cloud Scheduler\n[Container]"]
+        background_worker["Background Worker\n[Container]"]
+        cloud_storage[("Cloud Storage\n[Container]\nGCS Bucket")]
+        pub_sub["Pub/Sub\n[Container]\nEvent Bus"]
+        notification_svc["Notification Service\n[Container]\nCloud Run"]
+        secret_manager["Secret Manager\n[Container]"]
+        cloud_monitoring["Cloud Monitoring\n[Container]"]
+        error_reporting["Error Reporting\n[Container]\nException Aggregation"]
+        external_client_db[("External Client DB\n[Container]\nCloud SQL")]
+        bigquery[("BigQuery\n[Container]\nAnalytics Warehouse")]
+        pubsub_dlq["Notification DLQ\n[Container]\nPub/Sub Dead-Letter"]
+
+        subgraph postgres["PostgreSQL"]
+            orders_view[("orders\n[Data Store]\nDB View")]
+        end
+    end
+
+    %% Internal user path
+    internal_user -->|"Authenticates · HTTPS"| iap
+    iap -->|"Forwards authenticated request"| web_app
+
+    %% External user path
+    external_user -->|"HTTPS"| cdn
+    cdn -->|"Filtered HTTPS"| cloud_armor
+    cloud_armor -->|"WAF-filtered request"| api_gateway
+    api_gateway -->|"Validate JWT · OAuth2"| oauth_provider
+    api_gateway -->|"Authenticated external request"| web_app
+
+    %% Web app → MCP + AI
+    web_app -->|"Calls MCP tools · MCP"| mcp_server
+    mcp_server -->|"AI inference · Anthropic API"| claude_api
+    mcp_server -->|"Fetch RAG context"| vector_store
+    mcp_server -->|"Read-only query · SQL"| orders_view
+
+    %% Web app → data + cache
+    web_app -->|"Session / response cache"| redis_cache
+    web_app -->|"Internal user data · SQL"| postgres
+    web_app -->|"External client data · SQL"| external_client_db
+    web_app -->|"Analytics queries"| bigquery
+    web_app -->|"Upload / download · GCS"| cloud_storage
+    web_app -->|"Fetch secrets"| secret_manager
+    web_app -->|"Metrics / logs"| cloud_monitoring
+    web_app -->|"Exceptions"| error_reporting
+
+    %% Async pipeline
+    web_app -->|"Enqueue async job"| cloud_tasks
+    cloud_tasks -->|"Trigger job"| background_worker
+    scheduler -->|"Periodic trigger"| background_worker
+    background_worker -->|"Read / write · SQL"| postgres
+    background_worker -->|"Store results · GCS"| cloud_storage
+    background_worker -->|"Load processed results"| bigquery
+    background_worker -->|"Publish job result"| pub_sub
+    background_worker -->|"Fetch credentials"| secret_manager
+    background_worker -->|"Metrics / logs"| cloud_monitoring
+    background_worker -->|"Exceptions"| error_reporting
+
+    %% Notification pipeline
+    pub_sub -->|"Job complete event"| notification_svc
+    notification_svc -->|"Webhook delivery · HTTPS"| external_webhook
+    notification_svc -->|"Failed delivery"| pubsub_dlq
+    notification_svc -->|"Fetch signing key"| secret_manager
+    notification_svc -->|"Exceptions"| error_reporting

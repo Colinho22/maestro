@@ -1,0 +1,24 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    subgraph office_lan["Office LAN"]
+        direction LR
+        router["Router\n[Device]"]
+        firewall["Firewall\n[Device]"]
+        switch["Switch\n[Device]"]
+        access_point["Access Point\n[Device]"]
+        nas[("NAS\n[Server]")]
+        printer["Printer\n[Peripheral]"]
+        voip_phones["VoIP Phones\n[Device]"]
+        user_clients["User Clients\n[Laptops]"]
+    end
+
+    router -->|"WAN → LAN"| firewall
+    firewall -->|"Filtered traffic"| switch
+    switch -->|"Wired"| nas
+    switch -->|"Wired"| printer
+    switch -->|"Wired"| voip_phones
+    switch -->|"Wired uplink"| access_point
+    access_point -->|"WiFi"| user_clients

@@ -1,0 +1,298 @@
+{
+  "metadata": {
+    "id": "it_3_29",
+    "diagram_type": "c4_container",
+    "tier": 3,
+    "entity_count": 27,
+    "container_count": 5,
+    "attachment_count": 0,
+    "description": "Full SomeApp delivery and runtime stack on Infomaniak Public Cloud. Three explicit sub-environments: CI/CD (GitLab runner + Terraform + test suite + HashiCorp Vault + artifact registry), Staging (mirrored runtime: web app + background worker + Redis + PostgreSQL + object storage + monitoring + log server), and Production (web app + background worker + Redis + PostgreSQL + object storage + backup storage + Prometheus monitoring + internal log server). Cloudflare provides CDN and WAF for production. PostHog is modelled as a vendor boundary containing two product subsystems: Product Analytics (event tracking) and Error Tracking (exception aggregation, replacing a Sentry-style service); both are consumed from the production web app."
+  },
+  "system_boundary": {
+    "id": "infomaniak",
+    "name": "Infomaniak Public Cloud",
+    "type": "deployment_environment"
+  },
+  "elements": [
+    {
+      "id": "user",
+      "name": "User",
+      "type": "person",
+      "description": "End user accessing SomeApp via browser (someapp.xx)"
+    },
+    {
+      "id": "developer",
+      "name": "Developer",
+      "type": "person",
+      "description": "Developer pushing code, managing infrastructure, and reviewing pipeline results"
+    },
+    {
+      "id": "cloudflare",
+      "name": "Cloudflare",
+      "type": "external_system",
+      "description": "CDN, WAF, and edge proxy. Terminates HTTPS at the edge, applies WAF rules, and reverse-proxies to the production web app on Infomaniak"
+    },
+    {
+      "id": "gitlab",
+      "name": "GitLab",
+      "type": "external_system",
+      "description": "Source code repository and CI/CD orchestrator. Hosts the codebase and triggers pipeline runs on push or merge"
+    },
+    {
+      "id": "infomaniak_api",
+      "name": "Infomaniak API",
+      "type": "external_system",
+      "description": "Infomaniak cloud management API. Used by Terraform to provision and update cloud resources"
+    },
+    {
+      "id": "posthog",
+      "name": "PostHog",
+      "type": "external_system_boundary",
+      "description": "External PostHog vendor boundary. Groups the two distinct PostHog products consumed by the platform: Product Analytics and Error Tracking"
+    },
+    {
+      "id": "posthog_analytics",
+      "name": "PostHog Product Analytics",
+      "type": "external_system",
+      "boundary": "posthog",
+      "description": "PostHog product analytics service. Receives user interaction events from the production web app for funnel analysis, feature flag evaluation, and session recording"
+    },
+    {
+      "id": "posthog_errors",
+      "name": "PostHog Error Tracking",
+      "type": "external_system",
+      "boundary": "posthog",
+      "description": "PostHog error tracking service. Receives unhandled exceptions and stack traces from the production web app and background worker (Sentry-style replacement)"
+    },
+    {
+      "id": "cicd_env",
+      "name": "CI/CD Environment",
+      "type": "deployment_environment",
+      "boundary": "infomaniak",
+      "description": "Dedicated Infomaniak environment hosting the CI/CD pipeline components. Isolated from staging and production"
+    },
+    {
+      "id": "ci_runner",
+      "name": "GitLab CI Runner",
+      "type": "container",
+      "technology": "GitLab Runner",
+      "boundary": "cicd_env",
+      "description": "Self-hosted CI runner executing pipeline jobs: build, test, package, and deploy stages"
+    },
+    {
+      "id": "terraform",
+      "name": "Terraform",
+      "type": "container",
+      "technology": "Infrastructure as Code",
+      "boundary": "cicd_env",
+      "description": "Terraform executed by the CI runner to provision and update Infomaniak resources across staging and production environments"
+    },
+    {
+      "id": "test_suite",
+      "name": "Test Suite",
+      "type": "container",
+      "technology": "Automated Tests",
+      "boundary": "cicd_env",
+      "description": "Unit, integration, and end-to-end test suite executed by the CI runner. Gate for progression to staging and production deployments"
+    },
+    {
+      "id": "vault",
+      "name": "HashiCorp Vault",
+      "type": "container",
+      "technology": "Secrets Management",
+      "boundary": "cicd_env",
+      "description": "Central secrets management server. Vends database credentials, API keys (PostHog, Cloudflare, Infomaniak), and signing certificates to the CI runner for deployments and to the production web app at runtime"
+    },
+    {
+      "id": "artifact_registry",
+      "name": "Artifact Registry",
+      "type": "container",
+      "technology": "Docker / Container Registry",
+      "boundary": "cicd_env",
+      "description": "Internal container image registry. The CI runner pushes built Docker images here; staging and production pull verified images for deployment"
+    },
+    {
+      "id": "staging_env",
+      "name": "Staging",
+      "type": "deployment_environment",
+      "boundary": "infomaniak",
+      "description": "Pre-production staging environment mirroring production topology. Used for final validation before production deployment"
+    },
+    {
+      "id": "web_app_staging",
+      "name": "SomeApp (Staging)",
+      "type": "container",
+      "technology": "Web Application",
+      "boundary": "staging_env",
+      "description": "Staging instance of the SomeApp web application. Receives deployments from the CI runner for pre-production testing"
+    },
+    {
+      "id": "postgres_staging",
+      "name": "PostgreSQL (Staging)",
+      "type": "container",
+      "technology": "Relational Database",
+      "boundary": "staging_env",
+      "description": "Staging PostgreSQL database with anonymised production-like data. Used exclusively by the staging web app"
+    },
+    {
+      "id": "object_storage_staging",
+      "name": "Object Storage (Staging)",
+      "type": "container",
+      "technology": "S3-compatible Bucket",
+      "boundary": "staging_env",
+      "description": "S3-compatible staging bucket. Mirrors the production storage layout for end-to-end testing of file upload/download flows"
+    },
+    {
+      "id": "redis_cache_staging",
+      "name": "Redis Cache (Staging)",
+      "type": "container",
+      "technology": "Redis",
+      "boundary": "staging_env",
+      "description": "Staging Redis cache. Mirrors the production cache layer for end-to-end validation of session and rate-limit behaviour"
+    },
+    {
+      "id": "background_worker_staging",
+      "name": "Background Worker (Staging)",
+      "type": "container",
+      "technology": "Async Worker",
+      "boundary": "staging_env",
+      "description": "Staging instance of the background worker. Validates async job processing before production deployment"
+    },
+    {
+      "id": "monitoring_staging",
+      "name": "Monitoring (Staging)",
+      "type": "container",
+      "technology": "Prometheus + Grafana",
+      "boundary": "staging_env",
+      "description": "Staging Prometheus and Grafana stack. Scrapes metrics from the staging web app, worker, and PostgreSQL for pre-production observability validation"
+    },
+    {
+      "id": "log_server_staging",
+      "name": "Log Server (Staging)",
+      "type": "container",
+      "technology": "Centralised Log Store",
+      "boundary": "staging_env",
+      "description": "Staging centralised log server. Receives application event logs and DB audit logs from the staging environment"
+    },
+    {
+      "id": "prod_env",
+      "name": "Production",
+      "type": "deployment_environment",
+      "boundary": "infomaniak",
+      "description": "Live production environment serving real users. Receives deployments only after staging validation passes"
+    },
+    {
+      "id": "web_app",
+      "name": "SomeApp",
+      "type": "container",
+      "technology": "Web Application",
+      "boundary": "prod_env",
+      "description": "Production web application. Serves user traffic proxied from Cloudflare, reads/writes PostgreSQL and object storage, caches via Redis, tracks events in PostHog, and fetches runtime secrets from Vault"
+    },
+    {
+      "id": "redis_cache",
+      "name": "Redis Cache",
+      "type": "container",
+      "technology": "Redis",
+      "boundary": "prod_env",
+      "description": "In-memory cache for sessions, API responses, and rate-limit counters. Reduces database load"
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "type": "container",
+      "technology": "Relational Database",
+      "boundary": "prod_env",
+      "description": "Primary production PostgreSQL database. Handles all application reads and writes; ships access and edit events to the internal log server"
+    },
+    {
+      "id": "object_storage",
+      "name": "Object Storage",
+      "type": "container",
+      "technology": "S3-compatible Bucket",
+      "boundary": "prod_env",
+      "description": "Primary S3-compatible object storage for user-uploaded files and application assets"
+    },
+    {
+      "id": "backup_storage",
+      "name": "Backup Storage",
+      "type": "container",
+      "technology": "S3-compatible Bucket (Backup)",
+      "boundary": "prod_env",
+      "description": "Dedicated S3-compatible bucket for database and file backups. Receives scheduled backup exports from PostgreSQL and object storage"
+    },
+    {
+      "id": "monitoring",
+      "name": "Monitoring",
+      "type": "container",
+      "technology": "Prometheus + Grafana",
+      "boundary": "prod_env",
+      "description": "Internal Prometheus metrics collection and Grafana dashboards. Scrapes metrics from the web app and PostgreSQL; accessible only to the developer via admin login"
+    },
+    {
+      "id": "log_server",
+      "name": "Log Server",
+      "type": "container",
+      "technology": "Centralised Log Store",
+      "boundary": "prod_env",
+      "description": "Internal centralised log server. Receives application event logs from the web app and DB access/edit audit logs from PostgreSQL. Accessible only to the developer via admin login — not exposed through the user path"
+    },
+    {
+      "id": "background_worker",
+      "name": "Background Worker",
+      "type": "container",
+      "technology": "Async Worker",
+      "boundary": "prod_env",
+      "description": "Production background worker. Processes async jobs enqueued by the web app, reads/writes PostgreSQL and object storage, and reports errors to PostHog Error Tracking"
+    }
+  ],
+  "relationships": [
+    { "id":"r1",  "source":"developer",            "target":"gitlab",               "label":"Push code",                    "technology":"Git / HTTPS" },
+    { "id":"r2",  "source":"gitlab",                "target":"ci_runner",            "label":"Trigger pipeline",             "technology":"GitLab CI" },
+    { "id":"r3",  "source":"ci_runner",             "target":"test_suite",           "label":"Execute tests" },
+    { "id":"r4",  "source":"ci_runner",             "target":"vault",                "label":"Fetch deploy secrets" },
+    { "id":"r5",  "source":"ci_runner",             "target":"terraform",            "label":"Run plan / apply" },
+    { "id":"r6",  "source":"terraform",             "target":"infomaniak_api",       "label":"Provision infrastructure",     "technology":"REST API" },
+    { "id":"r7",  "source":"ci_runner",             "target":"artifact_registry",    "label":"Push image",                   "technology":"Docker" },
+    { "id":"r8",  "source":"ci_runner",             "target":"web_app_staging",      "label":"Deploy to staging",            "technology":"SSH / Docker" },
+    { "id":"r9",  "source":"artifact_registry",     "target":"web_app_staging",      "label":"Pull verified image",          "technology":"Docker" },
+    { "id":"r10", "source":"web_app_staging",       "target":"postgres_staging",     "label":"Read / write",                 "technology":"SQL" },
+    { "id":"r11", "source":"web_app_staging",       "target":"object_storage_staging","label":"Files",                       "technology":"S3 API" },
+    { "id":"r12", "source":"ci_runner",             "target":"web_app",              "label":"Deploy to production",         "technology":"SSH / Docker" },
+    { "id":"r13", "source":"artifact_registry",     "target":"web_app",              "label":"Pull verified image",          "technology":"Docker" },
+    { "id":"r14", "source":"user",                  "target":"cloudflare",           "label":"HTTPS",                        "technology":"HTTPS", "note":"someapp.xx" },
+    { "id":"r15", "source":"cloudflare",            "target":"web_app",              "label":"Reverse proxy · WAF-filtered", "technology":"HTTPS" },
+    { "id":"r16", "source":"web_app",               "target":"redis_cache",          "label":"Cache",                        "technology":"Redis" },
+    { "id":"r17", "source":"web_app",               "target":"postgres",             "label":"Read / write",                 "technology":"SQL" },
+    { "id":"r18", "source":"web_app",               "target":"object_storage",       "label":"Files",                        "technology":"S3 API" },
+    { "id":"r19", "source":"web_app",               "target":"posthog_analytics",    "label":"Track events",                 "technology":"HTTPS / PostHog SDK" },
+    { "id":"r19a","source":"web_app",               "target":"posthog_errors",       "label":"Report exceptions",            "technology":"HTTPS / PostHog SDK" },
+    { "id":"r20", "source":"web_app",               "target":"vault",                "label":"Fetch runtime secrets" },
+    { "id":"r21", "source":"web_app",               "target":"monitoring",           "label":"Metrics",                      "technology":"Prometheus" },
+    { "id":"r22", "source":"web_app",               "target":"log_server",           "label":"App event logs" },
+    { "id":"r23", "source":"postgres",              "target":"backup_storage",       "label":"Scheduled backup",             "technology":"S3 API" },
+    { "id":"r24", "source":"postgres",              "target":"log_server",           "label":"DB access + edit audit logs" },
+    { "id":"r25", "source":"developer",             "target":"monitoring",           "label":"Admin access" },
+    { "id":"r26", "source":"developer",             "target":"log_server",           "label":"Admin / audit access" },
+    { "id":"r27", "source":"web_app",               "target":"background_worker",    "label":"Enqueue async job" },
+    { "id":"r28", "source":"background_worker",     "target":"postgres",             "label":"Read / write",                 "technology":"SQL" },
+    { "id":"r29", "source":"background_worker",     "target":"object_storage",       "label":"Files",                        "technology":"S3 API" },
+    { "id":"r30", "source":"background_worker",     "target":"vault",                "label":"Fetch runtime secrets" },
+    { "id":"r31", "source":"background_worker",     "target":"monitoring",           "label":"Metrics",                      "technology":"Prometheus" },
+    { "id":"r32", "source":"background_worker",     "target":"log_server",           "label":"Worker event logs" },
+    { "id":"r33", "source":"background_worker",     "target":"posthog_errors",       "label":"Report exceptions",            "technology":"HTTPS / PostHog SDK" },
+    { "id":"r34", "source":"web_app_staging",       "target":"redis_cache_staging",  "label":"Cache",                        "technology":"Redis" },
+    { "id":"r35", "source":"web_app_staging",       "target":"background_worker_staging","label":"Enqueue async job" },
+    { "id":"r36", "source":"background_worker_staging","target":"postgres_staging",    "label":"Read / write",                 "technology":"SQL" },
+    { "id":"r37", "source":"background_worker_staging","target":"object_storage_staging","label":"Files",                       "technology":"S3 API" },
+    { "id":"r38", "source":"web_app_staging",       "target":"monitoring_staging",   "label":"Metrics",                      "technology":"Prometheus" },
+    { "id":"r39", "source":"background_worker_staging","target":"monitoring_staging",  "label":"Metrics",                      "technology":"Prometheus" },
+    { "id":"r40", "source":"web_app_staging",       "target":"log_server_staging",   "label":"App event logs" },
+    { "id":"r41", "source":"background_worker_staging","target":"log_server_staging",  "label":"Worker event logs" },
+    { "id":"r42", "source":"postgres_staging",      "target":"log_server_staging",   "label":"DB audit logs" },
+    { "id":"r43", "source":"ci_runner",             "target":"background_worker_staging","label":"Deploy to staging",          "technology":"SSH / Docker" },
+    { "id":"r44", "source":"artifact_registry",     "target":"background_worker_staging","label":"Pull verified image",        "technology":"Docker" },
+    { "id":"r45", "source":"ci_runner",             "target":"background_worker",    "label":"Deploy to production",         "technology":"SSH / Docker" },
+    { "id":"r46", "source":"artifact_registry",     "target":"background_worker",    "label":"Pull verified image",          "technology":"Docker" }
+  ]
+}

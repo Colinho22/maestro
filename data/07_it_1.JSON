@@ -1,0 +1,98 @@
+{
+  "metadata": {
+    "id": "it_1_07",
+    "diagram_type": "c4_container",
+    "tier": 1,
+    "entity_count": 6,
+    "container_count": 1,
+    "attachment_count": 0,
+    "description": "C4 Container diagram of SomeApp: extends it_1_06 with a PostgreSQL database and developer SSH access to the application server"
+  },
+  "system_boundary": {
+    "id": "infomaniak",
+    "name": "Infomaniak Public Cloud",
+    "type": "deployment_environment"
+  },
+  "elements": [
+    {
+      "id": "user",
+      "name": "User",
+      "type": "person",
+      "description": "End user accessing the web application via browser"
+    },
+    {
+      "id": "developer",
+      "name": "Developer",
+      "type": "person",
+      "description": "Developer or operator managing the application server via SSH"
+    },
+    {
+      "id": "cloudflare",
+      "name": "Cloudflare",
+      "type": "external_system",
+      "description": "CDN and edge proxy. Terminates HTTPS at the edge (www.someapp.xx) and routes traffic to the origin server"
+    },
+    {
+      "id": "web_app",
+      "name": "SomeApp",
+      "type": "container",
+      "technology": "Web Application",
+      "boundary": "infomaniak",
+      "description": "Public-facing web application. Receives proxied requests from Cloudflare and reads/writes to database and object storage"
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "type": "container",
+      "technology": "Relational Database",
+      "boundary": "infomaniak",
+      "description": "Primary relational database storing application data"
+    },
+    {
+      "id": "object_storage",
+      "name": "Object Storage",
+      "type": "container",
+      "technology": "S3-compatible Bucket",
+      "boundary": "infomaniak",
+      "description": "S3-compatible object storage bucket for application assets and files"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "source": "user",
+      "target": "cloudflare",
+      "label": "Accesses via HTTPS",
+      "technology": "HTTPS",
+      "note": "www.someapp.xx"
+    },
+    {
+      "id": "r2",
+      "source": "cloudflare",
+      "target": "web_app",
+      "label": "Reverse proxy / origin request",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r3",
+      "source": "web_app",
+      "target": "postgres",
+      "label": "Reads and writes application data",
+      "technology": "PostgreSQL"
+    },
+    {
+      "id": "r4",
+      "source": "web_app",
+      "target": "object_storage",
+      "label": "Reads and writes files",
+      "technology": "S3 API"
+    },
+    {
+      "id": "r5",
+      "source": "developer",
+      "target": "web_app",
+      "label": "Manages application server",
+      "technology": "SSH"
+    }
+  ]
+}

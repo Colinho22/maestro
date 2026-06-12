@@ -1,0 +1,70 @@
+{
+  "metadata": {
+    "id": "it_1_06",
+    "diagram_type": "c4_container",
+    "tier": 1,
+    "entity_count": 4,
+    "container_count": 1,
+    "attachment_count": 0,
+    "description": "C4 Container diagram of SomeApp: a public-facing web application hosted on Infomaniak Public Cloud, served via Cloudflare CDN with S3-compatible object storage"
+  },
+  "system_boundary": {
+    "id": "infomaniak",
+    "name": "Infomaniak Public Cloud",
+    "type": "deployment_environment"
+  },
+  "elements": [
+    {
+      "id": "user",
+      "name": "User",
+      "type": "person",
+      "description": "End user accessing the web application via browser"
+    },
+    {
+      "id": "cloudflare",
+      "name": "Cloudflare",
+      "type": "external_system",
+      "description": "CDN and edge proxy. Terminates HTTPS at the edge (www.someapp.xx) and routes traffic to the origin server"
+    },
+    {
+      "id": "web_app",
+      "name": "SomeApp",
+      "type": "container",
+      "technology": "Web Application",
+      "boundary": "infomaniak",
+      "description": "Public-facing web application. Receives proxied requests from Cloudflare and serves the SomeApp product"
+    },
+    {
+      "id": "object_storage",
+      "name": "Object Storage",
+      "type": "container",
+      "technology": "S3-compatible Bucket",
+      "boundary": "infomaniak",
+      "description": "S3-compatible object storage bucket hosted on Infomaniak. Stores application assets and data"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "source": "user",
+      "target": "cloudflare",
+      "label": "Accesses via HTTPS",
+      "technology": "HTTPS",
+      "note": "www.someapp.xx"
+    },
+    {
+      "id": "r2",
+      "source": "cloudflare",
+      "target": "web_app",
+      "label": "Reverse proxy / origin request",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r3",
+      "source": "web_app",
+      "target": "object_storage",
+      "label": "Reads and writes files",
+      "technology": "S3 API"
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    subgraph Participant_00["Customer Onboarding"]
+        direction LR
+        StartEvent_ApplicationReceived(["Application received"])
+        ServiceTask_GetCreditScore["Get credit score"]
+        BusinessRuleTask_CheckApplicationAutomatically["Check application automatically"]
+        ExclusiveGateway_Risk{"Risk?"}
+        ServiceTask_DeliverPolicy["Deliver confirmation"]
+        SendTask_SendPolicy["Send confirmation"]
+        EndEvent_ApplicationIssued(["Application issued"])
+        ServiceTask_RejectPolicy["Reject application"]
+        SendTask_SendRejection["Send rejection"]
+        EndEvent_ApplicationRejected(["Application rejected"])
+        Activity_ManualCheck[["Manual Check"]]
+        ExclusiveGateway_Decision{"Decision?"}
+        SendTask_ReportFraud["Report fraud"]
+        TerminateEvent_ApplicationCanceledFraud(["Application canceled due to fraud"])
+        subgraph Activity_1ke2ixr["Timeout Handler"]
+            direction LR
+            StartErrorEvent_Timeout(["Timeout"])
+            UserTask_HandleTimeout["Handle Timeout"]
+            EndMessageEvent_Timeout(["Timeout handled"])
+        end
+        subgraph Activity_0vp33kx["Cancellation Handler"]
+            direction LR
+            StartMessageEvent_CancellationRequested(["Cancelation requested"])
+            ServiceTask_CancelApplication["Cancel application"]
+            ParallelGateway_CancelApplication{{"+"}}
+            EndMessageEvent_InformCustomer(["Customer notified about successful cancelation"])
+            EndMessageEvent_InformOperations(["Operations Team notified about successful cancelation"])
+        end
+    end
+    StartEvent_ApplicationReceived --> ServiceTask_GetCreditScore
+    ServiceTask_GetCreditScore --> BusinessRuleTask_CheckApplicationAutomatically
+    BusinessRuleTask_CheckApplicationAutomatically --> ExclusiveGateway_Risk
+    ExclusiveGateway_Risk -->|"Green (no risk)"| ServiceTask_DeliverPolicy
+    ExclusiveGateway_Risk -->|"Red (severe risk)"| ServiceTask_RejectPolicy
+    ExclusiveGateway_Risk -->|"Yellow (moderate risk)"| Activity_ManualCheck
+    ServiceTask_DeliverPolicy --> SendTask_SendPolicy
+    SendTask_SendPolicy --> EndEvent_ApplicationIssued
+    ServiceTask_RejectPolicy --> SendTask_SendRejection
+    SendTask_SendRejection --> EndEvent_ApplicationRejected
+    Activity_ManualCheck --> ExclusiveGateway_Decision
+    ExclusiveGateway_Decision -->|"Application accepted"| ServiceTask_DeliverPolicy
+    ExclusiveGateway_Decision -->|"Application declined"| ServiceTask_RejectPolicy
+    SendTask_ReportFraud --> TerminateEvent_ApplicationCanceledFraud
+    StartErrorEvent_Timeout --> UserTask_HandleTimeout
+    UserTask_HandleTimeout --> EndMessageEvent_Timeout
+    StartMessageEvent_CancellationRequested --> ServiceTask_CancelApplication
+    ServiceTask_CancelApplication --> ParallelGateway_CancelApplication
+    ParallelGateway_CancelApplication --> EndMessageEvent_InformCustomer
+    ParallelGateway_CancelApplication --> EndMessageEvent_InformOperations
+    Activity_ManualCheck o--o ErrorBoundaryEvent_FraudDetected(("Fraud detected"))
+    ErrorBoundaryEvent_FraudDetected --> SendTask_ReportFraud

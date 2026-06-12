@@ -1,0 +1,210 @@
+{
+  "metadata": {
+    "id": "it_2_20",
+    "diagram_type": "c4_container",
+    "tier": 2,
+    "entity_count": 12,
+    "container_count": 2,
+    "attachment_count": 0,
+    "description": "C4 Container diagram of a hybrid cloud / on-premises architecture. External users reach the application via a cloud CDN and load balancer, which routes requests through an IPsec VPN tunnel to on-premises application servers. Internal users access on-premises resources directly. The cloud layer provides VPN termination, object storage for backups, and centralised monitoring"
+  },
+  "system_boundary": {
+    "id": "on_prem_dc",
+    "name": "On-Premises Data Center",
+    "type": "deployment_environment"
+  },
+  "elements": [
+    {
+      "id": "external_users",
+      "name": "External Users",
+      "type": "person",
+      "description": "Remote users accessing the application from the public internet via browser"
+    },
+    {
+      "id": "internal_users",
+      "name": "Internal Users",
+      "type": "person",
+      "description": "Office employees accessing on-premises resources directly or via VPN"
+    },
+    {
+      "id": "cloud_env",
+      "name": "Cloud Environment",
+      "type": "deployment_environment",
+      "description": "Public cloud layer providing CDN/LB, VPN termination, object storage, and monitoring"
+    },
+    {
+      "id": "cdn_lb",
+      "name": "CDN / Load Balancer",
+      "type": "container",
+      "technology": "Cloud CDN + Load Balancer",
+      "boundary": "cloud_env",
+      "description": "Cloud-managed CDN and application load balancer. Terminates public HTTPS traffic and routes it to the cloud VPN gateway"
+    },
+    {
+      "id": "vpn_gw_cloud",
+      "name": "VPN Gateway (Cloud)",
+      "type": "container",
+      "technology": "Cloud VPN Gateway",
+      "boundary": "cloud_env",
+      "description": "Cloud-side IPsec VPN gateway. Establishes an encrypted tunnel to the on-premises VPN gateway"
+    },
+    {
+      "id": "cloud_storage",
+      "name": "Cloud Storage",
+      "type": "container",
+      "technology": "Object Storage (S3-compatible)",
+      "boundary": "cloud_env",
+      "description": "Object storage bucket. Receives backup syncs from the on-premises file server and application server"
+    },
+    {
+      "id": "cloud_monitoring",
+      "name": "Cloud Monitoring",
+      "type": "container",
+      "technology": "Managed Monitoring Service",
+      "boundary": "cloud_env",
+      "description": "Centralised monitoring and alerting. Collects metrics and logs pushed by the on-premises application server"
+    },
+    {
+      "id": "vpn_gw_onprem",
+      "name": "VPN Gateway (On-Prem)",
+      "type": "container",
+      "technology": "On-Premises VPN Appliance",
+      "boundary": "on_prem_dc",
+      "description": "On-premises IPsec VPN gateway. Terminates the cloud-side tunnel and forwards traffic to the internal firewall"
+    },
+    {
+      "id": "firewall",
+      "name": "Firewall",
+      "type": "container",
+      "technology": "Network Firewall",
+      "boundary": "on_prem_dc",
+      "description": "On-premises firewall. Filters traffic between the VPN gateway and internal servers"
+    },
+    {
+      "id": "app_server",
+      "name": "App Server",
+      "type": "container",
+      "technology": "Web Application Server",
+      "boundary": "on_prem_dc",
+      "description": "Core application server. Handles business logic, authenticates against Active Directory, and reads/writes the database and file server"
+    },
+    {
+      "id": "db_server",
+      "name": "Database",
+      "type": "container",
+      "technology": "PostgreSQL",
+      "boundary": "on_prem_dc",
+      "description": "On-premises PostgreSQL database. Stores all application data"
+    },
+    {
+      "id": "file_server",
+      "name": "File Server",
+      "type": "container",
+      "technology": "NFS File Server",
+      "boundary": "on_prem_dc",
+      "description": "Shared NFS file server. Stores documents and media; syncs to cloud object storage for backup"
+    },
+    {
+      "id": "ad_server",
+      "name": "Active Directory",
+      "type": "container",
+      "technology": "LDAP / Active Directory",
+      "boundary": "on_prem_dc",
+      "description": "On-premises Active Directory. Provides authentication and IAM for internal users and the application server"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "source": "external_users",
+      "target": "cdn_lb",
+      "label": "HTTPS",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r2",
+      "source": "internal_users",
+      "target": "vpn_gw_onprem",
+      "label": "VPN / direct",
+      "technology": "VPN / LAN"
+    },
+    {
+      "id": "r3",
+      "source": "internal_users",
+      "target": "ad_server",
+      "label": "Login · LDAP",
+      "technology": "LDAP"
+    },
+    {
+      "id": "r4",
+      "source": "cdn_lb",
+      "target": "vpn_gw_cloud",
+      "label": "Route to on-prem",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r5",
+      "source": "vpn_gw_cloud",
+      "target": "vpn_gw_onprem",
+      "label": "IPsec VPN tunnel",
+      "technology": "IPsec",
+      "note": "Bidirectional encrypted tunnel"
+    },
+    {
+      "id": "r6",
+      "source": "vpn_gw_onprem",
+      "target": "firewall",
+      "label": "Internal traffic",
+      "technology": "LAN"
+    },
+    {
+      "id": "r7",
+      "source": "firewall",
+      "target": "app_server",
+      "label": "Filtered HTTPS",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r8",
+      "source": "app_server",
+      "target": "ad_server",
+      "label": "Auth · LDAP",
+      "technology": "LDAP"
+    },
+    {
+      "id": "r9",
+      "source": "app_server",
+      "target": "db_server",
+      "label": "Read / write",
+      "technology": "SQL"
+    },
+    {
+      "id": "r10",
+      "source": "app_server",
+      "target": "file_server",
+      "label": "File access",
+      "technology": "NFS"
+    },
+    {
+      "id": "r11",
+      "source": "app_server",
+      "target": "cloud_storage",
+      "label": "Sync files",
+      "technology": "S3 API"
+    },
+    {
+      "id": "r12",
+      "source": "file_server",
+      "target": "cloud_storage",
+      "label": "Backup",
+      "technology": "S3 API"
+    },
+    {
+      "id": "r13",
+      "source": "app_server",
+      "target": "cloud_monitoring",
+      "label": "Metrics / logs",
+      "technology": "HTTPS"
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    subgraph pool_bank["Bank"]
+        direction LR
+        subgraph lane_private["Private Customer Account Manager"]
+            direction LR
+            start_customer_interested(["Customer interested in Bank offer"])
+            task_interview_customer["Interview customer"]
+            task_prove_identity["Prove/Provide identity"]
+            gw_legal_or_individual{"Legal entity or individual?"}
+            task_obtain_documents["Obtain supporting data and documents of the customer"]
+            task_check_documents["Check customer documents"]
+            gw_data_complete{"Data complete?"}
+            task_complete_data["Complete data and documents"]
+            task_copy_sign_scan["Copy, sign, and scan documents"]
+            task_file_documents["File documents in customer file"]
+            gw_parallel_split{{"+"}}
+            task_add_personal_data["Add personal data"]
+            task_kyc["Perform know your customer (KYC) activities"]
+            gw_parallel_merge{{"+"}}
+            task_risk_assessment["Perform risk assessment of the customer"]
+            gw_subject_to_approval{"Subject to approval?"}
+            task_create_customer["Create customer in the system"]
+            end_customer_created(["Identity determined and new customer created"])
+        end
+        subgraph lane_corporate["Corporate Account Manager"]
+            direction LR
+            task_refer_b2b["Referral to B2B Department"]
+            end_referred_b2b(["Referred to B2B Department"])
+        end
+        subgraph lane_head_market["Head of Market Service"]
+            direction LR
+            task_check_risk["Check risk and decide about approval"]
+            gw_approval{"Approval?"}
+            task_reject_customer["Reject customer request"]
+            end_no_business(["No business relation created"])
+        end
+    end
+    start_customer_interested --> task_interview_customer
+    task_interview_customer --> task_prove_identity
+    task_prove_identity --> gw_legal_or_individual
+    gw_legal_or_individual -->|"Individual Person"| task_obtain_documents
+    gw_legal_or_individual -->|"Legal Entity"| task_refer_b2b
+    task_refer_b2b --> end_referred_b2b
+    task_obtain_documents --> task_check_documents
+    task_check_documents --> gw_data_complete
+    gw_data_complete -->|"Yes"| task_copy_sign_scan
+    gw_data_complete -->|"No"| task_complete_data
+    task_complete_data --> task_copy_sign_scan
+    task_copy_sign_scan --> task_file_documents
+    task_file_documents --> gw_parallel_split
+    gw_parallel_split --> task_add_personal_data
+    gw_parallel_split --> task_kyc
+    task_add_personal_data --> gw_parallel_merge
+    task_kyc --> gw_parallel_merge
+    gw_parallel_merge --> task_risk_assessment
+    task_risk_assessment --> gw_subject_to_approval
+    gw_subject_to_approval -->|"No"| task_create_customer
+    gw_subject_to_approval -->|"Yes"| task_check_risk
+    task_check_risk --> gw_approval
+    gw_approval -->|"Yes"| task_create_customer
+    gw_approval -->|"No"| task_reject_customer
+    task_reject_customer --> end_no_business
+    task_create_customer --> end_customer_created

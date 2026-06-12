@@ -1,0 +1,104 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    iot_sensors["IoT Sensors\n[External System]\nField Devices"]
+    operator["Operator\n[Person]"]
+    maintenance_team["Maintenance Team\n[Person]"]
+    cloud_archive["Cloud Archive\n[External System]\nS3 / Blob Storage"]
+    notification_gateway["Notification Gateway\n[External System]\nPagerDuty / SMS"]
+
+    subgraph iot_platform["IoT & Edge Processing Platform"]
+        subgraph edge_layer["Edge Layer"]
+            direction LR
+            edge_gateway["Edge Gateway\n[Container]\nProtocol Translation"]
+            mqtt_broker["MQTT Broker\n[Container]\nMosquitto / EMQX"]
+            device_registry["Device Registry\n[Container]\nIdentity Service"]
+            local_buffer[("Local Buffer\n[Container]\nEdge Data Store")]
+            ota_service["OTA Service\n[Container]\nFirmware / Config Updates"]
+        end
+    
+        subgraph processing_layer["Processing Layer"]
+            direction LR
+            kafka["Kafka\n[Container]\nEvent Stream"]
+            data_validator["Data Validator\n[Container]"]
+            stream_processor["Stream Processor\n[Container]\nFlink / Kafka Streams"]
+            rule_engine["Rule Engine\n[Container]\nThreshold Rules"]
+            anomaly_detector["Anomaly Detector\n[Container]\nML Inference"]
+            alert_manager["Alert Manager\n[Container]"]
+            api_server["API Server\n[Container]\nREST API"]
+            schema_registry["Schema Registry\n[Container]\nAvro / Protobuf"]
+            secret_manager["Secret Manager\n[Container]\nHashiCorp Vault"]
+            iam_service["IAM Service\n[Container]\nIdentity & Access"]
+        end
+    
+        subgraph storage_layer["Storage Layer"]
+            direction LR
+            timeseries_db[("Time-Series DB\n[Container]\nInfluxDB")]
+            relational_db[("Relational DB\n[Container]\nPostgreSQL")]
+            hot_cache[("Hot Cache\n[Container]\nRedis")]
+            dashboard["Dashboard\n[Container]\nGrafana"]
+            audit_log[("Audit Log\n[Container]\nAdmin access only")]
+            relational_db_backup[("Relational DB Backup\n[Container]\nBackup Bucket")]
+        end
+    end
+
+    %% Edge — device ingestion
+    iot_sensors -->|"Sensor data · MQTT/CoAP"| edge_gateway
+    edge_gateway -->|"Device auth"| device_registry
+    edge_gateway -->|"Normalised MQTT"| mqtt_broker
+    edge_gateway -->|"Buffer on disconnect"| local_buffer
+
+    %% Edge → Kafka
+    mqtt_broker -->|"Publish events"| kafka
+    local_buffer -->|"Flush on reconnect"| kafka
+
+    %% Processing pipeline
+    kafka -->|"Raw events"| data_validator
+    data_validator -->|"Validated events"| kafka
+    kafka -->|"Consume validated events"| stream_processor
+    stream_processor -->|"Write metrics"| timeseries_db
+    stream_processor -->|"Cache recent readings"| hot_cache
+    stream_processor -->|"Evaluate thresholds"| rule_engine
+    stream_processor -->|"ML inference"| anomaly_detector
+    stream_processor -->|"Processing event log"| audit_log
+
+    %% Schema governance
+    data_validator -->|"Fetch schema"| schema_registry
+    stream_processor -->|"Fetch schema"| schema_registry
+
+    %% Alerting
+    rule_engine -->|"Threshold alert"| alert_manager
+    anomaly_detector -->|"Anomaly alert"| alert_manager
+    alert_manager -->|"Route alert"| notification_gateway
+    notification_gateway -->|"Alert notification"| maintenance_team
+
+    %% Storage
+    device_registry -->|"Device metadata · SQL"| relational_db
+    timeseries_db -->|"Cold data archival · S3"| cloud_archive
+    relational_db -->|"Scheduled backup · S3"| relational_db_backup
+
+    %% Operator
+    operator -->|"Authenticate"| iam_service
+    operator -->|"Manage / query"| api_server
+    operator -->|"Monitor"| dashboard
+    operator -->|"Trigger firmware update"| ota_service
+    api_server -->|"Validate token"| iam_service
+    dashboard -->|"Validate token"| iam_service
+    api_server -->|"Query metrics · SQL"| timeseries_db
+    api_server -->|"Query devices · SQL"| relational_db
+    api_server -->|"Live readings · Redis"| hot_cache
+    api_server -->|"Access log"| audit_log
+    dashboard -->|"Historical metrics"| timeseries_db
+    dashboard -->|"Live readings"| hot_cache
+
+    %% Secret management
+    edge_gateway -->|"Fetch device certs"| secret_manager
+    device_registry -->|"Fetch provisioning tokens"| secret_manager
+    stream_processor -->|"Fetch credentials"| secret_manager
+    api_server -->|"Fetch credentials"| secret_manager
+
+    %% OTA flow
+    ota_service -->|"Lookup target devices"| device_registry
+    ota_service -->|"Push firmware / config"| edge_gateway

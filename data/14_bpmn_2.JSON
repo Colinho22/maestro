@@ -1,0 +1,363 @@
+{
+  "metadata": {
+    "id": "bpmn_2_14",
+    "source": "C.5.0.bpmn",
+    "diagram_type": "bpmn_collaboration",
+    "tier": 2,
+    "entity_count": 24,
+    "container_count": 4,
+    "attachment_count": 0,
+    "description": "Bank KYC onboarding: private account manager handles identity verification, document checks, parallel personal data and KYC activities, risk assessment; legal entities are referred to B2B department; head of market lane handles approval decisions"
+  },
+  "pools": [
+    {
+      "id": "pool_bank",
+      "name": "Bank"
+    }
+  ],
+  "lanes": [
+    {
+      "id": "lane_private",
+      "name": "Private Customer Account Manager",
+      "pool": "pool_bank"
+    },
+    {
+      "id": "lane_corporate",
+      "name": "Corporate Account Manager",
+      "pool": "pool_bank"
+    },
+    {
+      "id": "lane_head_market",
+      "name": "Head of Market Service",
+      "pool": "pool_bank"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start_customer_interested",
+      "name": "Customer interested in Bank offer",
+      "type": "startEvent",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "task_interview_customer",
+      "name": "Interview customer",
+      "type": "task",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "task_prove_identity",
+      "name": "Prove/Provide identity",
+      "type": "task",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "gw_legal_or_individual",
+      "name": "Legal entity or individual?",
+      "type": "exclusiveGateway",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "task_obtain_documents",
+      "name": "Obtain supporting data and documents of the customer",
+      "type": "task",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "task_check_documents",
+      "name": "Check customer documents",
+      "type": "task",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "gw_data_complete",
+      "name": "Data complete?",
+      "type": "exclusiveGateway",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "task_complete_data",
+      "name": "Complete data and documents",
+      "type": "task",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "task_copy_sign_scan",
+      "name": "Copy, sign, and scan documents",
+      "type": "task",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "task_file_documents",
+      "name": "File documents in customer file",
+      "type": "task",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "gw_parallel_split",
+      "name": "",
+      "type": "parallelGateway",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "task_add_personal_data",
+      "name": "Add personal data",
+      "type": "task",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "task_kyc",
+      "name": "Perform know your customer (KYC) activities",
+      "type": "task",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "gw_parallel_merge",
+      "name": "",
+      "type": "parallelGateway",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "task_risk_assessment",
+      "name": "Perform risk assessment of the customer",
+      "type": "task",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "gw_subject_to_approval",
+      "name": "Subject to approval?",
+      "type": "exclusiveGateway",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "task_create_customer",
+      "name": "Create customer in the system",
+      "type": "task",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "end_customer_created",
+      "name": "Identity determined and new customer created",
+      "type": "endEvent",
+      "lane": "lane_private",
+      "attached_to": null
+    },
+    {
+      "id": "task_refer_b2b",
+      "name": "Referral to B2B Department",
+      "type": "task",
+      "lane": "lane_corporate",
+      "attached_to": null
+    },
+    {
+      "id": "end_referred_b2b",
+      "name": "Referred to B2B Department",
+      "type": "endEvent",
+      "lane": "lane_corporate",
+      "attached_to": null
+    },
+    {
+      "id": "task_check_risk",
+      "name": "Check risk and decide about approval",
+      "type": "task",
+      "lane": "lane_head_market",
+      "attached_to": null
+    },
+    {
+      "id": "gw_approval",
+      "name": "Approval?",
+      "type": "exclusiveGateway",
+      "lane": "lane_head_market",
+      "attached_to": null
+    },
+    {
+      "id": "task_reject_customer",
+      "name": "Reject customer request",
+      "type": "task",
+      "lane": "lane_head_market",
+      "attached_to": null
+    },
+    {
+      "id": "end_no_business",
+      "name": "No business relation created",
+      "type": "endEvent",
+      "lane": "lane_head_market",
+      "attached_to": null
+    }
+  ],
+  "sequence_flows": [
+    {
+      "id": "sf_1",
+      "name": "",
+      "source": "start_customer_interested",
+      "target": "task_interview_customer"
+    },
+    {
+      "id": "sf_2",
+      "name": "",
+      "source": "task_interview_customer",
+      "target": "task_prove_identity"
+    },
+    {
+      "id": "sf_3",
+      "name": "",
+      "source": "task_prove_identity",
+      "target": "gw_legal_or_individual"
+    },
+    {
+      "id": "sf_4",
+      "name": "Individual Person",
+      "source": "gw_legal_or_individual",
+      "target": "task_obtain_documents"
+    },
+    {
+      "id": "sf_5",
+      "name": "Legal Entity",
+      "source": "gw_legal_or_individual",
+      "target": "task_refer_b2b"
+    },
+    {
+      "id": "sf_6",
+      "name": "",
+      "source": "task_refer_b2b",
+      "target": "end_referred_b2b"
+    },
+    {
+      "id": "sf_7",
+      "name": "",
+      "source": "task_obtain_documents",
+      "target": "task_check_documents"
+    },
+    {
+      "id": "sf_8",
+      "name": "",
+      "source": "task_check_documents",
+      "target": "gw_data_complete"
+    },
+    {
+      "id": "sf_9",
+      "name": "Yes",
+      "source": "gw_data_complete",
+      "target": "task_copy_sign_scan"
+    },
+    {
+      "id": "sf_10",
+      "name": "No",
+      "source": "gw_data_complete",
+      "target": "task_complete_data"
+    },
+    {
+      "id": "sf_11",
+      "name": "",
+      "source": "task_complete_data",
+      "target": "task_copy_sign_scan"
+    },
+    {
+      "id": "sf_13",
+      "name": "",
+      "source": "task_copy_sign_scan",
+      "target": "task_file_documents"
+    },
+    {
+      "id": "sf_14",
+      "name": "",
+      "source": "task_file_documents",
+      "target": "gw_parallel_split"
+    },
+    {
+      "id": "sf_15",
+      "name": "",
+      "source": "gw_parallel_split",
+      "target": "task_add_personal_data"
+    },
+    {
+      "id": "sf_16",
+      "name": "",
+      "source": "gw_parallel_split",
+      "target": "task_kyc"
+    },
+    {
+      "id": "sf_17",
+      "name": "",
+      "source": "task_add_personal_data",
+      "target": "gw_parallel_merge"
+    },
+    {
+      "id": "sf_18",
+      "name": "",
+      "source": "task_kyc",
+      "target": "gw_parallel_merge"
+    },
+    {
+      "id": "sf_19",
+      "name": "",
+      "source": "gw_parallel_merge",
+      "target": "task_risk_assessment"
+    },
+    {
+      "id": "sf_20",
+      "name": "",
+      "source": "task_risk_assessment",
+      "target": "gw_subject_to_approval"
+    },
+    {
+      "id": "sf_21",
+      "name": "No",
+      "source": "gw_subject_to_approval",
+      "target": "task_create_customer"
+    },
+    {
+      "id": "sf_22",
+      "name": "Yes",
+      "source": "gw_subject_to_approval",
+      "target": "task_check_risk"
+    },
+    {
+      "id": "sf_23",
+      "name": "",
+      "source": "task_check_risk",
+      "target": "gw_approval"
+    },
+    {
+      "id": "sf_24",
+      "name": "Yes",
+      "source": "gw_approval",
+      "target": "task_create_customer"
+    },
+    {
+      "id": "sf_25",
+      "name": "No",
+      "source": "gw_approval",
+      "target": "task_reject_customer"
+    },
+    {
+      "id": "sf_26",
+      "name": "",
+      "source": "task_reject_customer",
+      "target": "end_no_business"
+    },
+    {
+      "id": "sf_27",
+      "name": "",
+      "source": "task_create_customer",
+      "target": "end_customer_created"
+    }
+  ]
+}

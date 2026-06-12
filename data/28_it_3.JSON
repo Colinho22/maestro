@@ -1,0 +1,258 @@
+{
+  "metadata": {
+    "id": "it_3_28",
+    "diagram_type": "c4_container",
+    "tier": 3,
+    "entity_count": 26,
+    "container_count": 2,
+    "attachment_count": 0,
+    "description": "Extended GCP data analysis stack. Replaces Vertex AI Gemini with an external Claude API (Anthropic) called via the MCP server. Adds a second access path for external partners: CDN + Cloud Armor WAF + API Gateway with OAuth2 auth, routing to a separate internal external-client database (not the internal PostgreSQL). Includes a vector store for RAG context retrieval, Redis cache, event-driven notification pipeline (Cloud Tasks → background worker → Pub/Sub → notification service → partner webhook) with a Pub/Sub dead-letter queue for failed deliveries, Cloud Scheduler for periodic jobs, BigQuery analytics warehouse fed by the background worker and queried by the web app, and full observability via Cloud Monitoring, Error Reporting, and Secret Manager."
+  },
+  "system_boundary": {
+    "id": "google_cloud",
+    "name": "Google Cloud",
+    "type": "cloud_environment"
+  },
+  "elements": [
+    {
+      "id": "internal_user",
+      "name": "Internal User",
+      "type": "person",
+      "description": "Internal analyst accessing the web app via browser through Google IAP"
+    },
+    {
+      "id": "external_user",
+      "name": "External User",
+      "type": "person",
+      "description": "External partner or client accessing the web app through the public API path (CDN → WAF → API Gateway)"
+    },
+    {
+      "id": "claude_api",
+      "name": "Claude API",
+      "type": "external_system",
+      "description": "Anthropic Claude API. Provides AI inference for the MCP server — replaces Vertex AI Gemini. Called over HTTPS with API key from Secret Manager"
+    },
+    {
+      "id": "oauth_provider",
+      "name": "OAuth2 Provider",
+      "type": "external_system",
+      "description": "External OAuth2 / OIDC provider (e.g., Auth0). Authenticates external users and issues JWT tokens validated by the API Gateway"
+    },
+    {
+      "id": "cdn",
+      "name": "CDN",
+      "type": "external_system",
+      "description": "Content delivery network (e.g., Cloudflare). Fronts external user traffic, terminates TLS at the edge, and forwards requests to Cloud Armor"
+    },
+    {
+      "id": "external_webhook",
+      "name": "Partner Webhook",
+      "type": "external_system",
+      "description": "External partner endpoint that receives webhook notifications when background analysis jobs complete"
+    },
+    {
+      "id": "iap",
+      "name": "Google IAP",
+      "type": "container",
+      "technology": "Identity-Aware Proxy",
+      "boundary": "google_cloud",
+      "description": "Google Identity-Aware Proxy. Enforces Google identity authentication for internal users before forwarding requests to the web app"
+    },
+    {
+      "id": "cloud_armor",
+      "name": "Cloud Armor",
+      "type": "container",
+      "technology": "WAF / DDoS Protection",
+      "boundary": "google_cloud",
+      "description": "Google Cloud Armor. WAF and DDoS protection layer for the external access path. Filters malicious traffic from the CDN before it reaches the API Gateway"
+    },
+    {
+      "id": "api_gateway",
+      "name": "API Gateway",
+      "type": "container",
+      "technology": "Cloud Endpoints / API Gateway",
+      "boundary": "google_cloud",
+      "description": "Cloud API Gateway for external users. Validates OAuth2 JWT tokens from the OAuth2 provider, enforces rate limits, and routes authenticated external requests to the web app"
+    },
+    {
+      "id": "web_app",
+      "name": "Web App",
+      "type": "container",
+      "technology": "Web Application / MCP Host",
+      "boundary": "google_cloud",
+      "description": "Web application serving both internal and external users. Presents an internal view (IAP path) backed by the internal PostgreSQL and an external view (API Gateway path) backed by the external client database. Acts as MCP host for AI-assisted analysis"
+    },
+    {
+      "id": "mcp_server",
+      "name": "MCP Server",
+      "type": "container",
+      "technology": "MCP Server",
+      "boundary": "google_cloud",
+      "description": "MCP server exposing data query tools to the web app. Calls the external Claude API for AI inference, queries the vector store for RAG context, and queries the internal orders view for structured data"
+    },
+    {
+      "id": "vector_store",
+      "name": "Vector Store",
+      "type": "container",
+      "technology": "Vertex AI Vector Search / Embeddings",
+      "boundary": "google_cloud",
+      "description": "Vector database storing document embeddings for retrieval-augmented generation (RAG). Queried by the MCP server to fetch relevant context before calling the Claude API"
+    },
+    {
+      "id": "redis_cache",
+      "name": "Redis Cache",
+      "type": "container",
+      "technology": "Cloud Memorystore (Redis)",
+      "boundary": "google_cloud",
+      "description": "In-memory cache for session data, API response caching, and rate-limit counters. Reduces load on the web app and databases"
+    },
+    {
+      "id": "cloud_tasks",
+      "name": "Cloud Tasks",
+      "type": "container",
+      "technology": "GCP Cloud Tasks",
+      "boundary": "google_cloud",
+      "description": "Managed async task queue. Receives jobs enqueued by the web app and dispatches them to the background worker"
+    },
+    {
+      "id": "scheduler",
+      "name": "Cloud Scheduler",
+      "type": "container",
+      "technology": "GCP Cloud Scheduler",
+      "boundary": "google_cloud",
+      "description": "Managed cron scheduler. Triggers periodic background worker jobs (e.g., nightly data exports, report generation)"
+    },
+    {
+      "id": "background_worker",
+      "name": "Background Worker",
+      "type": "container",
+      "technology": "Cloud Run / Worker Service",
+      "boundary": "google_cloud",
+      "description": "Long-running worker triggered by Cloud Tasks and Cloud Scheduler. Processes jobs, reads/writes internal PostgreSQL, stores results in Cloud Storage, and publishes completion events to Pub/Sub"
+    },
+    {
+      "id": "cloud_storage",
+      "name": "Cloud Storage",
+      "type": "container",
+      "technology": "GCS Bucket",
+      "boundary": "google_cloud",
+      "description": "GCS bucket. Stores job results, exports, and uploaded files from both the web app and background worker"
+    },
+    {
+      "id": "pub_sub",
+      "name": "Pub/Sub",
+      "type": "container",
+      "technology": "GCP Cloud Pub/Sub",
+      "boundary": "google_cloud",
+      "description": "Managed event bus. Receives job completion events from the background worker and fans them out to the notification service"
+    },
+    {
+      "id": "notification_svc",
+      "name": "Notification Service",
+      "type": "container",
+      "technology": "Cloud Run",
+      "boundary": "google_cloud",
+      "description": "Event-driven notification service subscribed to Pub/Sub. Delivers webhook payloads to registered external partner endpoints when analysis jobs complete"
+    },
+    {
+      "id": "secret_manager",
+      "name": "Secret Manager",
+      "type": "container",
+      "technology": "GCP Secret Manager",
+      "boundary": "google_cloud",
+      "description": "Manages and vends secrets: Claude API key, OAuth2 client credentials, DB passwords, and webhook signing keys"
+    },
+    {
+      "id": "cloud_monitoring",
+      "name": "Cloud Monitoring",
+      "type": "container",
+      "technology": "GCP Cloud Monitoring",
+      "boundary": "google_cloud",
+      "description": "Centralised metrics and logging. Collects telemetry from web app, background worker, and notification service"
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "type": "container",
+      "technology": "Cloud SQL (PostgreSQL)",
+      "boundary": "google_cloud",
+      "description": "Internal PostgreSQL database. Stores company data for internal users. The orders view is exposed read-only to the MCP server"
+    },
+    {
+      "id": "orders_view",
+      "name": "orders",
+      "type": "container",
+      "technology": "Data Store (DB View)",
+      "boundary": "postgres",
+      "description": "Read-only PostgreSQL view over internal order data. Queried exclusively by the MCP server for AI-assisted analysis"
+    },
+    {
+      "id": "external_client_db",
+      "name": "External Client DB",
+      "type": "container",
+      "technology": "Cloud SQL (PostgreSQL)",
+      "boundary": "google_cloud",
+      "description": "Separate internal database for external partner and client data. Accessed by the web app when serving external users through the API Gateway path. Kept isolated from the internal PostgreSQL by design"
+    },
+    {
+      "id": "bigquery",
+      "name": "BigQuery",
+      "type": "container",
+      "technology": "GCP BigQuery",
+      "boundary": "google_cloud",
+      "description": "Analytics data warehouse. Receives processed job results from the background worker and serves analytics queries from the web app for internal dashboards"
+    },
+    {
+      "id": "pubsub_dlq",
+      "name": "Notification DLQ",
+      "type": "container",
+      "technology": "GCP Pub/Sub (Dead-Letter Topic)",
+      "boundary": "google_cloud",
+      "description": "Dead-letter topic for the notification pipeline. Captures webhook deliveries that exhaust their retry budget so operators can replay or investigate them"
+    },
+    {
+      "id": "error_reporting",
+      "name": "Error Reporting",
+      "type": "container",
+      "technology": "GCP Error Reporting",
+      "boundary": "google_cloud",
+      "description": "Centralised error aggregation. Collects unhandled exceptions and stack traces from the web app, background worker, and notification service"
+    }
+  ],
+  "relationships": [
+    { "id":"r1",  "source":"internal_user",    "target":"iap",              "label":"Authenticates · HTTPS",         "technology":"HTTPS" },
+    { "id":"r2",  "source":"iap",               "target":"web_app",          "label":"Forwards authenticated request" },
+    { "id":"r3",  "source":"external_user",     "target":"cdn",              "label":"HTTPS",                         "technology":"HTTPS" },
+    { "id":"r4",  "source":"cdn",               "target":"cloud_armor",      "label":"Filtered HTTPS" },
+    { "id":"r5",  "source":"cloud_armor",       "target":"api_gateway",      "label":"WAF-filtered request" },
+    { "id":"r6",  "source":"api_gateway",       "target":"oauth_provider",   "label":"Validate JWT",                  "technology":"OAuth2 / OIDC" },
+    { "id":"r7",  "source":"api_gateway",       "target":"web_app",          "label":"Authenticated external request" },
+    { "id":"r8",  "source":"web_app",           "target":"mcp_server",       "label":"Calls MCP tools",               "technology":"MCP" },
+    { "id":"r9",  "source":"mcp_server",        "target":"claude_api",       "label":"AI inference",                  "technology":"Anthropic API" },
+    { "id":"r10", "source":"mcp_server",        "target":"vector_store",     "label":"Fetch RAG context",             "technology":"Vector search" },
+    { "id":"r11", "source":"mcp_server",        "target":"orders_view",      "label":"Read-only query",               "technology":"SQL" },
+    { "id":"r12", "source":"web_app",           "target":"redis_cache",      "label":"Session / response cache",      "technology":"Redis" },
+    { "id":"r13", "source":"web_app",           "target":"postgres",         "label":"Internal user data",            "technology":"SQL" },
+    { "id":"r14", "source":"web_app",           "target":"external_client_db","label":"External client data",         "technology":"SQL" },
+    { "id":"r15", "source":"web_app",           "target":"cloud_tasks",      "label":"Enqueue async job",             "technology":"Cloud Tasks API" },
+    { "id":"r16", "source":"web_app",           "target":"cloud_storage",    "label":"Upload / download files",       "technology":"GCS API" },
+    { "id":"r17", "source":"web_app",           "target":"secret_manager",   "label":"Fetch secrets" },
+    { "id":"r18", "source":"web_app",           "target":"cloud_monitoring", "label":"Metrics / logs" },
+    { "id":"r19", "source":"cloud_tasks",       "target":"background_worker","label":"Trigger job",                   "technology":"HTTP callback" },
+    { "id":"r20", "source":"scheduler",         "target":"background_worker","label":"Periodic trigger",              "technology":"HTTP" },
+    { "id":"r21", "source":"background_worker", "target":"postgres",         "label":"Read / write data",             "technology":"SQL" },
+    { "id":"r22", "source":"background_worker", "target":"cloud_storage",    "label":"Store results",                 "technology":"GCS API" },
+    { "id":"r23", "source":"background_worker", "target":"pub_sub",          "label":"Publish job result",            "technology":"Pub/Sub" },
+    { "id":"r24", "source":"background_worker", "target":"secret_manager",   "label":"Fetch credentials" },
+    { "id":"r25", "source":"background_worker", "target":"cloud_monitoring", "label":"Metrics / logs" },
+    { "id":"r26", "source":"pub_sub",           "target":"notification_svc", "label":"Job complete event" },
+    { "id":"r27", "source":"notification_svc",  "target":"external_webhook", "label":"Webhook delivery",              "technology":"HTTPS" },
+    { "id":"r28", "source":"notification_svc",  "target":"secret_manager",   "label":"Fetch signing key" },
+    { "id":"r29", "source":"background_worker", "target":"bigquery",         "label":"Load processed results",        "technology":"BigQuery API" },
+    { "id":"r30", "source":"web_app",           "target":"bigquery",         "label":"Analytics queries",             "technology":"BigQuery API" },
+    { "id":"r31", "source":"notification_svc",  "target":"pubsub_dlq",       "label":"Failed delivery",               "technology":"Pub/Sub" },
+    { "id":"r32", "source":"web_app",           "target":"error_reporting",  "label":"Exceptions" },
+    { "id":"r33", "source":"background_worker", "target":"error_reporting",  "label":"Exceptions" },
+    { "id":"r34", "source":"notification_svc",  "target":"error_reporting",  "label":"Exceptions" }
+  ]
+}
