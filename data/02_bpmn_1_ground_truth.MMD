@@ -1,0 +1,23 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    start_event(["Start Event"])
+    task_1["Task 1"]
+    gw_split{"Gateway\n(Split Flow)"}
+    task_2["Task 2"]
+    task_3["Task 3"]
+    task_4["Task 4"]
+    gw_merge{"Gateway\n(Merge Flows)"}
+    end_event(["End Event"])
+
+    start_event --> task_1
+    task_1 --> gw_split
+    gw_split --> task_2
+    gw_split --> task_3
+    gw_split --> task_4
+    task_2 --> end_event
+    task_3 --> gw_merge
+    task_4 --> gw_merge
+    gw_merge --> end_event

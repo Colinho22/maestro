@@ -1,0 +1,62 @@
+---
+config:
+  theme: default
+---
+flowchart TB
+    subgraph pool_team_assistant["Team-Assistant"]
+        start_ta(["Invoice received"])
+        task_scan_invoice["Scan Invoice"]
+        task_archive_original["Archive original"]
+        icatch_approver_assigned(("Approver to be assigned"))
+        task_assign_approver["Assign approver"]
+        gw_event_based{" "}
+        icatch_review_needed(("Invoice review needed"))
+        task_review_document["Review and document result"]
+        icatch_7_days(("7 days"))
+        end_ta_1(["End Process"])
+        end_ta_2(["End Process"])
+    end
+    subgraph Process_Engine_1["Process Engine - Invoice Receipt"]
+        subgraph teamAssistant["Team Assistant"]
+            StartEvent_1(["Invoice received"])
+            assignApprover["Assign Approver"]
+            reviewInvoice["Review Invoice"]
+            reviewSuccessful_gw{"Review successful?"}
+            invoiceNotProcessed(["Invoice not processed"])
+        end
+        subgraph Approver["Approver"]
+            approveInvoice["Approve Invoice"]
+            invoice_approved{"Invoice approved?"}
+        end
+        subgraph Accountant["Accountant"]
+            prepareBankTransfer["Prepare Bank Transfer"]
+            archiveInvoice["Archive Invoice"]
+            invoiceProcessed(["Invoice processed"])
+        end
+    end
+
+    start_ta --> task_scan_invoice
+    task_scan_invoice --> task_archive_original
+    task_archive_original --> icatch_approver_assigned
+    icatch_approver_assigned --> task_assign_approver
+    task_assign_approver --> gw_event_based
+    gw_event_based --> icatch_7_days
+    gw_event_based --> icatch_review_needed
+    icatch_7_days --> end_ta_1
+    icatch_review_needed --> task_review_document
+    task_review_document --> end_ta_2
+    StartEvent_1 --> assignApprover
+    assignApprover --> approveInvoice
+    approveInvoice --> invoice_approved
+    invoice_approved -->|"yes"| prepareBankTransfer
+    invoice_approved -->|"no"| reviewInvoice
+    reviewInvoice --> reviewSuccessful_gw
+    reviewSuccessful_gw -->|"yes"| approveInvoice
+    reviewSuccessful_gw -->|"no"| invoiceNotProcessed
+    prepareBankTransfer --> archiveInvoice
+    archiveInvoice --> invoiceProcessed
+    task_scan_invoice -.-> StartEvent_1
+    task_assign_approver -.-> assignApprover
+    assignApprover -.-> icatch_approver_assigned
+    task_review_document -.-> reviewInvoice
+    reviewInvoice -.-> icatch_review_needed

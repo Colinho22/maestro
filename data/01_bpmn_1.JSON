@@ -1,0 +1,75 @@
+{
+  "metadata": {
+    "id": "bpmn_1_01",
+    "source": "A.1.0.bpmn",
+    "diagram_type": "bpmn_process",
+    "tier": 1,
+    "entity_count": 5,
+    "container_count": 0,
+    "attachment_count": 0,
+    "description": "Simple sequential process: Start \u2192 Task 1 \u2192 Task 2 \u2192 Task 3 \u2192 End"
+  },
+  "nodes": [
+    {
+      "id": "task_1",
+      "name": "Task 1",
+      "type": "task",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_2",
+      "name": "Task 2",
+      "type": "task",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_3",
+      "name": "Task 3",
+      "type": "task",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "start_event",
+      "name": "Start Event",
+      "type": "startEvent",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_event",
+      "name": "End Event",
+      "type": "endEvent",
+      "lane": null,
+      "attached_to": null
+    }
+  ],
+  "sequence_flows": [
+    {
+      "id": "sf_1",
+      "name": "",
+      "source": "start_event",
+      "target": "task_1"
+    },
+    {
+      "id": "sf_2",
+      "name": "",
+      "source": "task_1",
+      "target": "task_2"
+    },
+    {
+      "id": "sf_3",
+      "name": "",
+      "source": "task_2",
+      "target": "task_3"
+    },
+    {
+      "id": "sf_4",
+      "name": "",
+      "source": "task_3",
+      "target": "end_event"
+    }
+  ]
+}

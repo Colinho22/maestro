@@ -1,0 +1,254 @@
+{
+  "metadata": {
+    "id": "it_2_19",
+    "diagram_type": "network_topology",
+    "tier": 2,
+    "entity_count": 12,
+    "container_count": 7,
+    "attachment_count": 0,
+    "description": "Dual data center network topology with active/standby load balancing and failover. Each data center has a DMZ (firewall + load balancer) and an internal LAN (web app, auth/IAM, database). The global load balancer routes live traffic to DC1 and fails over to DC2. Databases and IAM replicate continuously between DCs"
+  },
+  "system_boundary": {
+    "id": "enterprise_net",
+    "name": "Enterprise Network",
+    "type": "deployment_environment"
+  },
+  "elements": [
+    {
+      "id": "user_clients",
+      "name": "User Clients",
+      "type": "person",
+      "description": "End users accessing the web application via browser over HTTPS"
+    },
+    {
+      "id": "global_lb",
+      "name": "Global Load Balancer",
+      "type": "external_system",
+      "description": "DNS-based / anycast global traffic manager. Routes requests to DC1 (active) and DC2 (failover)"
+    },
+    {
+      "id": "dc1",
+      "name": "Data Center 1 — Primary",
+      "type": "deployment_environment",
+      "boundary": "enterprise_net",
+      "description": "Primary data center. Serves live traffic in normal operation"
+    },
+    {
+      "id": "dmz1",
+      "name": "DMZ",
+      "type": "network_boundary",
+      "boundary": "dc1",
+      "description": "Demilitarised zone in DC1. Exposes only the firewall and load balancer to external traffic"
+    },
+    {
+      "id": "fw1",
+      "name": "Firewall DC1",
+      "type": "device",
+      "technology": "Firewall",
+      "boundary": "dmz1",
+      "description": "Stateful firewall in DC1 DMZ. Filters inbound HTTPS traffic from the global load balancer"
+    },
+    {
+      "id": "lb1",
+      "name": "Load Balancer DC1",
+      "type": "device",
+      "technology": "Application Load Balancer",
+      "boundary": "dmz1",
+      "description": "Application load balancer in DC1 DMZ. Distributes HTTPS traffic to DC1 web application servers"
+    },
+    {
+      "id": "lan1",
+      "name": "Internal LAN",
+      "type": "network_boundary",
+      "boundary": "dc1",
+      "description": "Internal LAN in DC1. Hosts application servers and databases, isolated from the DMZ"
+    },
+    {
+      "id": "web_app_1",
+      "name": "Web App 1",
+      "type": "server",
+      "technology": "Web Application Server",
+      "boundary": "lan1",
+      "description": "Primary web application server. Handles authenticated requests forwarded by the DC1 load balancer"
+    },
+    {
+      "id": "auth_iam",
+      "name": "Auth / IAM",
+      "type": "server",
+      "technology": "Identity and Access Management",
+      "boundary": "lan1",
+      "description": "Primary auth and IAM service. Issues and validates session tokens for the web application"
+    },
+    {
+      "id": "db_primary",
+      "name": "PostgreSQL Primary",
+      "type": "server",
+      "technology": "PostgreSQL (Read / Write)",
+      "boundary": "lan1",
+      "description": "Primary PostgreSQL database. Handles all read and write operations; streams replication to DC2"
+    },
+    {
+      "id": "dc2",
+      "name": "Data Center 2 — Standby",
+      "type": "deployment_environment",
+      "boundary": "enterprise_net",
+      "description": "Standby data center. Receives replicated data continuously; promoted to active on DC1 failure"
+    },
+    {
+      "id": "dmz2",
+      "name": "DMZ",
+      "type": "network_boundary",
+      "boundary": "dc2",
+      "description": "Demilitarised zone in DC2. Ready to accept live traffic on failover activation"
+    },
+    {
+      "id": "fw2",
+      "name": "Firewall DC2",
+      "type": "device",
+      "technology": "Firewall",
+      "boundary": "dmz2",
+      "description": "Stateful firewall in DC2 DMZ. Filters failover HTTPS traffic from the global load balancer"
+    },
+    {
+      "id": "lb2",
+      "name": "Load Balancer DC2",
+      "type": "device",
+      "technology": "Application Load Balancer",
+      "boundary": "dmz2",
+      "description": "Application load balancer in DC2 DMZ. Distributes traffic to DC2 web application servers on failover"
+    },
+    {
+      "id": "lan2",
+      "name": "Internal LAN",
+      "type": "network_boundary",
+      "boundary": "dc2",
+      "description": "Internal LAN in DC2. Hosts standby application servers and replica databases"
+    },
+    {
+      "id": "web_app_2",
+      "name": "Web App 2",
+      "type": "server",
+      "technology": "Web Application Server",
+      "boundary": "lan2",
+      "description": "Standby web application server. Serves live traffic when DC2 is promoted to active"
+    },
+    {
+      "id": "auth_iam_replica",
+      "name": "Auth / IAM Replica",
+      "type": "server",
+      "technology": "Identity and Access Management",
+      "boundary": "lan2",
+      "description": "Replica auth and IAM service. Stays in sync with DC1 primary; provides auth locally on failover"
+    },
+    {
+      "id": "db_replica",
+      "name": "PostgreSQL Replica",
+      "type": "server",
+      "technology": "PostgreSQL (Standby / Read)",
+      "boundary": "lan2",
+      "description": "Standby PostgreSQL replica. Receives streaming replication from DC1 primary; promoted to read-write on failover"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "source": "user_clients",
+      "target": "global_lb",
+      "label": "HTTPS",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r2",
+      "source": "global_lb",
+      "target": "fw1",
+      "label": "Active route",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r3",
+      "source": "global_lb",
+      "target": "fw2",
+      "label": "Failover route",
+      "technology": "HTTPS",
+      "note": "Dashed — standby path; activated on DC1 failure"
+    },
+    {
+      "id": "r4",
+      "source": "fw1",
+      "target": "lb1",
+      "label": "Filtered HTTPS",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r5",
+      "source": "lb1",
+      "target": "web_app_1",
+      "label": "HTTP",
+      "technology": "HTTP"
+    },
+    {
+      "id": "r6",
+      "source": "web_app_1",
+      "target": "auth_iam",
+      "label": "Auth request",
+      "technology": "Internal API"
+    },
+    {
+      "id": "r7",
+      "source": "web_app_1",
+      "target": "db_primary",
+      "label": "Read / Write",
+      "technology": "SQL"
+    },
+    {
+      "id": "r8",
+      "source": "fw2",
+      "target": "lb2",
+      "label": "Filtered HTTPS",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r9",
+      "source": "lb2",
+      "target": "web_app_2",
+      "label": "HTTP",
+      "technology": "HTTP"
+    },
+    {
+      "id": "r10",
+      "source": "web_app_2",
+      "target": "auth_iam_replica",
+      "label": "Auth request",
+      "technology": "Internal API"
+    },
+    {
+      "id": "r11",
+      "source": "web_app_2",
+      "target": "db_replica",
+      "label": "Read / Standby",
+      "technology": "SQL"
+    },
+    {
+      "id": "r12",
+      "source": "db_primary",
+      "target": "db_replica",
+      "label": "Streaming replication",
+      "technology": "PostgreSQL WAL"
+    },
+    {
+      "id": "r13",
+      "source": "auth_iam",
+      "target": "auth_iam_replica",
+      "label": "Sync",
+      "technology": "Internal replication"
+    },
+    {
+      "id": "r14",
+      "source": "fw1",
+      "target": "fw2",
+      "label": "Encrypted WAN",
+      "technology": "IPsec",
+      "note": "Bidirectional inter-DC link for replication traffic"
+    }
+  ]
+}

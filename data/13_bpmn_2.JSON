@@ -1,0 +1,275 @@
+{
+  "metadata": {
+    "id": "bpmn_2_13",
+    "source": "C.4.0.bpmn",
+    "diagram_type": "bpmn_collaboration",
+    "tier": 2,
+    "entity_count": 18,
+    "container_count": 3,
+    "attachment_count": 0,
+    "description": "Employee onboarding within Money Bank: HR Department handles contract signing and parallel onboarding tasks; Responsible Department introduces the team, runs position training, and delivers the welcome package"
+  },
+  "participants": [
+    {
+      "id": "pool_money_bank",
+      "name": "Money Bank"
+    }
+  ],
+  "lanes": [
+    {
+      "id": "lane_hr_dept",
+      "name": "HR Department",
+      "pool": "pool_money_bank"
+    },
+    {
+      "id": "lane_responsible_dept",
+      "name": "Responsible Department",
+      "pool": "pool_money_bank"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start_candidate_accepted",
+      "name": "Candidate accepted offer",
+      "type": "startEvent",
+      "lane": "lane_hr_dept",
+      "attached_to": null
+    },
+    {
+      "id": "task_send_candidate_contract",
+      "name": "Send candidate Contract",
+      "type": "userTask",
+      "lane": "lane_hr_dept",
+      "attached_to": null
+    },
+    {
+      "id": "gw_contract_terms",
+      "name": "Contract terms accepted?",
+      "type": "exclusiveGateway",
+      "lane": "lane_hr_dept",
+      "attached_to": null
+    },
+    {
+      "id": "task_review_terms_of_contract",
+      "name": "Review terms of contract",
+      "type": "userTask",
+      "lane": "lane_hr_dept",
+      "attached_to": null
+    },
+    {
+      "id": "task_get_signature_notify_dept",
+      "name": "Get signature on contract and notify responsible department",
+      "type": "userTask",
+      "lane": "lane_hr_dept",
+      "attached_to": null
+    },
+    {
+      "id": "gw_parallel_split",
+      "name": "",
+      "type": "parallelGateway",
+      "lane": "lane_hr_dept",
+      "attached_to": null
+    },
+    {
+      "id": "task_inform_company_policies",
+      "name": "Inform employee of company policies",
+      "type": "userTask",
+      "lane": "lane_hr_dept",
+      "attached_to": null
+    },
+    {
+      "id": "task_intro_mission_vision_values",
+      "name": "Introduce employee to company Mission, Vision and Values",
+      "type": "userTask",
+      "lane": "lane_hr_dept",
+      "attached_to": null
+    },
+    {
+      "id": "task_training_time_reports",
+      "name": "Perform training for time reports sick leave and holidays",
+      "type": "userTask",
+      "lane": "lane_hr_dept",
+      "attached_to": null
+    },
+    {
+      "id": "task_register_medical_insurance",
+      "name": "Register for medical insurance",
+      "type": "userTask",
+      "lane": "lane_hr_dept",
+      "attached_to": null
+    },
+    {
+      "id": "gw_parallel_merge",
+      "name": "",
+      "type": "parallelGateway",
+      "lane": "lane_hr_dept",
+      "attached_to": null
+    },
+    {
+      "id": "task_request_preparations",
+      "name": "Request preparations for a new employee",
+      "type": "userTask",
+      "lane": "lane_responsible_dept",
+      "attached_to": null
+    },
+    {
+      "id": "ithrow_new_employee_in_dept",
+      "name": "New employee in department X",
+      "type": "intermediateThrowEvent",
+      "lane": "lane_responsible_dept",
+      "attached_to": null
+    },
+    {
+      "id": "task_introduce_team",
+      "name": "Introduce new employee to the team",
+      "type": "userTask",
+      "lane": "lane_responsible_dept",
+      "attached_to": null
+    },
+    {
+      "id": "task_training_for_position",
+      "name": "Perform training for position",
+      "type": "userTask",
+      "lane": "lane_responsible_dept",
+      "attached_to": null
+    },
+    {
+      "id": "task_compile_welcome_package",
+      "name": "Compile welcome package",
+      "type": "userTask",
+      "lane": "lane_responsible_dept",
+      "attached_to": null
+    },
+    {
+      "id": "task_give_welcome_package",
+      "name": "Give employee welcome package",
+      "type": "userTask",
+      "lane": "lane_responsible_dept",
+      "attached_to": null
+    },
+    {
+      "id": "end_event",
+      "name": "End Event",
+      "type": "endEvent",
+      "lane": "lane_responsible_dept",
+      "attached_to": null
+    }
+  ],
+  "sequence_flows": [
+    {
+      "id": "sf_1",
+      "name": "",
+      "source": "start_candidate_accepted",
+      "target": "task_send_candidate_contract"
+    },
+    {
+      "id": "sf_2",
+      "name": "",
+      "source": "task_send_candidate_contract",
+      "target": "gw_contract_terms"
+    },
+    {
+      "id": "sf_3",
+      "name": "Yes",
+      "source": "gw_contract_terms",
+      "target": "task_get_signature_notify_dept"
+    },
+    {
+      "id": "sf_4",
+      "name": "No",
+      "source": "gw_contract_terms",
+      "target": "task_review_terms_of_contract"
+    },
+    {
+      "id": "sf_5",
+      "name": "",
+      "source": "task_review_terms_of_contract",
+      "target": "task_send_candidate_contract"
+    },
+    {
+      "id": "sf_6",
+      "name": "",
+      "source": "task_get_signature_notify_dept",
+      "target": "gw_parallel_split"
+    },
+    {
+      "id": "sf_7",
+      "name": "",
+      "source": "gw_parallel_split",
+      "target": "task_inform_company_policies"
+    },
+    {
+      "id": "sf_8",
+      "name": "",
+      "source": "task_inform_company_policies",
+      "target": "task_intro_mission_vision_values"
+    },
+    {
+      "id": "sf_9",
+      "name": "",
+      "source": "task_intro_mission_vision_values",
+      "target": "task_training_time_reports"
+    },
+    {
+      "id": "sf_10",
+      "name": "",
+      "source": "task_training_time_reports",
+      "target": "task_register_medical_insurance"
+    },
+    {
+      "id": "sf_11",
+      "name": "",
+      "source": "task_register_medical_insurance",
+      "target": "gw_parallel_merge"
+    },
+    {
+      "id": "sf_12",
+      "name": "",
+      "source": "gw_parallel_split",
+      "target": "task_request_preparations"
+    },
+    {
+      "id": "sf_13",
+      "name": "",
+      "source": "task_request_preparations",
+      "target": "ithrow_new_employee_in_dept"
+    },
+    {
+      "id": "sf_14",
+      "name": "",
+      "source": "ithrow_new_employee_in_dept",
+      "target": "gw_parallel_merge"
+    },
+    {
+      "id": "sf_15",
+      "name": "",
+      "source": "gw_parallel_merge",
+      "target": "task_introduce_team"
+    },
+    {
+      "id": "sf_16",
+      "name": "",
+      "source": "task_introduce_team",
+      "target": "task_training_for_position"
+    },
+    {
+      "id": "sf_17",
+      "name": "",
+      "source": "task_training_for_position",
+      "target": "task_compile_welcome_package"
+    },
+    {
+      "id": "sf_18",
+      "name": "",
+      "source": "task_compile_welcome_package",
+      "target": "task_give_welcome_package"
+    },
+    {
+      "id": "sf_19",
+      "name": "",
+      "source": "task_give_welcome_package",
+      "target": "end_event"
+    }
+  ],
+  "message_flows": []
+}

@@ -1,0 +1,88 @@
+{
+  "metadata": {
+    "id": "it_1_08",
+    "diagram_type": "c4_container",
+    "tier": 1,
+    "entity_count": 4,
+    "container_count": 3,
+    "attachment_count": 0,
+    "description": "C4 Container diagram of a Google Apps Script web app restricted to a Google Workspace OU. The app (Code.gs + Index.html) executes as the deployer and reads/writes data.json stored on the deployer's Google Drive via the Drive API"
+  },
+  "system_boundary": {
+    "id": "google_workspace",
+    "name": "Google Workspace",
+    "type": "organizational_unit"
+  },
+  "elements": [
+    {
+      "id": "user",
+      "name": "User",
+      "type": "person",
+      "description": "Workspace OU member accessing the web app via browser"
+    },
+    {
+      "id": "apps_script_app",
+      "name": "Apps Script Web App",
+      "type": "container",
+      "technology": "Google Apps Script",
+      "boundary": "google_workspace",
+      "description": "Web app deployed via Google Apps Script. OU-restricted. Executes as the deployer identity"
+    },
+    {
+      "id": "index_html",
+      "name": "Index.html",
+      "type": "component",
+      "technology": "HTML / JavaScript",
+      "boundary": "apps_script_app",
+      "description": "Frontend served to the user. Calls Code.gs for data operations"
+    },
+    {
+      "id": "code_gs",
+      "name": "Code.gs",
+      "type": "component",
+      "technology": "Google Apps Script (GAS)",
+      "boundary": "apps_script_app",
+      "description": "Backend script handling Drive API calls to read and write data.json"
+    },
+    {
+      "id": "google_drive",
+      "name": "Google Drive",
+      "type": "container",
+      "technology": "Google Drive",
+      "boundary": "google_workspace",
+      "description": "Deployer's Google Drive hosting the data.json file"
+    },
+    {
+      "id": "data_json",
+      "name": "data.json",
+      "type": "container",
+      "technology": "Data Store",
+      "boundary": "google_drive",
+      "description": "JSON file on the deployer's Google Drive. Read and written by Code.gs via the Drive API"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "source": "user",
+      "target": "index_html",
+      "label": "Accesses via browser",
+      "technology": "HTTPS",
+      "note": "OU-restricted"
+    },
+    {
+      "id": "r2",
+      "source": "index_html",
+      "target": "code_gs",
+      "label": "Calls backend",
+      "technology": "GAS"
+    },
+    {
+      "id": "r3",
+      "source": "code_gs",
+      "target": "data_json",
+      "label": "Reads and writes",
+      "technology": "Drive API"
+    }
+  ]
+}

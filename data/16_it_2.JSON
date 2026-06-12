@@ -1,0 +1,169 @@
+{
+  "metadata": {
+    "id": "it_2_16",
+    "diagram_type": "c4_container",
+    "tier": 2,
+    "entity_count": 11,
+    "container_count": 1,
+    "attachment_count": 0,
+    "description": "C4 Container diagram of SomeApp: extends it_1_07 with a full CI/CD delivery pipeline using GitLab, a CI runner, Terraform for infrastructure provisioning, and automated test execution"
+  },
+  "system_boundary": {
+    "id": "infomaniak",
+    "name": "Infomaniak Public Cloud",
+    "type": "deployment_environment"
+  },
+  "elements": [
+    {
+      "id": "user",
+      "name": "User",
+      "type": "person",
+      "description": "End user accessing the web application via browser"
+    },
+    {
+      "id": "developer",
+      "name": "Developer",
+      "type": "person",
+      "description": "Developer pushing code and managing infrastructure"
+    },
+    {
+      "id": "cloudflare",
+      "name": "Cloudflare",
+      "type": "external_system",
+      "description": "CDN and edge proxy. Terminates HTTPS at the edge (www.someapp.xx) and routes traffic to the origin"
+    },
+    {
+      "id": "gitlab",
+      "name": "GitLab",
+      "type": "external_system",
+      "description": "Source code repository and CI/CD orchestrator. Hosts the codebase and triggers pipeline runs on push"
+    },
+    {
+      "id": "infomaniak_api",
+      "name": "Infomaniak API",
+      "type": "external_system",
+      "description": "Infomaniak public cloud management API. Used by Terraform to provision and manage infrastructure resources"
+    },
+    {
+      "id": "ci_runner",
+      "name": "GitLab CI Runner",
+      "type": "container",
+      "technology": "GitLab Runner",
+      "boundary": "infomaniak",
+      "description": "Self-hosted CI runner executing pipeline jobs: build, test, and deploy stages"
+    },
+    {
+      "id": "terraform",
+      "name": "Terraform",
+      "type": "container",
+      "technology": "Infrastructure as Code",
+      "boundary": "infomaniak",
+      "description": "Terraform executed by the CI runner to provision and update Infomaniak cloud resources"
+    },
+    {
+      "id": "test_suite",
+      "name": "Test Suite",
+      "type": "container",
+      "technology": "Automated Tests",
+      "boundary": "infomaniak",
+      "description": "Automated test suite (unit and integration) executed by the CI runner as part of the pipeline"
+    },
+    {
+      "id": "web_app",
+      "name": "SomeApp",
+      "type": "container",
+      "technology": "Web Application",
+      "boundary": "infomaniak",
+      "description": "Public-facing web application. Deployed by the CI pipeline and receives proxied requests from Cloudflare"
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "type": "container",
+      "technology": "Relational Database",
+      "boundary": "infomaniak",
+      "description": "Primary relational database storing application data. Provisioned via Terraform"
+    },
+    {
+      "id": "object_storage",
+      "name": "Object Storage",
+      "type": "container",
+      "technology": "S3-compatible Bucket",
+      "boundary": "infomaniak",
+      "description": "S3-compatible object storage bucket. Provisioned via Terraform"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "source": "developer",
+      "target": "gitlab",
+      "label": "Pushes code",
+      "technology": "Git / HTTPS"
+    },
+    {
+      "id": "r2",
+      "source": "gitlab",
+      "target": "ci_runner",
+      "label": "Triggers pipeline",
+      "technology": "GitLab CI"
+    },
+    {
+      "id": "r3",
+      "source": "ci_runner",
+      "target": "test_suite",
+      "label": "Executes tests",
+      "technology": "CI pipeline"
+    },
+    {
+      "id": "r4",
+      "source": "ci_runner",
+      "target": "terraform",
+      "label": "Runs plan / apply",
+      "technology": "CI pipeline"
+    },
+    {
+      "id": "r5",
+      "source": "terraform",
+      "target": "infomaniak_api",
+      "label": "Provisions infrastructure",
+      "technology": "REST API"
+    },
+    {
+      "id": "r6",
+      "source": "ci_runner",
+      "target": "web_app",
+      "label": "Deploys application",
+      "technology": "SSH / Docker"
+    },
+    {
+      "id": "r7",
+      "source": "user",
+      "target": "cloudflare",
+      "label": "Accesses via HTTPS",
+      "technology": "HTTPS",
+      "note": "www.someapp.xx"
+    },
+    {
+      "id": "r8",
+      "source": "cloudflare",
+      "target": "web_app",
+      "label": "Reverse proxy / origin request",
+      "technology": "HTTPS"
+    },
+    {
+      "id": "r9",
+      "source": "web_app",
+      "target": "postgres",
+      "label": "Reads and writes application data",
+      "technology": "PostgreSQL"
+    },
+    {
+      "id": "r10",
+      "source": "web_app",
+      "target": "object_storage",
+      "label": "Reads and writes files",
+      "technology": "S3 API"
+    }
+  ]
+}

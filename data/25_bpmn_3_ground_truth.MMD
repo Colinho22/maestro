@@ -1,0 +1,83 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    subgraph pool_vacation["Vacation Request"]
+        direction LR
+
+        start_req(["Vacation Request Received"])
+
+        %% Balance check (new)
+        svc_fetch_info["Fetch Vacation Information"]
+        boundary_fetch_err(("Error"))
+        end_employee_not_found(["Employee not found"])
+        svc_check_balance["Check Remaining Days"]
+        xgw_sufficient_balance{"Sufficient Balance?"}
+        end_insufficient_balance(["Insufficient Vacation Balance"])
+
+        %% Auto decision
+        brt_approval["Vacation Approval"]
+        xgw_approval_result{"Vacation Approval"}
+
+        %% Auto paths
+        send_notify_refusal_auto["Notify Employee of Refusal"]
+        end_refused_auto(["Vacation Refused Automatically"])
+        send_notify_approval_auto["Notify Employee of Approval"]
+        svc_update_remaining_auto["Update Remaining Vacation"]
+        end_approved_auto(["Vacation Approved Automatically"])
+
+        %% HR review routing (new)
+        xgw_needs_hr_review{"Needs HR Review?"}
+        send_notify_hr_committee_input["Notify HR Committee for Input"]
+        user_hr_committee["HR Committee Review"]
+        icatch_hr_decision(("HR Decision Received ✉"))
+        boundary_hr_timer(("HR Review Deadline"))
+        end_hr_timeout(["HR Review Timeout"])
+
+        %% Manual approval
+        user_manual_approve["Manually Approve Vacation"]
+        xgw_manual_result{"Vacation Approved"}
+
+        %% Manager paths
+        send_notify_approval_mgr["Notify Employee of Approval"]
+        svc_update_remaining_mgr["Update Remaining Vacation"]
+        end_approved_manager(["Vacation Approved by Manager"])
+        send_notify_refusal_mgr["Notify Employee of Refusal"]
+        end_refused_manager(["Vacation Refused by Manager"])
+    end
+
+    %% Main flow
+    start_req --> svc_fetch_info
+    svc_fetch_info --> svc_check_balance
+    svc_fetch_info o--o boundary_fetch_err
+    boundary_fetch_err --> end_employee_not_found
+    svc_check_balance --> xgw_sufficient_balance
+    xgw_sufficient_balance -->|"Yes"| brt_approval
+    xgw_sufficient_balance -->|"No"| end_insufficient_balance
+
+    %% Auto decision routing
+    brt_approval --> xgw_approval_result
+    xgw_approval_result -->|"Refused"| send_notify_refusal_auto
+    send_notify_refusal_auto --> end_refused_auto
+    xgw_approval_result -->|"Approved"| send_notify_approval_auto
+    send_notify_approval_auto --> svc_update_remaining_auto
+    svc_update_remaining_auto --> end_approved_auto
+
+    %% HR review routing
+    xgw_approval_result -->|"Manual Validation Required"| xgw_needs_hr_review
+    xgw_needs_hr_review -->|"No"| user_manual_approve
+    xgw_needs_hr_review -->|"Yes"| send_notify_hr_committee_input
+    send_notify_hr_committee_input --> user_hr_committee
+    user_hr_committee --> icatch_hr_decision
+    icatch_hr_decision --> xgw_manual_result
+    user_hr_committee o--o boundary_hr_timer
+    boundary_hr_timer --> end_hr_timeout
+    user_manual_approve --> xgw_manual_result
+
+    %% Manual result
+    xgw_manual_result -->|"Approved"| send_notify_approval_mgr
+    send_notify_approval_mgr --> svc_update_remaining_mgr
+    svc_update_remaining_mgr --> end_approved_manager
+    xgw_manual_result -->|"Refused"| send_notify_refusal_mgr
+    send_notify_refusal_mgr --> end_refused_manager

@@ -1,0 +1,22 @@
+---
+config:
+  theme: default
+---
+flowchart TD
+    user["User\n[Person]"]
+
+    subgraph google_workspace["Google Workspace"]
+        direction LR
+        subgraph apps_script_app["Apps Script\n[Container]"]
+            direction LR
+            index_html["Index.html\n[Component]"]
+            code_gs["Code.gs\n[Component]"]
+        end
+        subgraph google_drive["G-Drive\n[Container]"]
+            data_json[("data.json\n[Data Store]")]
+        end
+    end
+
+    user -->|"HTTPS · OU-restricted"| index_html
+    index_html -->|"Calls backend"| code_gs
+    code_gs -->|"Read / write · Drive API"| data_json

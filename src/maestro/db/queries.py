@@ -305,14 +305,21 @@ def insert_metric_result(conn: sqlite3.Connection, metric: MetricResult) -> None
              missing_entities, extra_entities,
              false_entities, duplicate_entities,
              missing_relationships, extra_relationships,
-             false_relationships, duplicate_relationships)
+             false_relationships, duplicate_relationships,
+             container_id_precision, container_id_recall, container_id_f1,
+             container_name_precision, container_name_recall, container_name_f1,
+             containers_in_output, containers_in_truth,
+             attachment_precision, attachment_recall, attachment_f1,
+             attachments_in_output, attachments_in_truth)
         -- Placeholder groupings mirror the column groupings above so a
         -- visual scan can spot any bind-parameter misalignment:
         --   4 (ids+parse) · 3 (id) · 3 (name) · 3 (lemma) ·
         --   3 (rel relaxed) · 3 (rel strict) ·
         --   2 (ent counts) · 2 (rel counts) ·
         --   2 (missing/extra ent) · 2 (false/dup ent) ·
-        --   2 (missing/extra rel) · 2 (false/dup rel)  = 31
+        --   2 (missing/extra rel) · 2 (false/dup rel) ·
+        --   3 (container id) · 3 (container name) · 2 (container counts) ·
+        --   3 (attachment) · 2 (attachment counts)  = 44
         VALUES
             (?, ?, ?, ?,
              ?, ?, ?,
@@ -325,6 +332,11 @@ def insert_metric_result(conn: sqlite3.Connection, metric: MetricResult) -> None
              ?, ?,
              ?, ?,
              ?, ?,
+             ?, ?,
+             ?, ?, ?,
+             ?, ?, ?,
+             ?, ?,
+             ?, ?, ?,
              ?, ?)
         """,
         (
@@ -359,5 +371,18 @@ def insert_metric_result(conn: sqlite3.Connection, metric: MetricResult) -> None
             metric.extra_relationships,
             metric.false_relationships,
             metric.duplicate_relationships,
+            metric.container_id_precision,
+            metric.container_id_recall,
+            metric.container_id_f1,
+            metric.container_name_precision,
+            metric.container_name_recall,
+            metric.container_name_f1,
+            metric.containers_in_output,
+            metric.containers_in_truth,
+            metric.attachment_precision,
+            metric.attachment_recall,
+            metric.attachment_f1,
+            metric.attachments_in_output,
+            metric.attachments_in_truth,
         ),
     )

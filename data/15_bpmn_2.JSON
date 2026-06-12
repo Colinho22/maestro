@@ -1,0 +1,347 @@
+{
+  "metadata": {
+    "id": "bpmn_2_15",
+    "source": "C.9.0.bpmn",
+    "diagram_type": "bpmn_collaboration",
+    "tier": 2,
+    "entity_count": 23,
+    "container_count": 3,
+    "attachment_count": 1,
+    "description": "Customer onboarding process: credit score check, automated risk assessment (green/yellow/red), manual check call activity, fraud detection boundary event, plus event subprocesses for timeout and cancellation"
+  },
+  "participants": [
+    {
+      "id": "Participant_00",
+      "name": "Customer Onboarding"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "StartEvent_ApplicationReceived",
+      "name": "Application received",
+      "type": "startEvent",
+      "lane": null,
+      "attached_to": null,
+      "pool": "Participant_00"
+    },
+    {
+      "id": "ServiceTask_GetCreditScore",
+      "name": "Get credit score",
+      "type": "serviceTask",
+      "lane": null,
+      "attached_to": null,
+      "pool": "Participant_00"
+    },
+    {
+      "id": "BusinessRuleTask_CheckApplicationAutomatically",
+      "name": "Check application automatically",
+      "type": "businessRuleTask",
+      "lane": null,
+      "attached_to": null,
+      "pool": "Participant_00"
+    },
+    {
+      "id": "ExclusiveGateway_Risk",
+      "name": "Risk?",
+      "type": "exclusiveGateway",
+      "lane": null,
+      "attached_to": null,
+      "pool": "Participant_00"
+    },
+    {
+      "id": "ServiceTask_DeliverPolicy",
+      "name": "Deliver confirmation",
+      "type": "serviceTask",
+      "lane": null,
+      "attached_to": null,
+      "pool": "Participant_00"
+    },
+    {
+      "id": "SendTask_SendPolicy",
+      "name": "Send confirmation",
+      "type": "serviceTask",
+      "lane": null,
+      "attached_to": null,
+      "pool": "Participant_00"
+    },
+    {
+      "id": "EndEvent_ApplicationIssued",
+      "name": "Application issued",
+      "type": "endEvent",
+      "lane": null,
+      "attached_to": null,
+      "pool": "Participant_00"
+    },
+    {
+      "id": "ServiceTask_RejectPolicy",
+      "name": "Reject application",
+      "type": "serviceTask",
+      "lane": null,
+      "attached_to": null,
+      "pool": "Participant_00"
+    },
+    {
+      "id": "SendTask_SendRejection",
+      "name": "Send rejection",
+      "type": "serviceTask",
+      "lane": null,
+      "attached_to": null,
+      "pool": "Participant_00"
+    },
+    {
+      "id": "EndEvent_ApplicationRejected",
+      "name": "Application rejected",
+      "type": "endEvent",
+      "lane": null,
+      "attached_to": null,
+      "pool": "Participant_00"
+    },
+    {
+      "id": "Activity_ManualCheck",
+      "name": "Manual Check",
+      "type": "callActivity",
+      "lane": null,
+      "attached_to": null,
+      "pool": "Participant_00"
+    },
+    {
+      "id": "ExclusiveGateway_Decision",
+      "name": "Decision?",
+      "type": "exclusiveGateway",
+      "lane": null,
+      "attached_to": null,
+      "pool": "Participant_00"
+    },
+    {
+      "id": "ErrorBoundaryEvent_FraudDetected",
+      "name": "Fraud detected",
+      "type": "boundaryEvent",
+      "lane": null,
+      "attached_to": "Activity_ManualCheck"
+    },
+    {
+      "id": "SendTask_ReportFraud",
+      "name": "Report fraud",
+      "type": "sendTask",
+      "lane": null,
+      "attached_to": null,
+      "pool": "Participant_00"
+    },
+    {
+      "id": "TerminateEvent_ApplicationCanceledFraud",
+      "name": "Application canceled due to fraud",
+      "type": "endEvent",
+      "lane": null,
+      "attached_to": null,
+      "pool": "Participant_00"
+    },
+    {
+      "id": "Activity_1ke2ixr",
+      "name": "Timeout Handler",
+      "type": "subProcess",
+      "lane": null,
+      "attached_to": null,
+      "pool": "Participant_00"
+    },
+    {
+      "id": "StartErrorEvent_Timeout",
+      "name": "Timeout",
+      "type": "startEvent",
+      "lane": null,
+      "attached_to": null,
+      "parent_subprocess": "Activity_1ke2ixr"
+    },
+    {
+      "id": "UserTask_HandleTimeout",
+      "name": "Handle Timeout",
+      "type": "userTask",
+      "lane": null,
+      "attached_to": null,
+      "parent_subprocess": "Activity_1ke2ixr"
+    },
+    {
+      "id": "EndMessageEvent_Timeout",
+      "name": "Timeout handled",
+      "type": "endEvent",
+      "lane": null,
+      "attached_to": null,
+      "parent_subprocess": "Activity_1ke2ixr"
+    },
+    {
+      "id": "Activity_0vp33kx",
+      "name": "Cancellation Handler",
+      "type": "subProcess",
+      "lane": null,
+      "attached_to": null,
+      "pool": "Participant_00"
+    },
+    {
+      "id": "StartMessageEvent_CancellationRequested",
+      "name": "Cancelation requested",
+      "type": "startEvent",
+      "lane": null,
+      "attached_to": null,
+      "parent_subprocess": "Activity_0vp33kx"
+    },
+    {
+      "id": "ServiceTask_CancelApplication",
+      "name": "Cancel application",
+      "type": "serviceTask",
+      "lane": null,
+      "attached_to": null,
+      "parent_subprocess": "Activity_0vp33kx"
+    },
+    {
+      "id": "ParallelGateway_CancelApplication",
+      "name": "",
+      "type": "parallelGateway",
+      "lane": null,
+      "attached_to": null,
+      "parent_subprocess": "Activity_0vp33kx"
+    },
+    {
+      "id": "EndMessageEvent_InformCustomer",
+      "name": "Customer notified about successful cancelation",
+      "type": "endEvent",
+      "lane": null,
+      "attached_to": null,
+      "parent_subprocess": "Activity_0vp33kx"
+    },
+    {
+      "id": "EndMessageEvent_InformOperations",
+      "name": "Operations Team notified about successful cancelation",
+      "type": "endEvent",
+      "lane": null,
+      "attached_to": null,
+      "parent_subprocess": "Activity_0vp33kx"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "id": "sf_1",
+      "name": "",
+      "source": "StartEvent_ApplicationReceived",
+      "target": "ServiceTask_GetCreditScore"
+    },
+    {
+      "id": "sf_2",
+      "name": "",
+      "source": "ServiceTask_GetCreditScore",
+      "target": "BusinessRuleTask_CheckApplicationAutomatically"
+    },
+    {
+      "id": "sf_3",
+      "name": "",
+      "source": "BusinessRuleTask_CheckApplicationAutomatically",
+      "target": "ExclusiveGateway_Risk"
+    },
+    {
+      "id": "sf_4",
+      "name": "Green (no risk)",
+      "source": "ExclusiveGateway_Risk",
+      "target": "ServiceTask_DeliverPolicy"
+    },
+    {
+      "id": "sf_5",
+      "name": "Red (severe risk)",
+      "source": "ExclusiveGateway_Risk",
+      "target": "ServiceTask_RejectPolicy"
+    },
+    {
+      "id": "sf_6",
+      "name": "Yellow (moderate risk)",
+      "source": "ExclusiveGateway_Risk",
+      "target": "Activity_ManualCheck"
+    },
+    {
+      "id": "sf_7",
+      "name": "",
+      "source": "ServiceTask_DeliverPolicy",
+      "target": "SendTask_SendPolicy"
+    },
+    {
+      "id": "sf_8",
+      "name": "",
+      "source": "SendTask_SendPolicy",
+      "target": "EndEvent_ApplicationIssued"
+    },
+    {
+      "id": "sf_9",
+      "name": "",
+      "source": "ServiceTask_RejectPolicy",
+      "target": "SendTask_SendRejection"
+    },
+    {
+      "id": "sf_10",
+      "name": "",
+      "source": "SendTask_SendRejection",
+      "target": "EndEvent_ApplicationRejected"
+    },
+    {
+      "id": "sf_11",
+      "name": "",
+      "source": "Activity_ManualCheck",
+      "target": "ExclusiveGateway_Decision"
+    },
+    {
+      "id": "sf_12",
+      "name": "Application accepted",
+      "source": "ExclusiveGateway_Decision",
+      "target": "ServiceTask_DeliverPolicy"
+    },
+    {
+      "id": "sf_13",
+      "name": "Application declined",
+      "source": "ExclusiveGateway_Decision",
+      "target": "ServiceTask_RejectPolicy"
+    },
+    {
+      "id": "sf_14",
+      "name": "",
+      "source": "ErrorBoundaryEvent_FraudDetected",
+      "target": "SendTask_ReportFraud"
+    },
+    {
+      "id": "sf_15",
+      "name": "",
+      "source": "SendTask_ReportFraud",
+      "target": "TerminateEvent_ApplicationCanceledFraud"
+    },
+    {
+      "id": "sf_16",
+      "name": "",
+      "source": "StartErrorEvent_Timeout",
+      "target": "UserTask_HandleTimeout"
+    },
+    {
+      "id": "sf_17",
+      "name": "",
+      "source": "UserTask_HandleTimeout",
+      "target": "EndMessageEvent_Timeout"
+    },
+    {
+      "id": "sf_18",
+      "name": "",
+      "source": "StartMessageEvent_CancellationRequested",
+      "target": "ServiceTask_CancelApplication"
+    },
+    {
+      "id": "sf_19",
+      "name": "",
+      "source": "ServiceTask_CancelApplication",
+      "target": "ParallelGateway_CancelApplication"
+    },
+    {
+      "id": "sf_20",
+      "name": "",
+      "source": "ParallelGateway_CancelApplication",
+      "target": "EndMessageEvent_InformCustomer"
+    },
+    {
+      "id": "sf_21",
+      "name": "",
+      "source": "ParallelGateway_CancelApplication",
+      "target": "EndMessageEvent_InformOperations"
+    }
+  ]
+}

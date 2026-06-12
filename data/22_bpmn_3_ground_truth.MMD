@@ -1,0 +1,99 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    subgraph pool_customer["Customer"]
+        direction LR
+        start_cust_browse(["Start"])
+        task_browse["Browse Products on Amazon"]
+        task_add_cart["Add Item to Cart"]
+        xgw_done_shopping{"Done Shopping?"}
+        sub_checkout[["Checkout"]]
+        boundary_checkout_err(("Error"))
+        task_receive_items["Receive items"]
+        end_cust_received(["End"])
+        end_cust_err(["Error End"])
+        start_cust_pay(["Start"])
+        task_pay_order["Pay Order"]
+        xgw_payment_accepted{"Payment accepted?"}
+        xgw_retry{"Retry?"}
+        ithrow_send_order(("Send Order"))
+        end_cust_send(["End"])
+        end_cust_pay_fail(["End"])
+        end_cust_checkout(["End"])
+    end
+
+    subgraph pool_amazon["Amazon"]
+        direction LR
+        subgraph lane_picker["Picker"]
+            direction LR
+            start_amz_order(["Receive Order"])
+            task_pick["Pick items"]
+            task_bin["Place in bin"]
+        end
+        subgraph lane_packager["Packager"]
+            direction LR
+            task_package["Receive and Package items"]
+            task_carrier_dock["Send to carrier dock"]
+            end_amz(["End"])
+        end
+    end
+
+    subgraph pool_carrier["Carrier"]
+        direction LR
+        start_carrier(["Pick items"])
+        task_load_truck["Load Truck"]
+        task_deliver["Deliver Items"]
+        end_carrier(["End"])
+    end
+
+    subgraph pool_cc["Credit Card Company"]
+        direction LR
+        start_cc(["Receive Credit Card Information"])
+        task_take_payment["Take Payment"]
+        end_cc(["Send Result"])
+    end
+
+    %% Customer — browse loop
+    start_cust_browse --> task_browse
+    task_browse --> task_add_cart
+    task_add_cart --> xgw_done_shopping
+    xgw_done_shopping -->|"No"| task_browse
+    xgw_done_shopping -->|"Yes"| sub_checkout
+    sub_checkout --> task_receive_items
+    task_receive_items --> end_cust_received
+    sub_checkout o--o boundary_checkout_err
+    boundary_checkout_err --> end_cust_err
+
+    %% Customer — pay loop
+    start_cust_pay --> task_pay_order
+    task_pay_order --> xgw_payment_accepted
+    xgw_payment_accepted -->|"No"| xgw_retry
+    xgw_payment_accepted -->|"Yes"| ithrow_send_order
+    xgw_retry -->|"Yes"| task_pay_order
+    xgw_retry -->|"No"| end_cust_pay_fail
+    ithrow_send_order --> end_cust_send
+
+    %% Amazon
+    start_amz_order --> task_pick
+    task_pick --> task_bin
+    task_bin --> task_package
+    task_package --> task_carrier_dock
+    task_carrier_dock --> end_amz
+
+    %% Carrier
+    start_carrier --> task_load_truck
+    task_load_truck --> task_deliver
+    task_deliver --> end_carrier
+
+    %% Credit Card
+    start_cc --> task_take_payment
+    task_take_payment --> end_cc
+
+    %% Message flows
+    ithrow_send_order -.->|"Order"| start_amz_order
+    task_pay_order -.->|"Send Credit Card Information"| start_cc
+    end_cc -.->|"Result"| task_pay_order
+    task_carrier_dock -.->|"Shipment"| start_carrier
+    task_deliver -.->|"Delivery"| task_receive_items

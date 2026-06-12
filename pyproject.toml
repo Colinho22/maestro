@@ -97,6 +97,10 @@ select = ["E", "F", "I", "W"]
 # importing strategy modules — those imports must see the configured
 # environment, so they cannot move to the top of the file.
 "src/maestro/run.py" = ["E402"]
+# experiment_config.py is a data registry: each InputFile carries a one-line
+# human description of the diagram. These are intentionally long prose strings
+# where wrapping would hurt readability, so line length is not enforced here.
+"src/maestro/experiment_config.py" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

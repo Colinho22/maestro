@@ -1,0 +1,38 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    user["User\n[Person]\nAnalyst"]
+
+    subgraph google_cloud["Google Cloud"]
+        direction LR
+        iap["Google IAP\n[Container]\nIdentity-Aware Proxy"]
+        web_app["Web App\n[Container]\nMCP Host"]
+        gemini["Gemini\n[Container]\nVertex AI"]
+        mcp_server["MCP Server\n[Container]"]
+        cloud_tasks["Cloud Tasks\n[Container]\nAsync Queue"]
+        background_worker["Background Worker\n[Container]"]
+        cloud_storage[("Cloud Storage\n[Container]\nGCS Bucket")]
+        cloud_monitoring["Cloud Monitoring\n[Container]"]
+        secret_manager["Secret Manager\n[Container]"]
+
+        subgraph postgres["PostgreSQL"]
+            orders_view[("orders\n[Data Store]\nDB View")]
+        end
+    end
+
+    user -->|"Authenticates · HTTPS"| iap
+    iap -->|"Forwards request"| web_app
+    web_app -->|"Prompts / responses · Gemini API"| gemini
+    web_app -->|"Calls MCP tools · MCP"| mcp_server
+    mcp_server -->|"Read-only query · SQL"| orders_view
+    web_app -->|"Enqueue async job"| cloud_tasks
+    cloud_tasks -->|"Trigger job"| background_worker
+    background_worker -->|"Read / write · SQL"| postgres
+    background_worker -->|"Store results · GCS"| cloud_storage
+    web_app -->|"Upload / download · GCS"| cloud_storage
+    web_app -->|"Fetch secrets"| secret_manager
+    background_worker -->|"Fetch credentials"| secret_manager
+    web_app -->|"Metrics / logs"| cloud_monitoring
+    background_worker -->|"Metrics / logs"| cloud_monitoring

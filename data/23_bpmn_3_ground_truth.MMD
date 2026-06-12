@@ -1,0 +1,94 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    %% Top-level nodes — not inside any sub-process
+    start_travel_request(["Receive Travel Request"])
+    send_offer["Make Flights and Hotel Offer"]
+    ebgw_1{{"⊗ Event-Based Gateway"}}
+    icatch_offer_approved(("Offer Approved"))
+    icatch_cancel(("Cancel Request"))
+    icatch_24h(("24 Hours"))
+    send_cc_info["Request Credit Card Information"]
+    svc_charge_card["Charge Credit Card"]
+    boundary_card_err(("Error"))
+    boundary_booking_err(("Error"))
+    ithrow_booking_comp(("Compensate Bookings ⟲"))
+    ithrow_comp_booking(("Compensate Bookings ⟲"))
+    send_confirm["Confirm Booking"]
+    send_failed_credit["Notify Failed Credit Transaction"]
+    send_failed_booking["Notify Failed Booking"]
+    svc_update_customer["Update Customer Record"]
+    send_offer_expired["Notify Customer Offer Expired"]
+    end_booking_confirmed(["Booking Confirmed"])
+    end_failed_credit(["Failed Credit Transaction"])
+    end_failed_booking(["Failed Booking"])
+    end_req_cancelled(["Request Cancelled"])
+    end_offer_expired(["Offer Expired"])
+
+    subgraph sub_make_booking["Make Booking"]
+        direction LR
+        start_blank(["1"])
+        pgw_3{{"+ Parallel Split"}}
+        svc_book_hotel["Book Hotel"]
+        boundary_hotel_comp(("Hotel ⟲"))
+        svc_cancel_hotel["Cancel Hotel ⟲"]
+        svc_book_flight["Book Flight"]
+        boundary_flight_comp(("Flight ⟲"))
+        svc_cancel_flight["Cancel Flight ⟲"]
+        pgw_4{{"+ Parallel Join"}}
+        end_travel_booked(["Travel Booked"])
+    end
+
+    %% Main path
+    start_travel_request --> send_offer
+    send_offer --> ebgw_1
+    ebgw_1 --> icatch_offer_approved
+    ebgw_1 --> icatch_cancel
+    ebgw_1 --> icatch_24h
+
+    %% Offer approved → booking → charge → confirm
+    icatch_offer_approved --> send_cc_info
+    send_cc_info --> sub_make_booking
+    sub_make_booking --> svc_charge_card
+    svc_charge_card --> send_confirm
+    send_confirm --> end_booking_confirmed
+
+    %% Make Booking internals
+    start_blank --> pgw_3
+    pgw_3 --> svc_book_hotel
+    pgw_3 --> svc_book_flight
+    svc_book_hotel --> pgw_4
+    svc_book_flight --> pgw_4
+    pgw_4 --> end_travel_booked
+
+    %% Boundary event attachments via o--o: host activity to boundary event
+    svc_book_hotel o--o boundary_hotel_comp
+    svc_book_flight o--o boundary_flight_comp
+    svc_charge_card o--o boundary_card_err
+    sub_make_booking o--o boundary_booking_err
+
+    %% Compensation handlers via o--o: boundary events to cancel tasks isForCompensation
+    boundary_hotel_comp o--o svc_cancel_hotel
+    boundary_flight_comp o--o svc_cancel_flight
+
+    %% Payment failure: charge card error → compensate the bookings → notify failed credit
+    boundary_card_err --> ithrow_booking_comp
+    ithrow_booking_comp o--o sub_make_booking
+    ithrow_booking_comp --> send_failed_credit
+    send_failed_credit --> end_failed_credit
+
+    %% Booking failure: Make Booking error → compensate the bookings → notify failed booking
+    boundary_booking_err --> ithrow_comp_booking
+    ithrow_comp_booking o--o sub_make_booking
+    ithrow_comp_booking --> send_failed_booking
+    send_failed_booking --> end_failed_booking
+
+    %% Cancel path
+    icatch_cancel --> svc_update_customer
+    svc_update_customer --> end_req_cancelled
+
+    %% 24h expiry
+    icatch_24h --> send_offer_expired
+    send_offer_expired --> end_offer_expired

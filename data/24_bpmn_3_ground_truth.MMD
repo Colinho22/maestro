@@ -1,0 +1,72 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    subgraph pool_manual_check["Manual Check"]
+        direction LR
+
+        %% Manual decision path
+        start_decide_manually(["Decide Manually"])
+        user_decide_on_app["Decide on application"]
+        boundary_timeout_7d(("Timeout (7 days) ⏱"))
+        end_manually_decided(["Manually Decided"])
+        end_timeout(["Timeout"])
+
+        %% Document path
+        start_doc_requested(["Document requested ✉"])
+        call_doc_request[["Document Request"]]
+        icatch_additional_info(("Additional Info Received ✉"))
+        end_doc_received(["Document Received"])
+
+        %% Accelerated path
+        start_accelerated(["Accelerated decision ⏱"])
+        send_notify_delay["Notify customer about delay"]
+        user_accelerate["Accelerate decision making"]
+        end_decision_accelerated(["Decision accelerated"])
+
+        %% Fraud path — expanded with parallel split + escalation
+        start_fraud_suspected(["Fraud suspected ✉"])
+        pgw_split_fraud_risk{{"+ Split: Fraud + Risk"}}
+        user_check_fraud["Check for Fraud"]
+        user_assess_risk["Assess Risk Level"]
+        xgw_fraud_detected{"Fraud detected?"}
+        pgw_join_fraud_risk{{"+ Join: Checks Complete"}}
+        end_fraud_not_detected(["Fraud not detected"])
+        xgw_escalate{"Escalate to Senior?"}
+        user_senior_review["Senior Reviewer Check"]
+        end_fraud_detected(["Fraud Detected"])
+    end
+
+    %% Manual decision
+    start_decide_manually --> user_decide_on_app
+    user_decide_on_app --> end_manually_decided
+    user_decide_on_app o--o boundary_timeout_7d
+    boundary_timeout_7d --> end_timeout
+
+    %% Document path (extended)
+    start_doc_requested --> call_doc_request
+    call_doc_request --> icatch_additional_info
+    icatch_additional_info --> end_doc_received
+
+    %% Accelerated path
+    start_accelerated --> send_notify_delay
+    send_notify_delay --> user_accelerate
+    user_accelerate --> end_decision_accelerated
+
+    %% Fraud path — parallel split
+    start_fraud_suspected --> pgw_split_fraud_risk
+    pgw_split_fraud_risk --> user_check_fraud
+    pgw_split_fraud_risk --> user_assess_risk
+    user_check_fraud --> pgw_join_fraud_risk
+    user_assess_risk --> pgw_join_fraud_risk
+
+    %% Fraud gateway routing — both checks join before the decision
+    pgw_join_fraud_risk --> xgw_fraud_detected
+    xgw_fraud_detected -->|"No"| end_fraud_not_detected
+
+    %% Escalation path
+    xgw_fraud_detected -->|"Yes"| xgw_escalate
+    xgw_escalate -->|"Escalate"| user_senior_review
+    xgw_escalate -->|"Confirmed"| end_fraud_detected
+    user_senior_review -->|"Cleared"| end_fraud_not_detected

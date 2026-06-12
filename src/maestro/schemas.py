@@ -302,3 +302,30 @@ class MetricResult(BaseModel):
     extra_relationships: int
     false_relationships: int
     duplicate_relationships: int
+
+    # ------------------------------------------------------------------
+    # Container metrics — pools / lanes / boundaries / expanded sub-processes
+    # (subgraphs). Scored as a SEPARATE dimension from entities so swimlane
+    # structure can be evaluated without polluting the entity metric/tiers.
+    # P/R/F1 are None when the ground truth has no containers (metric N/A),
+    # so aggregation can exclude those runs rather than averaging in a 0.
+    # ------------------------------------------------------------------
+    container_id_precision: Optional[float] = None
+    container_id_recall: Optional[float] = None
+    container_id_f1: Optional[float] = None
+    container_name_precision: Optional[float] = None
+    container_name_recall: Optional[float] = None
+    container_name_f1: Optional[float] = None
+    containers_in_output: int = 0
+    containers_in_truth: int = 0
+
+    # ------------------------------------------------------------------
+    # Attachment metrics — BPMN boundary-event / compensation associations,
+    # drawn as ``o--o`` edges. Undirected pairs (orientation-insensitive).
+    # P/R/F1 are None when the ground truth has no attachments (metric N/A).
+    # ------------------------------------------------------------------
+    attachment_precision: Optional[float] = None
+    attachment_recall: Optional[float] = None
+    attachment_f1: Optional[float] = None
+    attachments_in_output: int = 0
+    attachments_in_truth: int = 0

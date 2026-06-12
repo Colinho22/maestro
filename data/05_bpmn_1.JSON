@@ -1,0 +1,133 @@
+{
+  "metadata": {
+    "id": "bpmn_1_05",
+    "source": "C.8.0.bpmn",
+    "diagram_type": "bpmn_process",
+    "tier": 1,
+    "entity_count": 9,
+    "container_count": 0,
+    "attachment_count": 0,
+    "description": "Vacation request process: DMN-based automated approval with three outcomes (refused auto, approved auto, manual validation); manager approval path"
+  },
+  "nodes": [
+    {
+      "id": "start_vacation_request",
+      "name": "Vacation Request Received",
+      "type": "startEvent",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_get_vacation_status",
+      "name": "Get Current Vacation Status",
+      "type": "serviceTask",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_vacation_approval",
+      "name": "Vacation Approval",
+      "type": "businessRuleTask",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "gw_result",
+      "name": "",
+      "type": "exclusiveGateway",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_refused_auto",
+      "name": "Vacation Refused Automatically",
+      "type": "endEvent",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_approved",
+      "name": "Vacation Approved",
+      "type": "endEvent",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_manual_approve",
+      "name": "Manually Approve Vacation",
+      "type": "userTask",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "gw_manager_decision",
+      "name": "",
+      "type": "exclusiveGateway",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_refused_manager",
+      "name": "Vacation Refused by Manager",
+      "type": "endEvent",
+      "lane": null,
+      "attached_to": null
+    }
+  ],
+  "sequence_flows": [
+    {
+      "id": "sf_1",
+      "name": "",
+      "source": "start_vacation_request",
+      "target": "task_get_vacation_status"
+    },
+    {
+      "id": "sf_2",
+      "name": "",
+      "source": "task_get_vacation_status",
+      "target": "task_vacation_approval"
+    },
+    {
+      "id": "sf_3",
+      "name": "",
+      "source": "task_vacation_approval",
+      "target": "gw_result"
+    },
+    {
+      "id": "sf_4",
+      "name": "Refused",
+      "source": "gw_result",
+      "target": "end_refused_auto"
+    },
+    {
+      "id": "sf_5",
+      "name": "Approved",
+      "source": "gw_result",
+      "target": "end_approved"
+    },
+    {
+      "id": "sf_6",
+      "name": "Manual Validation Required",
+      "source": "gw_result",
+      "target": "task_manual_approve"
+    },
+    {
+      "id": "sf_7",
+      "name": "",
+      "source": "task_manual_approve",
+      "target": "gw_manager_decision"
+    },
+    {
+      "id": "sf_8",
+      "name": "Approved",
+      "source": "gw_manager_decision",
+      "target": "end_approved"
+    },
+    {
+      "id": "sf_9",
+      "name": "Refused",
+      "source": "gw_manager_decision",
+      "target": "end_refused_manager"
+    }
+  ]
+}

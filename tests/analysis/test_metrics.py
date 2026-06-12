@@ -156,6 +156,56 @@ def test_sparse_output_scores_below_ground_truth():
     assert 0.0 < metric.entity_id_recall < 1.0
 
 
+def _input(example_id: str):
+    """Locate a registered InputFile by example_id, or skip if absent."""
+    for inp in INPUTS:
+        if inp.example_id == example_id:
+            return inp
+    pytest.skip(f"input {example_id} not registered")
+
+
+def test_container_and_attachment_echo_perfect():
+    """
+    A ground truth WITH containers and attachments, echoed back, must score
+    F1=1.0 on both the container and attachment dimensions (Phase 3b). Uses
+    bpmn_3_23 (Travel Booking: one expanded sub-process container + boundary /
+    compensation o--o attachments).
+    """
+    inp = _input("bpmn_3_23")
+    truth = inp.ground_truth_path.read_text(encoding="utf-8")
+    metric = evaluate_run(
+        run_id=uuid4(),
+        output_diagram_code=truth,
+        ground_truth_path=inp.ground_truth_path,
+    )
+    assert metric.containers_in_truth > 0 and metric.attachments_in_truth > 0
+    assert metric.container_id_f1 == 1.0
+    assert metric.container_name_f1 == 1.0
+    assert metric.attachment_f1 == 1.0
+    assert metric.containers_in_output == metric.containers_in_truth
+    assert metric.attachments_in_output == metric.attachments_in_truth
+
+
+def test_container_attachment_metrics_none_when_absent():
+    """
+    A ground truth with NO containers and NO attachments must report those
+    dimensions as None (metric not applicable), not 0.0 — so aggregation can
+    exclude the run rather than averaging in a spurious zero. Uses bpmn_1_01
+    (a plain single-pool process).
+    """
+    inp = _input("bpmn_1_01")
+    truth = inp.ground_truth_path.read_text(encoding="utf-8")
+    metric = evaluate_run(
+        run_id=uuid4(),
+        output_diagram_code=truth,
+        ground_truth_path=inp.ground_truth_path,
+    )
+    assert metric.containers_in_truth == 0 and metric.attachments_in_truth == 0
+    assert metric.container_id_f1 is None
+    assert metric.container_name_f1 is None
+    assert metric.attachment_f1 is None
+
+
 @pytest.mark.parametrize("diagram", ["", "flowchart LR\n", "not mermaid at all"])
 def test_zero_entities_in_output_never_crashes(diagram: str):
     """

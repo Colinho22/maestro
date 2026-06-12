@@ -1,0 +1,391 @@
+{
+  "metadata": {
+    "id": "bpmn_3_25",
+    "source": "C.8.1.bpmn (expanded)",
+    "diagram_type": "bpmn_collaboration",
+    "tier": 3,
+    "entity_count": 27,
+    "container_count": 1,
+    "attachment_count": 2,
+    "description": "Vacation Request process (expanded from C.8.1). Adds a balance check (serviceTask + exclusiveGateway) before the business-rule engine, an HR committee review branch (exclusiveGateway + userTask + intermediate message catch event) for complex requests with a notification send task and interrupting timer boundary escalation, and Insufficient Balance / HR Timeout end events."
+  },
+  "participants": [
+    {
+      "id": "pool_vacation",
+      "name": "Vacation Request",
+      "lanes": []
+    }
+  ],
+  "lanes": [],
+  "nodes": [
+    {
+      "id": "start_req",
+      "name": "Vacation Request Received",
+      "type": "startEvent",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_refused_auto",
+      "name": "Vacation Refused Automatically",
+      "type": "endEvent",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_approved_auto",
+      "name": "Vacation Approved Automatically",
+      "type": "endEvent",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_approved_manager",
+      "name": "Vacation Approved by Manager",
+      "type": "endEvent",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_refused_manager",
+      "name": "Vacation Refused by Manager",
+      "type": "endEvent",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_employee_not_found",
+      "name": "Employee not found",
+      "type": "endEvent",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_insufficient_balance",
+      "name": "Insufficient Vacation Balance",
+      "type": "endEvent",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_hr_timeout",
+      "name": "HR Review Timeout",
+      "type": "endEvent",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "svc_fetch_info",
+      "name": "Fetch Vacation Information",
+      "type": "serviceTask",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "svc_update_remaining_auto",
+      "name": "Update Remaining Vacation",
+      "type": "serviceTask",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "svc_update_remaining_mgr",
+      "name": "Update Remaining Vacation",
+      "type": "serviceTask",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "svc_check_balance",
+      "name": "Check Remaining Days",
+      "type": "serviceTask",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "brt_approval",
+      "name": "Vacation Approval",
+      "type": "businessRuleTask",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "user_manual_approve",
+      "name": "Manually Approve Vacation",
+      "type": "userTask",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "user_hr_committee",
+      "name": "HR Committee Review",
+      "type": "userTask",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "send_notify_refusal_auto",
+      "name": "Notify Employee of Refusal",
+      "type": "sendTask",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "send_notify_approval_auto",
+      "name": "Notify Employee of Approval",
+      "type": "sendTask",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "send_notify_approval_mgr",
+      "name": "Notify Employee of Approval",
+      "type": "sendTask",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "send_notify_refusal_mgr",
+      "name": "Notify Employee of Refusal",
+      "type": "sendTask",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "send_notify_hr_committee_input",
+      "name": "Notify HR Committee for Input",
+      "type": "sendTask",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "xgw_approval_result",
+      "name": "",
+      "type": "exclusiveGateway",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "xgw_manual_result",
+      "name": "",
+      "type": "exclusiveGateway",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "xgw_sufficient_balance",
+      "name": "Sufficient Balance?",
+      "type": "exclusiveGateway",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "xgw_needs_hr_review",
+      "name": "Needs HR Review?",
+      "type": "exclusiveGateway",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "boundary_fetch_err",
+      "name": "",
+      "type": "boundaryEvent",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": "svc_fetch_info"
+    },
+    {
+      "id": "icatch_hr_decision",
+      "name": "HR Decision Received",
+      "type": "intermediateCatchEvent",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "boundary_hr_timer",
+      "name": "HR Review Deadline",
+      "type": "boundaryEvent",
+      "pool": "pool_vacation",
+      "lane": null,
+      "attached_to": "user_hr_committee"
+    }
+  ],
+  "sequence_flows": [
+    {
+      "id": "sf1",
+      "source": "start_req",
+      "target": "svc_fetch_info",
+      "name": ""
+    },
+    {
+      "id": "sf2",
+      "source": "svc_fetch_info",
+      "target": "svc_check_balance",
+      "name": ""
+    },
+    {
+      "id": "sf3",
+      "source": "svc_check_balance",
+      "target": "xgw_sufficient_balance",
+      "name": ""
+    },
+    {
+      "id": "sf4",
+      "source": "xgw_sufficient_balance",
+      "target": "brt_approval",
+      "name": "Yes"
+    },
+    {
+      "id": "sf5",
+      "source": "xgw_sufficient_balance",
+      "target": "end_insufficient_balance",
+      "name": "No"
+    },
+    {
+      "id": "sf6",
+      "source": "boundary_fetch_err",
+      "target": "end_employee_not_found",
+      "name": ""
+    },
+    {
+      "id": "sf7",
+      "source": "brt_approval",
+      "target": "xgw_approval_result",
+      "name": ""
+    },
+    {
+      "id": "sf8",
+      "source": "xgw_approval_result",
+      "target": "send_notify_refusal_auto",
+      "name": "Refused"
+    },
+    {
+      "id": "sf9",
+      "source": "send_notify_refusal_auto",
+      "target": "end_refused_auto",
+      "name": ""
+    },
+    {
+      "id": "sf10",
+      "source": "xgw_approval_result",
+      "target": "send_notify_approval_auto",
+      "name": "Approved"
+    },
+    {
+      "id": "sf11",
+      "source": "send_notify_approval_auto",
+      "target": "svc_update_remaining_auto",
+      "name": ""
+    },
+    {
+      "id": "sf12",
+      "source": "svc_update_remaining_auto",
+      "target": "end_approved_auto",
+      "name": ""
+    },
+    {
+      "id": "sf13",
+      "source": "xgw_approval_result",
+      "target": "xgw_needs_hr_review",
+      "name": "Manual Validation Required"
+    },
+    {
+      "id": "sf14",
+      "source": "xgw_needs_hr_review",
+      "target": "user_manual_approve",
+      "name": "No"
+    },
+    {
+      "id": "sf15",
+      "source": "xgw_needs_hr_review",
+      "target": "send_notify_hr_committee_input",
+      "name": "Yes"
+    },
+    {
+      "id": "sf15a",
+      "source": "send_notify_hr_committee_input",
+      "target": "user_hr_committee",
+      "name": ""
+    },
+    {
+      "id": "sf16",
+      "source": "user_hr_committee",
+      "target": "icatch_hr_decision",
+      "name": ""
+    },
+    {
+      "id": "sf16a",
+      "source": "boundary_hr_timer",
+      "target": "end_hr_timeout",
+      "name": ""
+    },
+    {
+      "id": "sf17",
+      "source": "icatch_hr_decision",
+      "target": "xgw_manual_result",
+      "name": ""
+    },
+    {
+      "id": "sf18",
+      "source": "user_manual_approve",
+      "target": "xgw_manual_result",
+      "name": ""
+    },
+    {
+      "id": "sf19",
+      "source": "xgw_manual_result",
+      "target": "send_notify_approval_mgr",
+      "name": "Approved"
+    },
+    {
+      "id": "sf20",
+      "source": "xgw_manual_result",
+      "target": "send_notify_refusal_mgr",
+      "name": "Refused"
+    },
+    {
+      "id": "sf21",
+      "source": "send_notify_approval_mgr",
+      "target": "svc_update_remaining_mgr",
+      "name": ""
+    },
+    {
+      "id": "sf22",
+      "source": "svc_update_remaining_mgr",
+      "target": "end_approved_manager",
+      "name": ""
+    },
+    {
+      "id": "sf23",
+      "source": "send_notify_refusal_mgr",
+      "target": "end_refused_manager",
+      "name": ""
+    }
+  ],
+  "message_flows": []
+}

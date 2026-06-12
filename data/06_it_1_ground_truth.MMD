@@ -1,0 +1,17 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    user["User\n[Person]"]
+    cloudflare["Cloudflare\n[External System]\nCDN / Edge Proxy"]
+
+    subgraph infomaniak["Infomaniak Public Cloud"]
+        direction LR
+        web_app["SomeApp\n[Container]\nWeb Application"]
+        object_storage[("Object Storage\n[Container]\nS3-compatible Bucket")]
+    end
+
+    user -->|"HTTPS · www.someapp.xx"| cloudflare
+    cloudflare -->|"Reverse proxy"| web_app
+    web_app -->|"Read / write · S3 API"| object_storage

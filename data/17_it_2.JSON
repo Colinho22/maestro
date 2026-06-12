@@ -1,0 +1,200 @@
+{
+  "metadata": {
+    "id": "it_2_17",
+    "diagram_type": "network_topology",
+    "tier": 2,
+    "entity_count": 13,
+    "container_count": 1,
+    "attachment_count": 0,
+    "description": "Expanded small office network topology. Extends it_1_10 with an explicit ISP/WAN edge, badge/access control system, IP security cameras with NVR, and a POS terminal"
+  },
+  "system_boundary": {
+    "id": "office_lan",
+    "name": "Office LAN",
+    "type": "network_boundary"
+  },
+  "elements": [
+    {
+      "id": "isp",
+      "name": "ISP",
+      "type": "external_system",
+      "description": "Internet Service Provider. Provides WAN uplink to the office router"
+    },
+    {
+      "id": "router",
+      "name": "Router",
+      "type": "device",
+      "technology": "Router",
+      "boundary": "office_lan",
+      "description": "Edge router. WAN uplink to ISP, LAN downlink to firewall"
+    },
+    {
+      "id": "firewall",
+      "name": "Firewall",
+      "type": "device",
+      "technology": "Firewall",
+      "boundary": "office_lan",
+      "description": "Network firewall enforcing traffic policies between WAN and LAN"
+    },
+    {
+      "id": "switch",
+      "name": "Switch",
+      "type": "device",
+      "technology": "Network Switch",
+      "boundary": "office_lan",
+      "description": "Core office switch. Distributes traffic to all wired devices and the access point"
+    },
+    {
+      "id": "access_point",
+      "name": "Access Point",
+      "type": "device",
+      "technology": "WiFi Access Point",
+      "boundary": "office_lan",
+      "description": "Wireless access point providing WiFi connectivity to laptops"
+    },
+    {
+      "id": "nas",
+      "name": "NAS",
+      "type": "server",
+      "technology": "Network Attached Storage",
+      "boundary": "office_lan",
+      "description": "Shared file storage for the office, wired to the switch"
+    },
+    {
+      "id": "printer",
+      "name": "Printer",
+      "type": "peripheral",
+      "technology": "Network Printer",
+      "boundary": "office_lan",
+      "description": "Shared office printer, wired to the switch"
+    },
+    {
+      "id": "voip_phones",
+      "name": "VoIP Phones",
+      "type": "device",
+      "technology": "VoIP",
+      "boundary": "office_lan",
+      "description": "Wired VoIP phones connected to the switch"
+    },
+    {
+      "id": "user_clients",
+      "name": "User Clients",
+      "type": "device",
+      "technology": "Laptops (WiFi)",
+      "boundary": "office_lan",
+      "description": "Employee laptops connecting wirelessly via the access point"
+    },
+    {
+      "id": "nvr",
+      "name": "NVR",
+      "type": "server",
+      "technology": "Network Video Recorder",
+      "boundary": "office_lan",
+      "description": "Network Video Recorder. Receives and stores video feeds from all IP cameras"
+    },
+    {
+      "id": "security_cameras",
+      "name": "Security Cameras",
+      "type": "device",
+      "technology": "IP Cameras (PoE)",
+      "boundary": "office_lan",
+      "description": "IP security cameras powered via PoE from the switch; stream video to the NVR"
+    },
+    {
+      "id": "access_control",
+      "name": "Access Control",
+      "type": "server",
+      "technology": "Badge / Entry System",
+      "boundary": "office_lan",
+      "description": "Server managing badge readers and door controllers for physical access control"
+    },
+    {
+      "id": "pos_terminal",
+      "name": "POS Terminal",
+      "type": "device",
+      "technology": "Point of Sale",
+      "boundary": "office_lan",
+      "description": "Point-of-sale terminal for retail transactions, wired to the switch"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "r1",
+      "source": "isp",
+      "target": "router",
+      "label": "WAN link"
+    },
+    {
+      "id": "r2",
+      "source": "router",
+      "target": "firewall",
+      "label": "WAN → LAN"
+    },
+    {
+      "id": "r3",
+      "source": "firewall",
+      "target": "switch",
+      "label": "Filtered traffic"
+    },
+    {
+      "id": "r4",
+      "source": "switch",
+      "target": "nas",
+      "label": "Wired"
+    },
+    {
+      "id": "r5",
+      "source": "switch",
+      "target": "printer",
+      "label": "Wired"
+    },
+    {
+      "id": "r6",
+      "source": "switch",
+      "target": "voip_phones",
+      "label": "Wired"
+    },
+    {
+      "id": "r7",
+      "source": "switch",
+      "target": "access_point",
+      "label": "Wired uplink"
+    },
+    {
+      "id": "r8",
+      "source": "access_point",
+      "target": "user_clients",
+      "label": "WiFi"
+    },
+    {
+      "id": "r9",
+      "source": "switch",
+      "target": "security_cameras",
+      "label": "PoE"
+    },
+    {
+      "id": "r10",
+      "source": "security_cameras",
+      "target": "nvr",
+      "label": "Video stream"
+    },
+    {
+      "id": "r11",
+      "source": "switch",
+      "target": "nvr",
+      "label": "Wired"
+    },
+    {
+      "id": "r12",
+      "source": "switch",
+      "target": "access_control",
+      "label": "Wired"
+    },
+    {
+      "id": "r13",
+      "source": "switch",
+      "target": "pos_terminal",
+      "label": "Wired"
+    }
+  ]
+}

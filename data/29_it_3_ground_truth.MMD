@@ -1,0 +1,117 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    user["User\n[Person]"]
+    developer["Developer\n[Person]"]
+    cloudflare["Cloudflare\n[External System]\nCDN + WAF"]
+    gitlab["GitLab\n[External System]\nSource Control / CI"]
+    infomaniak_api["Infomaniak API\n[External System]\nCloud Management"]
+
+    subgraph posthog["PostHog"]
+        direction LR
+        posthog_analytics["Product Analytics\n[External System]\nEvent Tracking"]
+        posthog_errors["Error Tracking\n[External System]\nException Aggregation"]
+    end
+
+    subgraph infomaniak["Infomaniak Public Cloud"]
+        direction LR
+
+        subgraph cicd_env["CI/CD Environment"]
+            direction LR
+            ci_runner["GitLab CI Runner\n[Container]"]
+            terraform["Terraform\n[Container]\nInfrastructure as Code"]
+            test_suite["Test Suite\n[Container]\nAutomated Tests"]
+            vault["HashiCorp Vault\n[Container]\nSecrets Management"]
+            artifact_registry["Artifact Registry\n[Container]\nDocker Images"]
+        end
+
+        subgraph staging_env["Staging"]
+            direction LR
+            web_app_staging["SomeApp\n[Container]\nStaging"]
+            background_worker_staging["Background Worker\n[Container]\nStaging"]
+            redis_cache_staging[("Redis Cache\n[Container]\nStaging")]
+            postgres_staging[("PostgreSQL\n[Container]\nStaging DB")]
+            object_storage_staging[("Object Storage\n[Container]\nStaging Bucket")]
+            monitoring_staging["Monitoring\n[Container]\nStaging Prometheus"]
+            log_server_staging[("Log Server\n[Container]\nStaging")]
+        end
+
+        subgraph prod_env["Production"]
+            direction LR
+            web_app["SomeApp\n[Container]\nProduction"]
+            background_worker["Background Worker\n[Container]\nProduction"]
+            redis_cache[("Redis Cache\n[Container]")]
+            postgres[("PostgreSQL\n[Container]\nPrimary DB")]
+            object_storage[("Object Storage\n[Container]\nPrimary Bucket")]
+            backup_storage[("Backup Storage\n[Container]\nBackup Bucket")]
+            monitoring["Monitoring\n[Container]\nPrometheus + Grafana"]
+            log_server[("Log Server\n[Container]\nAdmin access only")]
+        end
+    end
+
+    %% CI/CD pipeline
+    developer -->|"Push code · Git"| gitlab
+    gitlab -->|"Trigger pipeline · GitLab CI"| ci_runner
+    ci_runner -->|"Execute tests"| test_suite
+    ci_runner -->|"Fetch deploy secrets"| vault
+    ci_runner -->|"Run plan / apply"| terraform
+    terraform -->|"Provision infra · REST API"| infomaniak_api
+    ci_runner -->|"Push image · Docker"| artifact_registry
+
+    %% Deploy to staging
+    ci_runner -->|"Deploy to staging · SSH"| web_app_staging
+    ci_runner -->|"Deploy to staging · SSH"| background_worker_staging
+    artifact_registry -->|"Pull verified image"| web_app_staging
+    artifact_registry -->|"Pull verified image"| background_worker_staging
+
+    %% Staging app internals
+    web_app_staging -->|"Cache · Redis"| redis_cache_staging
+    web_app_staging -->|"Read / write · SQL"| postgres_staging
+    web_app_staging -->|"Files · S3"| object_storage_staging
+    web_app_staging -->|"Enqueue async job"| background_worker_staging
+    background_worker_staging -->|"Read / write · SQL"| postgres_staging
+    background_worker_staging -->|"Files · S3"| object_storage_staging
+    web_app_staging -->|"Metrics · Prometheus"| monitoring_staging
+    background_worker_staging -->|"Metrics · Prometheus"| monitoring_staging
+    web_app_staging -->|"App event logs"| log_server_staging
+    background_worker_staging -->|"Worker event logs"| log_server_staging
+    postgres_staging -->|"DB audit logs"| log_server_staging
+
+    %% Deploy to production
+    ci_runner -->|"Deploy to production · SSH"| web_app
+    ci_runner -->|"Deploy to production · SSH"| background_worker
+    artifact_registry -->|"Pull verified image"| web_app
+    artifact_registry -->|"Pull verified image"| background_worker
+
+    %% Production user path
+    user -->|"HTTPS · someapp.xx"| cloudflare
+    cloudflare -->|"Reverse proxy · WAF-filtered"| web_app
+
+    %% Production app internals
+    web_app -->|"Cache · Redis"| redis_cache
+    web_app -->|"Read / write · SQL"| postgres
+    web_app -->|"Files · S3"| object_storage
+    web_app -->|"Enqueue async job"| background_worker
+    web_app -->|"Track events · PostHog SDK"| posthog_analytics
+    web_app -->|"Report exceptions · PostHog SDK"| posthog_errors
+    web_app -->|"Fetch runtime secrets"| vault
+    web_app -->|"Metrics · Prometheus"| monitoring
+    web_app -->|"App event logs"| log_server
+
+    %% Production background worker
+    background_worker -->|"Read / write · SQL"| postgres
+    background_worker -->|"Files · S3"| object_storage
+    background_worker -->|"Fetch runtime secrets"| vault
+    background_worker -->|"Metrics · Prometheus"| monitoring
+    background_worker -->|"Worker event logs"| log_server
+    background_worker -->|"Report exceptions · PostHog SDK"| posthog_errors
+
+    %% DB backup + audit
+    postgres -->|"Scheduled backup · S3"| backup_storage
+    postgres -->|"DB access + edit audit logs"| log_server
+
+    %% Developer admin access
+    developer -->|"Admin access"| monitoring
+    developer -->|"Admin / audit access"| log_server

@@ -1,0 +1,51 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    subgraph pool_money_bank["Money Bank"]
+        direction LR
+        subgraph lane_hr_dept["HR Department"]
+            direction LR
+            start_candidate_accepted(["Candidate accepted offer"])
+            task_send_candidate_contract["Send candidate Contract"]
+            gw_contract_terms{"Contract terms accepted?"}
+            task_review_terms_of_contract["Review terms of contract"]
+            task_get_signature_notify_dept["Get signature on contract and notify responsible department"]
+            gw_parallel_split{{"+"}}
+            task_inform_company_policies["Inform employee of company policies"]
+            task_intro_mission_vision_values["Introduce employee to company Mission, Vision and Values"]
+            task_training_time_reports["Perform training for time reports sick leave and holidays"]
+            task_register_medical_insurance["Register for medical insurance"]
+            gw_parallel_merge{{"+"}}
+        end
+        subgraph lane_responsible_dept["Responsible Department"]
+            direction LR
+            task_request_preparations["Request preparations for a new employee"]
+            ithrow_new_employee_in_dept(("New employee in department X"))
+            task_introduce_team["Introduce new employee to the team"]
+            task_training_for_position["Perform training for position"]
+            task_compile_welcome_package["Compile welcome package"]
+            task_give_welcome_package["Give employee welcome package"]
+            end_event(["End Event"])
+        end
+    end
+    start_candidate_accepted --> task_send_candidate_contract
+    task_send_candidate_contract --> gw_contract_terms
+    gw_contract_terms -->|"Yes"| task_get_signature_notify_dept
+    gw_contract_terms -->|"No"| task_review_terms_of_contract
+    task_review_terms_of_contract --> task_send_candidate_contract
+    task_get_signature_notify_dept --> gw_parallel_split
+    gw_parallel_split --> task_inform_company_policies
+    task_inform_company_policies --> task_intro_mission_vision_values
+    task_intro_mission_vision_values --> task_training_time_reports
+    task_training_time_reports --> task_register_medical_insurance
+    task_register_medical_insurance --> gw_parallel_merge
+    gw_parallel_split --> task_request_preparations
+    task_request_preparations --> ithrow_new_employee_in_dept
+    ithrow_new_employee_in_dept --> gw_parallel_merge
+    gw_parallel_merge --> task_introduce_team
+    task_introduce_team --> task_training_for_position
+    task_training_for_position --> task_compile_welcome_package
+    task_compile_welcome_package --> task_give_welcome_package
+    task_give_welcome_package --> end_event

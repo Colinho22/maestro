@@ -1,0 +1,115 @@
+{
+  "metadata": {
+    "id": "bpmn_1_04",
+    "source": "A.3.0.bpmn",
+    "diagram_type": "bpmn_process",
+    "tier": 1,
+    "entity_count": 9,
+    "container_count": 0,
+    "attachment_count": 2,
+    "description": "Process with collapsed sub-process having two boundary events: non-interrupting message boundary triggers Task 2, interrupting escalation boundary triggers Task 3 with separate End Event"
+  },
+  "nodes": [
+    {
+      "id": "start_event",
+      "name": "Start Event",
+      "type": "startEvent",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_1",
+      "name": "Task 1",
+      "type": "task",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "sub_process",
+      "name": "Collapsed\nSub-Process",
+      "type": "subProcess",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "bnd_message",
+      "name": "Boundary Intermediate Event Non-Interrupting Message",
+      "type": "boundaryEvent",
+      "lane": null,
+      "attached_to": "sub_process"
+    },
+    {
+      "id": "bnd_escalation",
+      "name": "Boundary Intermediate Event Interrupting Escalation",
+      "type": "boundaryEvent",
+      "lane": null,
+      "attached_to": "sub_process"
+    },
+    {
+      "id": "task_2",
+      "name": "Task 2",
+      "type": "task",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_3",
+      "name": "Task 3",
+      "type": "task",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_event_1",
+      "name": "End Event 1",
+      "type": "endEvent",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_event_2",
+      "name": "End Event 2",
+      "type": "endEvent",
+      "lane": null,
+      "attached_to": null
+    }
+  ],
+  "sequence_flows": [
+    {
+      "id": "sf_1",
+      "name": "",
+      "source": "start_event",
+      "target": "task_1"
+    },
+    {
+      "id": "sf_2",
+      "name": "",
+      "source": "task_1",
+      "target": "sub_process"
+    },
+    {
+      "id": "sf_3",
+      "name": "",
+      "source": "bnd_message",
+      "target": "task_2"
+    },
+    {
+      "id": "sf_4",
+      "name": "",
+      "source": "bnd_escalation",
+      "target": "task_3"
+    },
+    {
+      "id": "sf_5",
+      "name": "",
+      "source": "task_2",
+      "target": "end_event_1"
+    },
+    {
+      "id": "sf_6",
+      "name": "",
+      "source": "task_3",
+      "target": "end_event_2"
+    }
+  ]
+}

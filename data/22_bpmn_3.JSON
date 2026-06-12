@@ -1,0 +1,475 @@
+{
+  "metadata": {
+    "id": "bpmn_3_22",
+    "source": "C.2.0.bpmn",
+    "diagram_type": "bpmn_collaboration",
+    "tier": 3,
+    "entity_count": 30,
+    "container_count": 6,
+    "attachment_count": 1,
+    "description": "Four-pool e-commerce collaboration: Customer browses and checks out (Checkout sub-process), sends payment to Credit Card Company, Amazon picks and packages in two lanes (Picker/Packager), Carrier delivers. Five cross-pool message flows, error boundary on Checkout."
+  },
+  "participants": [
+    {
+      "id": "pool_customer",
+      "name": "Customer",
+      "lanes": []
+    },
+    {
+      "id": "pool_amazon",
+      "name": "Amazon",
+      "lanes": [
+        "lane_picker",
+        "lane_packager"
+      ]
+    },
+    {
+      "id": "pool_carrier",
+      "name": "Carrier",
+      "lanes": []
+    },
+    {
+      "id": "pool_cc",
+      "name": "Credit Card Company",
+      "lanes": []
+    }
+  ],
+  "lanes": [
+    {
+      "id": "lane_picker",
+      "name": "Picker",
+      "pool": "pool_amazon"
+    },
+    {
+      "id": "lane_packager",
+      "name": "Packager",
+      "pool": "pool_amazon"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start_cust_browse",
+      "name": "",
+      "type": "startEvent",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_browse",
+      "name": "Browse Products on Amazon",
+      "type": "task",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_add_cart",
+      "name": "Add Item to Cart",
+      "type": "task",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "xgw_done_shopping",
+      "name": "Done Shopping?",
+      "type": "exclusiveGateway",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "sub_checkout",
+      "name": "Checkout",
+      "type": "subProcess",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "boundary_checkout_err",
+      "name": "",
+      "type": "boundaryEvent",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": "sub_checkout"
+    },
+    {
+      "id": "start_cust_pay",
+      "name": "",
+      "type": "startEvent",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_pay_order",
+      "name": "Pay Order",
+      "type": "task",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "xgw_payment_accepted",
+      "name": "Payment accepted?",
+      "type": "exclusiveGateway",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "xgw_retry",
+      "name": "Retry?",
+      "type": "exclusiveGateway",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "ithrow_send_order",
+      "name": "Send Order",
+      "type": "intermediateThrowEvent",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_receive_items",
+      "name": "Receive items",
+      "type": "task",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_cust_checkout",
+      "name": "",
+      "type": "endEvent",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_cust_pay_fail",
+      "name": "",
+      "type": "endEvent",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_cust_send",
+      "name": "",
+      "type": "endEvent",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_cust_received",
+      "name": "",
+      "type": "endEvent",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_cust_err",
+      "name": "",
+      "type": "endEvent",
+      "pool": "pool_customer",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "start_amz_order",
+      "name": "Receive Order",
+      "type": "startEvent",
+      "pool": "pool_amazon",
+      "lane": "lane_picker",
+      "attached_to": null
+    },
+    {
+      "id": "task_pick",
+      "name": "Pick items",
+      "type": "task",
+      "pool": "pool_amazon",
+      "lane": "lane_picker",
+      "attached_to": null
+    },
+    {
+      "id": "task_bin",
+      "name": "Place in bin",
+      "type": "task",
+      "pool": "pool_amazon",
+      "lane": "lane_picker",
+      "attached_to": null
+    },
+    {
+      "id": "task_package",
+      "name": "Receive and Package items",
+      "type": "task",
+      "pool": "pool_amazon",
+      "lane": "lane_packager",
+      "attached_to": null
+    },
+    {
+      "id": "task_carrier_dock",
+      "name": "Send to carrier dock",
+      "type": "task",
+      "pool": "pool_amazon",
+      "lane": "lane_packager",
+      "attached_to": null
+    },
+    {
+      "id": "end_amz",
+      "name": "",
+      "type": "endEvent",
+      "pool": "pool_amazon",
+      "lane": "lane_packager",
+      "attached_to": null
+    },
+    {
+      "id": "start_carrier",
+      "name": "Pick items",
+      "type": "startEvent",
+      "pool": "pool_carrier",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_load_truck",
+      "name": "Load Truck",
+      "type": "task",
+      "pool": "pool_carrier",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_deliver",
+      "name": "Deliver Items",
+      "type": "task",
+      "pool": "pool_carrier",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_carrier",
+      "name": "",
+      "type": "endEvent",
+      "pool": "pool_carrier",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "start_cc",
+      "name": "Receive Credit Card Information",
+      "type": "startEvent",
+      "pool": "pool_cc",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "task_take_payment",
+      "name": "Take Payment",
+      "type": "task",
+      "pool": "pool_cc",
+      "lane": null,
+      "attached_to": null
+    },
+    {
+      "id": "end_cc",
+      "name": "Send Result",
+      "type": "endEvent",
+      "pool": "pool_cc",
+      "lane": null,
+      "attached_to": null
+    }
+  ],
+  "sequence_flows": [
+    {
+      "id": "sf1",
+      "source": "start_cust_browse",
+      "target": "task_browse",
+      "name": ""
+    },
+    {
+      "id": "sf2",
+      "source": "task_browse",
+      "target": "task_add_cart",
+      "name": ""
+    },
+    {
+      "id": "sf3",
+      "source": "task_add_cart",
+      "target": "xgw_done_shopping",
+      "name": ""
+    },
+    {
+      "id": "sf4",
+      "source": "xgw_done_shopping",
+      "target": "task_browse",
+      "name": "No"
+    },
+    {
+      "id": "sf5",
+      "source": "xgw_done_shopping",
+      "target": "sub_checkout",
+      "name": "Yes"
+    },
+    {
+      "id": "sf6",
+      "source": "sub_checkout",
+      "target": "task_receive_items",
+      "name": ""
+    },
+    {
+      "id": "sf7",
+      "source": "task_receive_items",
+      "target": "end_cust_received",
+      "name": ""
+    },
+    {
+      "id": "sf8",
+      "source": "boundary_checkout_err",
+      "target": "end_cust_err",
+      "name": ""
+    },
+    {
+      "id": "sf9",
+      "source": "start_cust_pay",
+      "target": "task_pay_order",
+      "name": ""
+    },
+    {
+      "id": "sf10",
+      "source": "task_pay_order",
+      "target": "xgw_payment_accepted",
+      "name": ""
+    },
+    {
+      "id": "sf11",
+      "source": "xgw_payment_accepted",
+      "target": "xgw_retry",
+      "name": "No"
+    },
+    {
+      "id": "sf12",
+      "source": "xgw_payment_accepted",
+      "target": "ithrow_send_order",
+      "name": "Yes"
+    },
+    {
+      "id": "sf13",
+      "source": "xgw_retry",
+      "target": "task_pay_order",
+      "name": "Yes"
+    },
+    {
+      "id": "sf14",
+      "source": "xgw_retry",
+      "target": "end_cust_pay_fail",
+      "name": "No"
+    },
+    {
+      "id": "sf15",
+      "source": "ithrow_send_order",
+      "target": "end_cust_send",
+      "name": ""
+    },
+    {
+      "id": "sf16",
+      "source": "start_amz_order",
+      "target": "task_pick",
+      "name": ""
+    },
+    {
+      "id": "sf17",
+      "source": "task_pick",
+      "target": "task_bin",
+      "name": ""
+    },
+    {
+      "id": "sf18",
+      "source": "task_bin",
+      "target": "task_package",
+      "name": ""
+    },
+    {
+      "id": "sf19",
+      "source": "task_package",
+      "target": "task_carrier_dock",
+      "name": ""
+    },
+    {
+      "id": "sf20",
+      "source": "task_carrier_dock",
+      "target": "end_amz",
+      "name": ""
+    },
+    {
+      "id": "sf21",
+      "source": "start_carrier",
+      "target": "task_load_truck",
+      "name": ""
+    },
+    {
+      "id": "sf22",
+      "source": "task_load_truck",
+      "target": "task_deliver",
+      "name": ""
+    },
+    {
+      "id": "sf23",
+      "source": "task_deliver",
+      "target": "end_carrier",
+      "name": ""
+    },
+    {
+      "id": "sf24",
+      "source": "start_cc",
+      "target": "task_take_payment",
+      "name": ""
+    },
+    {
+      "id": "sf25",
+      "source": "task_take_payment",
+      "target": "end_cc",
+      "name": ""
+    }
+  ],
+  "message_flows": [
+    {
+      "id": "mf1",
+      "source": "ithrow_send_order",
+      "target": "start_amz_order",
+      "name": ""
+    },
+    {
+      "id": "mf2",
+      "source": "task_pay_order",
+      "target": "start_cc",
+      "name": "Send Credit Card Information"
+    },
+    {
+      "id": "mf3",
+      "source": "end_cc",
+      "target": "task_pay_order",
+      "name": ""
+    },
+    {
+      "id": "mf4",
+      "source": "task_carrier_dock",
+      "target": "start_carrier",
+      "name": ""
+    },
+    {
+      "id": "mf5",
+      "source": "task_deliver",
+      "target": "task_receive_items",
+      "name": ""
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+---
+config:
+  theme: default
+---
+flowchart LR
+    external_users["External Users\n[Person]\nRemote / Browser"]
+    internal_users["Internal Users\n[Person]\nOffice / VPN"]
+
+    subgraph cloud_env["Cloud Environment"]
+        direction LR
+        cdn_lb["CDN / Load Balancer\n[Container]\nEdge LB"]
+        vpn_gw_cloud["VPN Gateway\n[Container]\nCloud Side"]
+        cloud_storage[("Cloud Storage\n[Container]\nObject Storage")]
+        cloud_monitoring["Cloud Monitoring\n[Container]"]
+    end
+
+    subgraph on_prem_dc["On-Premises Data Center"]
+        direction LR
+        vpn_gw_onprem["VPN Gateway\n[Container]\nOn-Prem Side"]
+        firewall["Firewall\n[Container]"]
+        app_server["App Server\n[Container]\nCore Application"]
+        db_server[("Database\n[Container]\nPostgreSQL")]
+        file_server[("File Server\n[Container]\nNFS")]
+        ad_server["Active Directory\n[Container]\nAuth / IAM"]
+    end
+
+    external_users -->|"HTTPS"| cdn_lb
+    internal_users -->|"VPN / direct"| vpn_gw_onprem
+    internal_users -->|"Login · LDAP"| ad_server
+    cdn_lb -->|"Route to on-prem"| vpn_gw_cloud
+    vpn_gw_cloud <-->|"IPsec VPN tunnel"| vpn_gw_onprem
+    vpn_gw_onprem -->|"Internal traffic"| firewall
+    firewall -->|"Filtered HTTPS"| app_server
+    app_server -->|"Auth · LDAP"| ad_server
+    app_server -->|"Read / write · SQL"| db_server
+    app_server -->|"File access · NFS"| file_server
+    app_server -->|"Sync files · S3"| cloud_storage
+    file_server -->|"Backup · S3"| cloud_storage
+    app_server -->|"Metrics / logs"| cloud_monitoring
