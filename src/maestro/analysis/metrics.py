@@ -8,6 +8,7 @@ Evaluation dimensions:
   4. Error taxonomy counts
 """
 
+import os
 import re
 import shutil
 import subprocess
@@ -43,6 +44,16 @@ def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
     if mmdc is None:
         return (None, "mmdc not found — validation skipped")
 
+    # mmdc renders via Puppeteer/Chromium. In a container running as root,
+    # Chromium refuses to start without --no-sandbox, which mmdc only picks up
+    # from a config file passed with -p (it does NOT read a PUPPETEER_* env).
+    # MERMAID_PUPPETEER_CONFIG points at that file when set (see the Docker
+    # image); locally it is unset and mmdc uses its working default.
+    puppeteer_args: list[str] = []
+    puppeteer_config = os.environ.get("MERMAID_PUPPETEER_CONFIG")
+    if puppeteer_config and Path(puppeteer_config).is_file():
+        puppeteer_args = ["-p", puppeteer_config]
+
     # NamedTemporaryFile with delete=True cleans up after the context exits.
     # The file is created so mmdc has somewhere to write; we never read it.
     # NOTE: Windows-incompatible — Windows holds the named-temp-file open
@@ -52,7 +63,16 @@ def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
     try:
         with tempfile.NamedTemporaryFile(suffix=".png", delete=True) as out:
             result = subprocess.run(
-                [mmdc, "-i", "/dev/stdin", "-o", out.name, "-e", "png"],
+                [
+                    mmdc,
+                    *puppeteer_args,
+                    "-i",
+                    "/dev/stdin",
+                    "-o",
+                    out.name,
+                    "-e",
+                    "png",
+                ],
                 input=diagram_code,
                 capture_output=True,
                 text=True,

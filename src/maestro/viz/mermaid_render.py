@@ -16,6 +16,7 @@ we cannot produce. Requires: ``npm install -g @mermaid-js/mermaid-cli``.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -42,13 +43,32 @@ def render_mermaid_svg(diagram_code: str, *, timeout: int = 15) -> str | None:
     if mmdc is None or not diagram_code or not diagram_code.strip():
         return None
 
+    # Forward a Puppeteer launch config when one is configured (mirrors
+    # metrics.check_mermaid_valid). In a container running as root, Chromium
+    # needs --no-sandbox, which mmdc only honours from a -p config file, not an
+    # env var. Locally MERMAID_PUPPETEER_CONFIG is unset and mmdc uses its
+    # default; without this, in-container renders would silently return None.
+    puppeteer_args: list[str] = []
+    puppeteer_config = os.environ.get("MERMAID_PUPPETEER_CONFIG")
+    if puppeteer_config and Path(puppeteer_config).is_file():
+        puppeteer_args = ["-p", puppeteer_config]
+
     try:
         with tempfile.TemporaryDirectory() as tmp:
             in_path = Path(tmp) / "in.mmd"
             out_path = Path(tmp) / "out.svg"
             in_path.write_text(diagram_code, encoding="utf-8")
             result = subprocess.run(
-                [mmdc, "-i", str(in_path), "-o", str(out_path), "-e", "svg"],
+                [
+                    mmdc,
+                    *puppeteer_args,
+                    "-i",
+                    str(in_path),
+                    "-o",
+                    str(out_path),
+                    "-e",
+                    "svg",
+                ],
                 capture_output=True,
                 text=True,
                 timeout=timeout,

@@ -8,6 +8,7 @@ To add a new model:   append to MODELS
 To enable a strategy: add to STRATEGIES (once implemented)
 """
 
+import os
 from pathlib import Path
 
 from maestro.schemas import InputFile, ModelPricing, Strategy, Tier
@@ -379,6 +380,9 @@ CONTROL_STRATEGIES: set[Strategy] = {
 # Number of repeated runs per (input, strategy, model) cell
 DEFAULT_REPEATS = 5
 
-# SQLite database path (project root)
+# SQLite database path. Defaults to maestro.db in the project root; override
+# with MAESTRO_DB_PATH so a containerized run can write the DB to a mounted
+# host volume (the project root holds the installed package and is not bind
+# mounted) without touching code.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-DB_PATH = PROJECT_ROOT / "maestro.db"
+DB_PATH = Path(os.environ.get("MAESTRO_DB_PATH") or PROJECT_ROOT / "maestro.db")
