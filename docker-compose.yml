@@ -1,18 +1,37 @@
 services:
+  # One image, two uses:
+  #   * `docker compose up`        → serves the Streamlit dashboard (default),
+  #                                  reading the experiment DB read-write so a
+  #                                  future in-app run can write to it.
+  #   * `docker compose run --rm maestro python -m maestro.run --tier 1`
+  #                                → runs an experiment on the SAME image; the
+  #                                  command overrides the dashboard default.
+  # The DB lives on the host at ./out so external tools (Jupyter, sqlite, BI)
+  # can read it directly.
   maestro:
     build: .
     container_name: maestro
     env_file:
       - .env
     environment:
-      # Write the SQLite DB into the mounted output directory so results
-      # survive container teardown. See experiment_config.DB_PATH.
+      # SQLite DB in the mounted output dir so results survive teardown and are
+      # reachable from the host. Both the runner (experiment_config.DB_PATH) and
+      # the dashboard (viz/settings.py) read this same var.
       MAESTRO_DB_PATH: /app/out/maestro.db
+    ports:
+      - "8501:8501"
     volumes:
       # Scoped mounts (not the whole repo) so the image's installed package,
       # /app/puppeteer.json, and the globally-installed mmdc are not shadowed.
       - ./data:/app/data:ro      # benchmark inputs + ground truth (read-only)
-      - ./out:/app/out           # experiment DB output, persisted on the host
-    # Run the experiment runner; pass CLI filters after the service name, e.g.
-    #   docker compose run --rm maestro --tier 1 --dry-run
-    entrypoint: ["python", "-m", "maestro.run"]
+      - ./out:/app/out           # experiment DB, persisted + host-accessible
+    # Default command = the dashboard, so `docker compose up` just serves it.
+    # --server.address=0.0.0.0 lets the host browser reach the container;
+    # headless disables Streamlit's browser-open and first-run prompt.
+    command:
+      - streamlit
+      - run
+      - src/maestro/viz/app.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+      - --server.headless=true
