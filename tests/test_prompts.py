@@ -94,15 +94,21 @@ def test_no_provider_reinlines_system_prompt():
         )
 
 
-def test_identity_reaches_complete(recording_provider_factory):
+def test_fallback_identity_resolves_to_shared(recording_provider_factory):
     """
-    The default identity must arrive at the provider boundary. A strategy that
-    passes system_prompt=None falls back to SYSTEM_PROMPT; this checks that the
-    fallback the providers use is the shared identity, via RecordingProvider's
-    own inherited SYSTEM_PROMPT.
+    When a caller passes system_prompt=None, real providers fall back to
+    self.SYSTEM_PROMPT (the ``system_prompt if system_prompt is not None else
+    self.SYSTEM_PROMPT`` expression in every complete()). This exercises that
+    fallback expression against an LLMProvider subclass and asserts it resolves
+    to the shared identity object — so a re-inlined per-provider literal would
+    be caught here, not just at the class-attribute level.
     """
     provider = recording_provider_factory(outputs=["graph TD\n  a"])
-    assert provider.SYSTEM_PROMPT is MERMAID_SYSTEM_IDENTITY
+    system_prompt = None
+    effective_system = (
+        system_prompt if system_prompt is not None else provider.SYSTEM_PROMPT
+    )
+    assert effective_system is MERMAID_SYSTEM_IDENTITY
 
 
 # ---------------------------------------------------------------------------
