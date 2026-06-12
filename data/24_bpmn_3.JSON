@@ -7,7 +7,7 @@
     "entity_count": 23,
     "container_count": 1,
     "attachment_count": 1,
-    "description": "Manual Check process (expanded from C.9.2). Adds a parallel split for concurrent fraud and risk checks, an escalation gateway routing detected fraud to a Senior Reviewer, and an intermediate message catch event awaiting additional documents. Three event sub-processes handle document, accelerated, and fraud flows."
+    "description": "Manual Check process (expanded from C.9.2). Adds a parallel split for concurrent fraud and risk checks, an escalation gateway routing detected fraud to a Senior Reviewer, and an intermediate message catch event awaiting additional documents. Separate start events drive the document-request, accelerated-decision, and fraud-evaluation flows."
   },
   "participants": [
     {
@@ -279,7 +279,7 @@
     {
       "id": "sf13",
       "source": "user_check_fraud",
-      "target": "xgw_fraud_detected",
+      "target": "pgw_join_fraud_risk",
       "name": ""
     },
     {
@@ -290,15 +290,15 @@
     },
     {
       "id": "sf15",
-      "source": "xgw_fraud_detected",
-      "target": "pgw_join_fraud_risk",
-      "name": "No"
+      "source": "pgw_join_fraud_risk",
+      "target": "xgw_fraud_detected",
+      "name": ""
     },
     {
       "id": "sf16",
-      "source": "pgw_join_fraud_risk",
+      "source": "xgw_fraud_detected",
       "target": "end_fraud_not_detected",
-      "name": ""
+      "name": "No"
     },
     {
       "id": "sf17",

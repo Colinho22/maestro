@@ -58,12 +58,12 @@ flowchart LR
     start_fraud_suspected --> pgw_split_fraud_risk
     pgw_split_fraud_risk --> user_check_fraud
     pgw_split_fraud_risk --> user_assess_risk
-    user_check_fraud --> xgw_fraud_detected
+    user_check_fraud --> pgw_join_fraud_risk
     user_assess_risk --> pgw_join_fraud_risk
 
-    %% Fraud gateway routing
-    xgw_fraud_detected -->|"No"| pgw_join_fraud_risk
-    pgw_join_fraud_risk --> end_fraud_not_detected
+    %% Fraud gateway routing — both checks join before the decision
+    pgw_join_fraud_risk --> xgw_fraud_detected
+    xgw_fraud_detected -->|"No"| end_fraud_not_detected
 
     %% Escalation path
     xgw_fraud_detected -->|"Yes"| xgw_escalate

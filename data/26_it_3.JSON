@@ -187,7 +187,7 @@
       "type": "server",
       "technology": "Policy Enforcement Point / Reverse Proxy",
       "boundary": "auth_zone2",
-      "description": "Auth gateway in DC2 Auth Zone. Enforces the same geofencing and IAM policy as DC1 during failover"
+      "description": "Auth gateway in DC2 Auth Zone. Delegates authentication to the replicated IAM stack and forwards validated sessions through the inner firewall to the App Zone during failover"
     },
     {
       "id": "iam_replica",

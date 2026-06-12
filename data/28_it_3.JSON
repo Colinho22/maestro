@@ -168,7 +168,7 @@
       "type": "container",
       "technology": "GCP Cloud Monitoring",
       "boundary": "google_cloud",
-      "description": "Centralised metrics and logging. Collects telemetry from web app, background worker, and notification service"
+      "description": "Centralised metrics and logging. Collects telemetry from the web app and background worker"
     },
     {
       "id": "postgres",

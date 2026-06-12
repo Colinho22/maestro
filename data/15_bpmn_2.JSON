@@ -140,7 +140,8 @@
       "name": "Timeout Handler",
       "type": "subProcess",
       "lane": null,
-      "attached_to": null
+      "attached_to": null,
+      "pool": "Participant_00"
     },
     {
       "id": "StartErrorEvent_Timeout",
@@ -171,7 +172,8 @@
       "name": "Cancellation Handler",
       "type": "subProcess",
       "lane": null,
-      "attached_to": null
+      "attached_to": null,
+      "pool": "Participant_00"
     },
     {
       "id": "StartMessageEvent_CancellationRequested",
