@@ -133,6 +133,21 @@ _NODE_DEF = re.compile(
     r"\s*[\]\)\}]+"  # closing bracket(s)
 )
 
+
+def _strip_inline_labels(line: str) -> str:
+    """
+    Replace every inline node definition (``id["Label"]``) with its bare ``id``.
+
+    Edge lines may redeclare a node's label on one or both endpoints, e.g.
+    ``a["A"] --> b["B"]``. The edge regexes expect the id to sit directly
+    against the operator, so a labelled *source* would otherwise break edge
+    extraction. Collapsing each ``id[...]`` to ``id`` leaves a clean
+    ``a --> b`` for the operator scan; node labels are captured separately by
+    ``extract_nodes`` so nothing is lost here.
+    """
+    return _NODE_DEF.sub(lambda m: m.group(1), line)
+
+
 # Edge label between pipes, e.g. -->|"Green (no risk)"| — stripped before node
 # scanning so its text is never mistaken for a node definition.
 _PIPE_LABEL = re.compile(r"\|[^|]*\|")
@@ -240,6 +255,10 @@ def extract_relationships(mermaid_code: str) -> list[dict]:
         line = raw.strip()
         if not line or line.startswith("%%"):
             continue
+        # Collapse any inline node labels (``a["A"] --> b["B"]``) to bare ids
+        # so a labelled source endpoint can't hide the edge from the operator
+        # scan. Node labels themselves are captured by ``extract_nodes``.
+        line = _strip_inline_labels(line)
         for m in _EDGE.finditer(line):
             src, op, tgt = m.group(1), m.group(2), m.group(3)
             if op in ("o--o", "--o", "--x"):
@@ -266,6 +285,9 @@ def extract_attachments(mermaid_code: str) -> list[dict]:
         line = raw.strip()
         if not line or line.startswith("%%"):
             continue
+        # Same inline-label collapse as extract_relationships: an attachment
+        # written ``task["T"] o--o evt(("E"))`` must still match _ATTACH.
+        line = _strip_inline_labels(line)
         for m in _ATTACH.finditer(line):
             a, b = sorted((m.group(1), m.group(2)))
             if (a, b) not in seen:

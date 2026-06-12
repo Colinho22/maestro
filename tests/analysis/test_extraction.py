@@ -180,6 +180,31 @@ def test_sequence_flow_solid_arrow():
     assert rels[0]["type"] == "sequence_flow"
 
 
+def test_edge_with_inline_labels_on_both_endpoints():
+    """
+    Regression: a model may redeclare node labels on the edge line itself,
+    e.g. ``a["A"] --> b["B"]``. A labelled *source* used to hide the edge from
+    the operator scan (returned []), zeroing the relationship score on an
+    otherwise-correct diagram. Bare ids must still be recovered.
+    """
+    code = 'flowchart TD\n    a["A"] --> b["B"]\n    b["B"] -->|"go"| c["C"]\n'
+    assert _pairs(extract_relationships(code)) == {("a", "b"), ("b", "c")}
+
+
+def test_edge_inline_label_with_newline_and_parens():
+    """The redeclared label can contain \\n and parentheses (BPMN gateways)."""
+    code = 'flowchart TD\n    gw{"Gateway\\n(Split)"} --> task["Task 1"]\n'
+    assert _pairs(extract_relationships(code)) == {("gw", "task")}
+
+
+def test_attachment_with_inline_labels_on_both_endpoints():
+    """Same inline-label collapse must apply to o--o attachment edges."""
+    code = 'flowchart LR\n    host["Host"] o--o evt(("Boundary"))\n'
+    atts = extract_attachments(code)
+    assert len(atts) == 1
+    assert tuple(sorted((atts[0]["a"], atts[0]["b"]))) == ("evt", "host")
+
+
 # ---------------------------------------------------------------------------
 # 3b — container metrics (reuse entity matchers)
 # ---------------------------------------------------------------------------
