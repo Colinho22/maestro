@@ -109,8 +109,16 @@ def _lemmatize_label(label: str) -> str:
 
 # Mermaid keywords that are syntax, never node ids.
 _SKIP = {
-    "graph", "flowchart", "subgraph", "end", "direction",
-    "style", "classdef", "class", "linkstyle", "click",
+    "graph",
+    "flowchart",
+    "subgraph",
+    "end",
+    "direction",
+    "style",
+    "classdef",
+    "class",
+    "linkstyle",
+    "click",
 }
 
 # A node definition: an id, an opening shape bracket, a label that is EITHER a

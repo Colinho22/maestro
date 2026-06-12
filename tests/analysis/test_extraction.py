@@ -83,7 +83,7 @@ def test_whitespace_label_node_extracted():
 def test_no_phantom_from_pipe_edge_label():
     # "Green (no risk)" inside an edge label must not become a node "Green".
     code = (
-        'flowchart LR\n'
+        "flowchart LR\n"
         '    gw{"Risk?"}\n'
         '    deliver["Deliver"]\n'
         '    gw -->|"Green (no risk)"| deliver\n'
@@ -96,8 +96,7 @@ def test_no_phantom_from_pipe_edge_label():
 def test_no_phantom_from_multiline_bracketed_label():
     # A quoted label containing [Device] and (WiFi) must be consumed whole.
     code = (
-        'flowchart LR\n'
-        '    user_clients["User Clients\\n[Device]\\nLaptops (WiFi)"]\n'
+        'flowchart LR\n    user_clients["User Clients\\n[Device]\\nLaptops (WiFi)"]\n'
     )
     ids = _ids(extract_nodes(code))
     assert ids == {"user_clients"}
@@ -106,11 +105,11 @@ def test_no_phantom_from_multiline_bracketed_label():
 
 def test_comment_lines_ignored():
     code = (
-        'flowchart LR\n'
-        '    %% Fraud path (expanded) with routing\n'
+        "flowchart LR\n"
+        "    %% Fraud path (expanded) with routing\n"
         '    a["A"]\n'
         '    b["B"]\n'
-        '    a --> b\n'
+        "    a --> b\n"
     )
     ids = _ids(extract_nodes(code))
     assert ids == {"a", "b"}
@@ -150,12 +149,12 @@ def test_bidirectional_dotted_edge_is_message_flow():
 
 def test_o_o_attachment_excluded_from_relationships():
     code = (
-        'flowchart LR\n'
+        "flowchart LR\n"
         '    host["Host"]\n'
         '    evt(("Boundary"))\n'
         '    nxt["Next"]\n'
-        '    host o--o evt\n'      # attachment, NOT a relationship
-        '    evt --> nxt\n'        # real outgoing sequence flow
+        "    host o--o evt\n"  # attachment, NOT a relationship
+        "    evt --> nxt\n"  # real outgoing sequence flow
     )
     pairs = _pairs(extract_relationships(code))
     assert ("host", "evt") not in pairs and ("evt", "host") not in pairs
@@ -163,12 +162,7 @@ def test_o_o_attachment_excluded_from_relationships():
 
 
 def test_extract_attachments_is_undirected_and_deduped():
-    code = (
-        'flowchart LR\n'
-        '    host["Host"]\n'
-        '    evt(("Boundary"))\n'
-        '    host o--o evt\n'
-    )
+    code = 'flowchart LR\n    host["Host"]\n    evt(("Boundary"))\n    host o--o evt\n'
     atts = extract_attachments(code)
     assert len(atts) == 1
     assert tuple(sorted((atts[0]["a"], atts[0]["b"]))) == ("evt", "host")
