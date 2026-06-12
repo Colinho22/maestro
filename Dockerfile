@@ -39,6 +39,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrandr2 \
     && rm -rf /var/lib/apt/lists/*
 
+# Image digest for run provenance. An image cannot know its own digest at
+# build time, so it is passed in (e.g. the CI-resolved digest or the git SHA)
+# and baked as an env var; environment.capture_environment() reads it into
+# run_environments.docker_image_digest. Unset → recorded as NULL.
+ARG MAESTRO_IMAGE_DIGEST=
+ENV MAESTRO_IMAGE_DIGEST=$MAESTRO_IMAGE_DIGEST
+
 # mermaid-cli, pinned for reproducibility. Puppeteer must use the system
 # Chromium (installed above) rather than downloading its own — and Chromium
 # refuses to run as root without --no-sandbox, which is the norm in CI/Docker.

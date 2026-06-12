@@ -9,7 +9,14 @@ services:
   # The DB lives on the host at ./out so external tools (Jupyter, sqlite, BI)
   # can read it directly.
   maestro:
-    build: .
+    build:
+      context: .
+      args:
+        # Optional run-provenance stamp baked into the image, surfaced in
+        # run_environments.docker_image_digest. Pass at build time, e.g.
+        #   MAESTRO_IMAGE_DIGEST=$(git rev-parse HEAD) docker compose build
+        # Unset → recorded as NULL.
+        MAESTRO_IMAGE_DIGEST: ${MAESTRO_IMAGE_DIGEST:-}
     container_name: maestro
     env_file:
       - .env
