@@ -2,9 +2,17 @@ services:
   maestro:
     build: .
     container_name: maestro
-    volumes:
-      - .:/app
     env_file:
       - .env
-    # Override default command for interactive use
-    # command: python -m maestro
+    environment:
+      # Write the SQLite DB into the mounted output directory so results
+      # survive container teardown. See experiment_config.DB_PATH.
+      MAESTRO_DB_PATH: /app/out/maestro.db
+    volumes:
+      # Scoped mounts (not the whole repo) so the image's installed package,
+      # /app/puppeteer.json, and the globally-installed mmdc are not shadowed.
+      - ./data:/app/data:ro      # benchmark inputs + ground truth (read-only)
+      - ./out:/app/out           # experiment DB output, persisted on the host
+    # Run the experiment runner; pass CLI filters after the service name, e.g.
+    #   docker compose run --rm maestro --tier 1 --dry-run
+    entrypoint: ["python", "-m", "maestro.run"]
