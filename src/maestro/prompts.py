@@ -33,9 +33,11 @@ MERMAID_SYSTEM_IDENTITY = (
 # identically to both. Brace-free on purpose so it can be embedded into a
 # template string ahead of any later ``.format()`` call without escaping.
 MERMAID_RULES = """\
-- Use Mermaid flowchart syntax (start with `flowchart` or `graph`); do not use C4, sequence, class, or other diagram types
+- Begin the diagram with a flowchart header, `flowchart LR`; do not use C4, sequence, class, or other diagram types
 - Output only valid Mermaid syntax
-- Wrap node labels in double quotes, e.g. node_id["My Label"], so labels with spaces, parentheses, slashes, or line breaks stay parseable; quote edge labels the same way only when an edge has a label, e.g. a -->|"My edge"| b, and never emit an empty label like -->||
+- Wrap node labels in double quotes, e.g. node_id["My Label"], so labels with spaces, parentheses, slashes, or line breaks stay parseable
+- If a node has no label, write just its id (e.g. gw_result) — never an empty bracket like node_id[""]
+- Quote edge labels the same way, with no spaces inside the pipes, e.g. a -->|"My edge"| b; for an unlabelled edge use a plain arrow a --> b and never an empty label like -->|| or -->| |
 - Include every entity and relationship from the input
 - Preserve hierarchy using subgraphs for pools, lanes, and subprocesses
 - Do not invent entities or relationships not present in the input
