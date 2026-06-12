@@ -25,11 +25,7 @@ class MistralProvider(LLMProvider):
     ``mistralai.client.errors`` respectively.
     """
 
-    SYSTEM_PROMPT = (
-        "You are a diagram generation assistant. "
-        "Respond only with valid Mermaid diagram code. "
-        "Do not include any explanation, markdown fencing, or additional text."
-    )
+    # SYSTEM_PROMPT inherited from LLMProvider (maestro.prompts).
 
     MAX_TOKENS = 4096
 

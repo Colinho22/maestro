@@ -101,6 +101,10 @@ select = ["E", "F", "I", "W"]
 # human description of the diagram. These are intentionally long prose strings
 # where wrapping would hurt readability, so line length is not enforced here.
 "src/maestro/experiment_config.py" = ["E501"]
+# prompts.py holds the canonical Mermaid output contract: each rule is a single
+# prose line shown to the model verbatim. Wrapping a rule would split it across
+# bullets in the rendered prompt, so line length is not enforced here.
+"src/maestro/prompts.py" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

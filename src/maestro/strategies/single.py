@@ -19,22 +19,23 @@ These two roles got conflated in earlier iterations of the codebase
 
 import json
 
+from maestro.prompts import render_rules
 from maestro.schemas import InputFile, RunConfig, RunResult, SubResult
 from maestro.strategies.base import BaseStrategy
 
-PROMPT_TEMPLATE = """\
+# Rules come from the canonical contract (maestro.prompts) so single-agent and
+# the multi-step strategies are given a byte-identical output contract. The
+# runtime placeholder is escaped as ``{{input_data}}`` so it survives this
+# f-string and is filled later by ``.format(input_data=...)``.
+PROMPT_TEMPLATE = f"""\
 You are given a dataset describing entities and their relationships.
 Your task is to generate a Mermaid diagram that accurately represents this data.
 
 Rules:
-- Output only valid Mermaid syntax
-- Include all entities and relationships from the input
-- Do not invent entities or relationships not present in the data
-- Do not include explanations or markdown code fences
-- Do not use internal IDs as edge labels
+{render_rules()}
 
 Input data:
-{input_data}
+{{input_data}}
 """
 
 

@@ -18,6 +18,8 @@ Adding a new multi-step strategy?
 
 import json
 
+from maestro.prompts import render_rules
+
 # ---------------------------------------------------------------------------
 # Step 1 — Extract entities (nodes) from the input dataset
 # ---------------------------------------------------------------------------
@@ -84,23 +86,22 @@ Original input data:
 # Step 3 — Render Mermaid diagram from entities + relationships
 # ---------------------------------------------------------------------------
 
-STEP_3_PROMPT = """\
+# Rules come from the canonical contract (maestro.prompts) so step 3 and the
+# single-agent baseline are given a byte-identical output contract. The runtime
+# placeholders are escaped (``{{...}}``) so they survive this f-string and are
+# filled later by ``.format(entities_json=..., relationships_json=...)``.
+STEP_3_PROMPT = f"""\
 You are given a set of entities and relationships extracted from a dataset.
 Your task is to generate a Mermaid diagram that accurately represents them.
 
 Rules:
-- Output only valid Mermaid syntax
-- Include all entities with correct hierarchy (subgraphs for pools/lanes/subprocesses)
-- Include all relationships as edges
-- Do not invent entities or relationships not provided
-- Do not include explanations or markdown code fences
-- Do not use relationship IDs as edge labels
+{render_rules()}
 
 Entities:
-{entities_json}
+{{entities_json}}
 
 Relationships:
-{relationships_json}
+{{relationships_json}}
 """
 
 
