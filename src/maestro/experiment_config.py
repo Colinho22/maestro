@@ -216,10 +216,10 @@ INPUTS: list[InputFile] = [
     InputFile(
         example_id="bpmn_3_24",
         tier=Tier.CROSS_LAYER,
-        entity_count=26,
+        entity_count=23,
         file_path=DATA_DIR / "24_bpmn_3.JSON",
         ground_truth_path=DATA_DIR / "24_bpmn_3_ground_truth.MMD",
-        description="Manual Check process (expanded C.9.2): parallel fraud + risk check split, escalation gateway to Senior Reviewer, intermediate message catch for additional documents, 3 named event sub-processes",
+        description="Manual Check process (expanded C.9.2): parallel fraud + risk check split, escalation gateway to Senior Reviewer, intermediate message catch for additional documents",
     ),
     InputFile(
         example_id="bpmn_3_25",

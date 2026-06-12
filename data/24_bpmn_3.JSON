@@ -4,7 +4,7 @@
     "source": "C.9.2.bpmn (expanded)",
     "diagram_type": "bpmn_collaboration",
     "tier": 3,
-    "entity_count": 26,
+    "entity_count": 23,
     "container_count": 1,
     "attachment_count": 1,
     "description": "Manual Check process (expanded from C.9.2). Adds a parallel split for concurrent fraud and risk checks, an escalation gateway routing detected fraud to a Senior Reviewer, and an intermediate message catch event awaiting additional documents. Three event sub-processes handle document, accelerated, and fraud flows."
@@ -150,30 +150,6 @@
       "id": "xgw_fraud_detected",
       "name": "Fraud detected?",
       "type": "exclusiveGateway",
-      "pool": "pool_manual_check",
-      "lane": null,
-      "attached_to": null
-    },
-    {
-      "id": "sub_doc_validation",
-      "name": "Document Validation",
-      "type": "subProcess",
-      "pool": "pool_manual_check",
-      "lane": null,
-      "attached_to": null
-    },
-    {
-      "id": "sub_risk_assessment",
-      "name": "Risk Assessment Workflow",
-      "type": "subProcess",
-      "pool": "pool_manual_check",
-      "lane": null,
-      "attached_to": null
-    },
-    {
-      "id": "sub_compliance_check",
-      "name": "Compliance Check",
-      "type": "subProcess",
       "pool": "pool_manual_check",
       "lane": null,
       "attached_to": null

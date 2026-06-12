@@ -9,7 +9,7 @@
     "attachment_count": 0,
     "description": "Employee onboarding within Money Bank: HR Department handles contract signing and parallel onboarding tasks; Responsible Department introduces the team, runs position training, and delivers the welcome package"
   },
-  "pools": [
+  "participants": [
     {
       "id": "pool_money_bank",
       "name": "Money Bank"

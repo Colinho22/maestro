@@ -9,7 +9,7 @@
     "attachment_count": 0,
     "description": "Bank KYC onboarding: private account manager handles identity verification, document checks, parallel personal data and KYC activities, risk assessment; legal entities are referred to B2B department; head of market lane handles approval decisions"
   },
-  "pools": [
+  "participants": [
     {
       "id": "pool_bank",
       "name": "Bank"

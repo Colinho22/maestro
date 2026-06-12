@@ -9,7 +9,7 @@
     "attachment_count": 0,
     "description": "Invoice receipt collaboration: Team-Assistant pool handles scan/archive/approval-assignment with event-based waiting; Process Engine pool (with Approver, Team Assistant, Accountant lanes) handles approval workflow and bank transfer"
   },
-  "pools": [
+  "participants": [
     {
       "id": "pool_team_assistant",
       "name": "Team-Assistant"

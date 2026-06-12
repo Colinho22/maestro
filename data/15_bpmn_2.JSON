@@ -9,7 +9,7 @@
     "attachment_count": 1,
     "description": "Customer onboarding process: credit score check, automated risk assessment (green/yellow/red), manual check call activity, fraud detection boundary event, plus event subprocesses for timeout and cancellation"
   },
-  "pools": [
+  "participants": [
     {
       "id": "Participant_00",
       "name": "Customer Onboarding"
