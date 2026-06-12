@@ -231,8 +231,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--strategy",
         type=str,
-        choices=[s.value for s in Strategy],
-        help="Run only this strategy (default: all enabled)",
+        help=(
+            "Run only these strategies (default: all enabled). "
+            "Comma-separated for several, e.g. --strategy single_agent,lang_graph"
+        ),
     )
     parser.add_argument(
         "--tier",
@@ -243,12 +245,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        help="Run only this model (default: all registered)",
+        help=(
+            "Run only these models (default: all registered). "
+            "Comma-separated for several, e.g. "
+            "--model gpt-4o-mini-2024-07-18,deepseek-v4-flash"
+        ),
     )
     parser.add_argument(
         "--example",
         type=str,
-        help="Run only this example_id (default: all registered)",
+        help=(
+            "Run only these example_ids (default: all registered). "
+            "Comma-separated for several, e.g. --example bpmn_1_03,it_1_07"
+        ),
     )
     parser.add_argument(
         "--repeats",
@@ -294,30 +303,67 @@ def parse_args() -> argparse.Namespace:
 # ---------------------------------------------------------------------------
 
 
+def _split_csv(value: str | None) -> list[str] | None:
+    """
+    Parse a comma-separated filter value into a clean list, or None if the
+    flag was absent. Empty/whitespace-only entries are dropped so trailing
+    commas and stray spaces don't create phantom filter values.
+    """
+    if value is None:
+        return None
+    return [part.strip() for part in value.split(",") if part.strip()]
+
+
 def build_matrix(args: argparse.Namespace) -> list[dict]:
     """
     Build the experiment matrix as a list of dicts, each representing one run.
-    Applies CLI filters to narrow the cross-product.
+    Applies CLI filters to narrow the cross-product. The --strategy, --model
+    and --example flags accept a comma-separated list (membership filter).
     """
+    examples = _split_csv(args.example)
+    model_names = _split_csv(args.model)
+    strategy_names = _split_csv(args.strategy)
+
+    # Validate filter values up front (argparse no longer does, now that the
+    # flags accept lists). Catches a typo before any matrix work or API spend —
+    # a misspelled value in a list would otherwise silently shrink the matrix.
+    def _reject_unknown(flag: str, given: list[str], valid: set[str]) -> None:
+        unknown = [v for v in given if v not in valid]
+        if unknown:
+            print(
+                f"ERROR: unknown {flag} value(s): {', '.join(unknown)}. "
+                f"Known: {', '.join(sorted(valid))}",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+    if strategy_names:
+        _reject_unknown("--strategy", strategy_names, {s.value for s in Strategy})
+    if examples:
+        _reject_unknown("--example", examples, {i.example_id for i in INPUTS})
+    # --model is validated below, after the strategy filter is known: an unknown
+    # model only matters when a real (LLM) strategy is actually selected, so the
+    # control-only no-op (--strategy null_control --model anything) is preserved.
+
     # Filter inputs
     inputs = INPUTS
     if args.tier:
         inputs = [i for i in inputs if i.tier.value == args.tier]
-    if args.example:
-        inputs = [i for i in inputs if i.example_id == args.example]
+    if examples:
+        inputs = [i for i in inputs if i.example_id in examples]
 
     # Filter strategies
     strategies = STRATEGIES
-    if args.strategy:
-        strategies = [s for s in strategies if s.value == args.strategy]
+    if strategy_names:
+        strategies = [s for s in strategies if s.value in strategy_names]
 
     # Filter models — applies only to real (LLM) strategies. Control rows
     # ignore --model because they don't use a model; --model gpt-4o-mini
     # should narrow which LLM rows run but should not silently drop the
     # sanity floor/ceiling rows the experiment needs.
     models = MODELS
-    if args.model:
-        models = [m for m in models if m.model == args.model]
+    if model_names:
+        models = [m for m in models if m.model in model_names]
 
     # Partition by strategy kind. Controls are deterministic in (model,
     # repeat) — collapsing both dimensions to a single row per
@@ -326,22 +372,22 @@ def build_matrix(args: argparse.Namespace) -> list[dict]:
     real_strategies = [s for s in strategies if s not in CONTROL_STRATEGIES]
     control_strategies = [s for s in strategies if s in CONTROL_STRATEGIES]
 
-    # Fail fast on an unknown --model only when it actually matters:
-    # `--strategy null_control --model typo` should be a no-op on --model
-    # (controls don't use any model) rather than aborting. Without this
-    # guard, however, `--model gpt-4o-min` would silently produce just
-    # the 3 control rows when the user wanted a single LLM cell — looks
-    # like a tiny matrix instead of the misuse it is. So: validate the
-    # model flag only when there's at least one real strategy left after
-    # the strategy filter.
-    if args.model and real_strategies and not models:
-        known = ", ".join(m.model for m in MODELS)
-        print(
-            f"ERROR: --model {args.model!r} matches no registered model. "
-            f"Known: {known}",
-            file=sys.stderr,
-        )
-        sys.exit(2)
+    # Fail fast on any unknown --model value, but only when a real (LLM)
+    # strategy is selected. `--strategy null_control --model typo` stays a
+    # no-op on --model (controls don't use any model), so it must not abort.
+    # When a real strategy IS selected, a misspelled model would otherwise
+    # silently shrink the matrix (e.g. `--model gpt-4o-mini-2024-07-18,typo`
+    # would quietly run only the valid one) — so reject the typo loudly.
+    if model_names and real_strategies:
+        registered = {m.model for m in MODELS}
+        unknown = [m for m in model_names if m not in registered]
+        if unknown:
+            print(
+                f"ERROR: unknown --model value(s): {', '.join(unknown)}. "
+                f"Known: {', '.join(sorted(registered))}",
+                file=sys.stderr,
+            )
+            sys.exit(2)
 
     matrix = []
 

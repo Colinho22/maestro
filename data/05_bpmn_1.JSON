@@ -33,7 +33,7 @@
     },
     {
       "id": "gw_result",
-      "name": "",
+      "name": "Result",
       "type": "exclusiveGateway",
       "lane": null,
       "attached_to": null
@@ -61,7 +61,7 @@
     },
     {
       "id": "gw_manager_decision",
-      "name": "",
+      "name": "Manager Decision",
       "type": "exclusiveGateway",
       "lane": null,
       "attached_to": null

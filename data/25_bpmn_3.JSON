@@ -180,7 +180,7 @@
     },
     {
       "id": "xgw_approval_result",
-      "name": "",
+      "name": "Vacation Approval",
       "type": "exclusiveGateway",
       "pool": "pool_vacation",
       "lane": null,
@@ -188,7 +188,7 @@
     },
     {
       "id": "xgw_manual_result",
-      "name": "",
+      "name": "Vacation Approved",
       "type": "exclusiveGateway",
       "pool": "pool_vacation",
       "lane": null,

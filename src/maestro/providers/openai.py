@@ -36,12 +36,7 @@ class OpenAIProvider(LLMProvider):
     # logged as "openai", misattributing failures in multi-provider runs.
     _PROVIDER_NAME = "openai"
 
-    # Same role as AnthropicProvider.SYSTEM_PROMPT
-    SYSTEM_PROMPT = (
-        "You are a diagram generation assistant. "
-        "Respond only with valid Mermaid diagram code. "
-        "Do not include any explanation, markdown fencing, or additional text."
-    )
+    # SYSTEM_PROMPT inherited from LLMProvider (maestro.prompts).
 
     # Max tokens for the completion
     MAX_TOKENS = 4096

@@ -28,12 +28,7 @@ class AnthropicProvider(LLMProvider):
     Uses the official anthropic SDK — add 'anthropic>=0.25.0' to pyproject.toml.
     """
 
-    # Instructs the model to output diagram code only — no prose or fencing
-    SYSTEM_PROMPT = (
-        "You are a diagram generation assistant. "
-        "Respond only with valid Mermaid diagram code. "
-        "Do not include any explanation, markdown fencing, or additional text."
-    )
+    # SYSTEM_PROMPT inherited from LLMProvider (maestro.prompts).
 
     # Max tokens for the completion — diagram code is rarely long
     MAX_TOKENS = 4096

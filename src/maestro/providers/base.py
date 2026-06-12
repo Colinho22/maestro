@@ -5,6 +5,7 @@ All concrete providers (OpenAI, Anthropic, etc.) must implement this.
 
 from abc import ABC, abstractmethod
 
+from maestro.prompts import MERMAID_SYSTEM_IDENTITY
 from maestro.schemas import ModelPricing, RunConfig, RunResult
 
 
@@ -16,6 +17,12 @@ class LLMProvider(ABC):
 
     # Centralized temperature setting — 0 for reproducibility across all providers
     TEMPERATURE = 0
+
+    # Default system identity for Mermaid generation, shared by every provider.
+    # Subclasses inherit this; a strategy that needs a different identity for a
+    # given call (e.g. SOP steps 1-2 requesting JSON) passes system_prompt
+    # explicitly to complete().
+    SYSTEM_PROMPT = MERMAID_SYSTEM_IDENTITY
 
     def __init__(self, api_key: str, pricing: ModelPricing) -> None:
         # api_key stored on instance — never logged or serialised
