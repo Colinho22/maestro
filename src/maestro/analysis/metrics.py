@@ -39,6 +39,13 @@ def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
     current SDK rejects it with "Output file must end with…". We hand
     it a real temp PNG path, throw the file away, and only inspect the
     return code — the validity signal we actually want.
+
+    Both the input and output use explicit temp files from ``mkstemp`` so the
+    function is cross-platform: ``/dev/stdin`` does not exist on Windows, and
+    ``NamedTemporaryFile`` holds an exclusive lock there that would block mmdc
+    from writing the output. The descriptors are closed immediately (mmdc
+    opens the paths itself), the diagram is written via ``Path.write_text``,
+    and both files are removed in a ``finally`` block.
     """
     mmdc = shutil.which("mmdc")
     if mmdc is None:
@@ -54,33 +61,21 @@ def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
     if puppeteer_config and Path(puppeteer_config).is_file():
         puppeteer_args = ["-p", puppeteer_config]
 
-    # NamedTemporaryFile with delete=True cleans up after the context exits.
-    # The file is created so mmdc has somewhere to write; we never read it.
-    # NOTE: Windows-incompatible — Windows holds the named-temp-file open
-    # exclusively, which would block mmdc from writing to it. The project
-    # targets macOS / Linux (Ubuntu CI), so this is a deliberate trade-off.
-    # ``/dev/stdin`` for the input side is also Unix-only by the same logic.
+    # mkstemp creates each file and returns (fd, path). Close the fds at once —
+    # we write the input via Path.write_text and mmdc opens both paths itself —
+    # which sidesteps Windows' exclusive-lock-on-open-handle behaviour.
+    in_fd, in_path = tempfile.mkstemp(suffix=".mmd")
+    out_fd, out_path = tempfile.mkstemp(suffix=".png")
+    os.close(in_fd)
+    os.close(out_fd)
     try:
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=True) as out:
-            result = subprocess.run(
-                [
-                    mmdc,
-                    *puppeteer_args,
-                    "-i",
-                    "/dev/stdin",
-                    "-o",
-                    out.name,
-                    "-e",
-                    "png",
-                ],
-                input=diagram_code,
-                capture_output=True,
-                text=True,
-                timeout=15,
-            )
-        # ``result`` is bound inside the ``with`` block but Python's scoping
-        # makes it visible here; the temp file is gone by this point, which
-        # is fine because we only need the return code + stderr text.
+        Path(in_path).write_text(diagram_code, encoding="utf-8")
+        result = subprocess.run(
+            [mmdc, *puppeteer_args, "-i", in_path, "-o", out_path, "-e", "png"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
         if result.returncode == 0:
             return (True, None)
         return (False, result.stderr.strip()[:500])
@@ -88,6 +83,13 @@ def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
         return (False, "mmdc timed out after 15s")
     except Exception as e:
         return (False, str(e)[:500])
+    finally:
+        # Best-effort cleanup; teardown errors must not mask the result.
+        for p in (in_path, out_path):
+            try:
+                Path(p).unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 # ---------------------------------------------------------------------------

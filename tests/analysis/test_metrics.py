@@ -18,7 +18,7 @@ from uuid import uuid4
 
 import pytest
 
-from maestro.analysis.metrics import evaluate_run
+from maestro.analysis.metrics import check_mermaid_valid, evaluate_run
 from maestro.experiment_config import INPUTS
 
 # All tests run against the first registered input. If/when the input
@@ -104,6 +104,37 @@ def test_ground_truth_echo_scores_perfect_ceiling():
     assert metric.entity_lemma_f1 == 1.0
     assert metric.relationship_relaxed_f1 == 1.0
     assert metric.relationship_strict_f1 == 1.0
+
+
+def test_check_mermaid_valid_accepts_valid_diagram():
+    """
+    A syntactically valid diagram must validate (True). Skipped when mmdc is
+    not installed — the validator returns (None, skip_message) and there is
+    nothing to assert about validity.
+    """
+    is_valid, error = check_mermaid_valid('flowchart LR\n    a["A"] --> b["B"]')
+    if is_valid is None:
+        pytest.skip(f"mmdc not available: {error}")
+    assert is_valid is True
+    assert error is None
+
+
+def test_check_mermaid_valid_rejects_invalid_diagram():
+    """
+    The negative path through check_mermaid_valid: syntactically broken Mermaid
+    must score parses_valid=False with a non-empty parse error (mmdc's stderr).
+    Skipped when mmdc is not installed (validity is unknowable without it).
+
+    Exercises the cross-platform temp-file path end to end — the input is
+    written to a real temp file and mmdc renders to another, with no
+    ``/dev/stdin`` / ``/dev/null`` involved.
+    """
+    # Spaces inside the edge-label pipes are rejected by mmdc's parser.
+    is_valid, error = check_mermaid_valid('flowchart LR\n    a -->| "x" | b')
+    if is_valid is None:
+        pytest.skip(f"mmdc not available: {error}")
+    assert is_valid is False
+    assert error and error.strip()
 
 
 def test_empty_output_does_not_raise_on_zero_denominator():
