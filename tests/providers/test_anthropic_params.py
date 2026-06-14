@@ -65,3 +65,40 @@ def test_includes_temperature_when_supported():
     )  # supports_temperature defaults to True
     kwargs = _capture_create_kwargs(pricing)
     assert kwargs["temperature"] == AnthropicProvider.TEMPERATURE
+
+
+def _complete_with_content(content) -> object:
+    """Run complete() with a stubbed client returning the given content blocks."""
+    pricing = ModelPricing(
+        model="claude-haiku-4-5-20251001",
+        input_price_per_1m=1.0,
+        output_price_per_1m=5.0,
+    )
+
+    def fake_create(**kwargs):
+        usage = SimpleNamespace(input_tokens=3, output_tokens=0)
+        return SimpleNamespace(usage=usage, content=content)
+
+    provider = AnthropicProvider(api_key="k", pricing=pricing)
+    provider._client = SimpleNamespace(messages=SimpleNamespace(create=fake_create))
+    cfg = RunConfig(
+        strategy=Strategy.SINGLE_AGENT,
+        model=pricing.model,
+        example_id="e",
+        tier=Tier.SIMPLE,
+        run_number=1,
+    )
+    return provider.complete("x", cfg)
+
+
+def test_empty_content_list_is_recorded_failure():
+    """An empty content list is a structured EmptyResponse, not an IndexError.
+
+    The catch-all would otherwise relabel the IndexError as UnexpectedError;
+    here it must be a recorded failure with the input tokens preserved.
+    """
+    result = _complete_with_content([])
+    assert result.success is False
+    assert result.error is not None
+    assert "EmptyResponse" in result.error
+    assert result.prompt_tokens == 3  # usage still captured

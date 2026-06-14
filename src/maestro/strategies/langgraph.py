@@ -48,7 +48,7 @@ from maestro.strategies._extraction import (
     STEP_2_PROMPT,
     STEP_3_PROMPT,
     strip_fences,
-    validate_step_payload,
+    validate_step_output,
 )
 from maestro.strategies.base import BaseStrategy
 
@@ -120,14 +120,13 @@ def _run_step(
             continue
 
         output = strip_fences(result.output_diagram_code)
-        if step_number < 3:
-            is_valid, validation_error = validate_step_payload(output, step_number)
-            if not is_valid:
-                last_error = (
-                    f"Invalid {step_name} payload on attempt {attempt + 1}: "
-                    f"{validation_error}"
-                )
-                continue
+        is_valid, validation_error = validate_step_output(output, step_number)
+        if not is_valid:
+            last_error = (
+                f"Invalid {step_name} output on attempt {attempt + 1}: "
+                f"{validation_error}"
+            )
+            continue
 
         return SubResult(
             run_id=config.run_id,

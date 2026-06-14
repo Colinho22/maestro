@@ -177,3 +177,23 @@ def validate_step_payload(
         return False, f"missing `{expected_key}` list"
 
     return True, None
+
+
+def validate_step_output(text: str | None, step_number: int) -> tuple[bool, str | None]:
+    """
+    Full acceptance check for a fenced-stripped step output, shared by every
+    multi-step strategy so the contract lives in one place.
+
+    Rejects empty output on every step (strip_fences can empty an otherwise
+    non-empty response, e.g. bare ``` fences, which would otherwise pass the
+    provider success check and leave step 3 with no diagram), then applies the
+    step-1/step-2 JSON shape check via validate_step_payload. Step 3 has no
+    further shape rule once it is non-empty.
+
+    Returns (is_valid, error_message); error_message is None on success.
+    """
+    if not text or not text.strip():
+        return False, "empty output"
+    if step_number < 3:
+        return validate_step_payload(text, step_number)
+    return True, None

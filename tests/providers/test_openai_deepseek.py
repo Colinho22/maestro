@@ -122,6 +122,39 @@ def test_deepseek_keeps_max_tokens_and_temperature():
     assert "temperature" in kwargs
 
 
+def test_none_content_is_recorded_failure():
+    """A None message.content (length/content-filter finish) is EmptyResponse.
+
+    Without the guard this lands as a failed row with error=None, which is a
+    silent failure: success is False but nothing explains why.
+    """
+    from types import SimpleNamespace
+
+    from maestro.schemas import RunConfig, Strategy, Tier
+
+    provider = OpenAIProvider(api_key="k", pricing=_OPENAI_PRICING)
+
+    def fake_create(**kwargs):
+        usage = SimpleNamespace(prompt_tokens=4, completion_tokens=0)
+        choice = SimpleNamespace(message=SimpleNamespace(content=None))
+        return SimpleNamespace(usage=usage, choices=[choice])
+
+    provider._client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+    )
+    cfg = RunConfig(
+        strategy=Strategy.SINGLE_AGENT,
+        model=_OPENAI_PRICING.model,
+        example_id="e",
+        tier=Tier.SIMPLE,
+        run_number=1,
+    )
+    result = provider.complete("x", cfg)
+    assert result.success is False
+    assert result.error is not None and "EmptyResponse" in result.error
+    assert result.prompt_tokens == 4  # usage preserved
+
+
 # ---------------------------------------------------------------------------
 # Inheritance contract: DeepSeek IS an OpenAIProvider, but points elsewhere
 # ---------------------------------------------------------------------------

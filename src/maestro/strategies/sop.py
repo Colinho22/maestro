@@ -32,7 +32,7 @@ from maestro.strategies._extraction import (
     STEP_2_PROMPT,
     STEP_3_PROMPT,
     strip_fences,
-    validate_step_payload,
+    validate_step_output,
 )
 from maestro.strategies.base import BaseStrategy
 
@@ -205,18 +205,16 @@ class SOPStrategy(BaseStrategy):
             actual_retries = attempt
 
             if result.success:
-                # For steps 1-2, validate JSON output
+                # Validate the fenced-stripped output: empty on any step (a
+                # silent empty-diagram failure), JSON shape on steps 1-2.
                 output = strip_fences(result.output_diagram_code)
-                if step_number < 3:
-                    is_valid, validation_error = validate_step_payload(
-                        output, step_number
+                is_valid, validation_error = validate_step_output(output, step_number)
+                if not is_valid:
+                    last_error = (
+                        f"Invalid {step_name} output on attempt {attempt + 1}: "
+                        f"{validation_error}"
                     )
-                    if not is_valid:
-                        last_error = (
-                            f"Invalid {step_name} payload on attempt {attempt + 1}: "
-                            f"{validation_error}"
-                        )
-                        continue
+                    continue
 
                 return (
                     SubResult(

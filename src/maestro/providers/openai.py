@@ -126,8 +126,25 @@ class OpenAIProvider(LLMProvider):
             prompt_tokens = response.usage.prompt_tokens
             completion_tokens = response.usage.completion_tokens
 
-            # Response content from the first choice
-            output = response.choices[0].message.content
+            # choices can be empty and message.content can be None (a length or
+            # content-filter finish_reason). Record that as a structured empty
+            # response instead of letting an IndexError land as UnexpectedError
+            # or a None diagram land as a failed row with no error.
+            choices = response.choices or []
+            output = choices[0].message.content if choices else None
+            if output is None:
+                return RunResult(
+                    run_id=config.run_id,
+                    output_diagram_code=None,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    duration_ms=duration_ms,
+                    cost_usd=compute_cost(
+                        prompt_tokens, completion_tokens, self.pricing
+                    ),
+                    error=f"EmptyResponse: {self._PROVIDER_NAME} returned no content",
+                    retry_count=stats.retry_count,
+                )
 
             return RunResult(
                 run_id=config.run_id,

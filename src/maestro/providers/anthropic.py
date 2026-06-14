@@ -101,8 +101,26 @@ class AnthropicProvider(LLMProvider):
             prompt_tokens = response.usage.input_tokens
             completion_tokens = response.usage.output_tokens
 
-            # Response content is a list of blocks; grab the first text block
-            output = response.content[0].text
+            # content is a list of blocks; the first is the text block on a
+            # normal answer, but a refusal or a non-text stop can leave it
+            # empty or non-text. Record that as a structured empty response
+            # instead of an IndexError/AttributeError landing as
+            # UnexpectedError.
+            blocks = response.content or []
+            output = getattr(blocks[0], "text", None) if blocks else None
+            if output is None:
+                return RunResult(
+                    run_id=config.run_id,
+                    output_diagram_code=None,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    duration_ms=duration_ms,
+                    cost_usd=compute_cost(
+                        prompt_tokens, completion_tokens, self.pricing
+                    ),
+                    error="EmptyResponse: Anthropic returned no text content",
+                    retry_count=stats.retry_count,
+                )
 
             return RunResult(
                 run_id=config.run_id,
