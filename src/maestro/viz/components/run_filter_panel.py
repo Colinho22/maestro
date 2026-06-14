@@ -81,7 +81,8 @@ def run_label(run: dict[str, Any], *, fmt_ts) -> str:
     filtering. Includes run_number so repeats of the same cell are
     distinguishable (the bug this feature fixes), plus the timestamp.
 
-    ``fmt_ts`` is the caller's timestamp formatter (views differ in tz handling).
+    ``fmt_ts`` is a timestamp formatter supplied by the caller (both selectors
+    pass settings.format_timestamp).
     """
     return (
         f"{strategy_display_name(run['strategy'])} | {run['model']} | "
