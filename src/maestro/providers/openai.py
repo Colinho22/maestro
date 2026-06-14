@@ -3,6 +3,8 @@ MAESTRO: OpenAI provider implementation
 Wraps the OpenAI chat completions API into the LLMProvider interface.
 """
 
+from __future__ import annotations
+
 import time
 
 import openai

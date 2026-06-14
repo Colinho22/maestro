@@ -3,6 +3,8 @@ MAESTRO: Abstract LLM provider interface
 All concrete providers (OpenAI, Anthropic, etc.) must implement this.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 
 from maestro.prompts import MERMAID_SYSTEM_IDENTITY

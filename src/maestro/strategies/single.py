@@ -17,6 +17,8 @@ These two roles got conflated in earlier iterations of the codebase
 (and in the original issue language). They are distinct.
 """
 
+from __future__ import annotations
+
 import json
 
 from maestro.prompts import render_rules

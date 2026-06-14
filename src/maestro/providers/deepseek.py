@@ -21,6 +21,8 @@ the existing OpenAIProvider parsing exactly. See proposal §3.2 (model
 providers as a replication dimension).
 """
 
+from __future__ import annotations
+
 from openai import OpenAI
 
 from maestro.providers.base import LLMProvider

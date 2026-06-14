@@ -3,6 +3,8 @@ MAESTRO: Anthropic provider implementation
 Wraps the Anthropic messages API into the LLMProvider interface.
 """
 
+from __future__ import annotations
+
 import time
 
 import anthropic

@@ -25,6 +25,8 @@ Prompts, retry budget and JSON validation come from ``_extraction.py`` so
 SOP, CrewAI and LangGraph share the experimental control variable.
 """
 
+from __future__ import annotations
+
 import json
 import time
 from dataclasses import dataclass, field

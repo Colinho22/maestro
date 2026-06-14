@@ -3,6 +3,8 @@ MAESTRO DB queries
 Insert and fetch operations for RunConfig and RunResult.
 """
 
+from __future__ import annotations
+
 import sqlite3
 
 from maestro.schemas import (

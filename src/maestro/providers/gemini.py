@@ -3,6 +3,8 @@ MAESTRO: Gemini provider implementation
 Wraps the Google Gen AI generate_content API into the LLMProvider interface.
 """
 
+from __future__ import annotations
+
 import time
 
 import httpx

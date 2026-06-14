@@ -3,9 +3,10 @@ MAESTRO: Abstract strategy interface
 All orchestration strategies (single agent, SOP, CrewAI, LangGraph) implement this.
 """
 
+from __future__ import annotations
+
 import time
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from maestro.providers.base import LLMProvider
 from maestro.schemas import InputFile, RunConfig, RunResult, SubResult
@@ -26,7 +27,7 @@ class BaseStrategy(ABC):
     loudly, which is the right failure mode for a misconfigured run.
     """
 
-    def __init__(self, provider: Optional[LLMProvider] = None) -> None:
+    def __init__(self, provider: LLMProvider | None = None) -> None:
         self.provider = provider
 
     @abstractmethod
@@ -54,7 +55,7 @@ class BaseStrategy(ABC):
         config: RunConfig,
         message: str,
         *,
-        start: Optional[float] = None,
+        start: float | None = None,
     ) -> tuple[RunResult, list[SubResult]]:
         """
         Build a failed ``(RunResult, [])`` for errors that prevent normal

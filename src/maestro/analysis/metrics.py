@@ -8,6 +8,8 @@ Evaluation dimensions:
   4. Error taxonomy counts
 """
 
+from __future__ import annotations
+
 import os
 import re
 import shutil

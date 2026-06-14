@@ -8,6 +8,8 @@ To add a new model:   append to MODELS
 To enable a strategy: add to STRATEGIES (once implemented)
 """
 
+from __future__ import annotations
+
 import os
 from pathlib import Path
 

@@ -3,6 +3,8 @@ MAESTRO: Mistral provider implementation
 Wraps the Mistral chat completions API into the LLMProvider interface.
 """
 
+from __future__ import annotations
+
 import time
 
 import httpx

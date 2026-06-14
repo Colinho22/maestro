@@ -14,6 +14,8 @@ Prompts and validation rules live in `_extraction.py` so all multi-step
 strategies share them byte-for-byte.
 """
 
+from __future__ import annotations
+
 import json
 import time
 

@@ -3,10 +3,11 @@
 # All models use Pydantic v2 for validation and serialization
 # ---------------------------------------------------------------------------
 
+from __future__ import annotations
+
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, computed_field
@@ -74,7 +75,7 @@ class InputFile(BaseModel):
     entity_count: int  # Number of entities in the input
     file_path: Path  # Path to the JSON input file on disk
     ground_truth_path: Path  # Path to the reference diagram code file
-    description: Optional[str] = None  # Optional human note about this input
+    description: str | None = None  # Optional human note about this input
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +99,7 @@ class RunConfig(BaseModel):
     # FK to run_environments.environment_id. Optional because rows written
     # before this column existed have NULL, and because env capture is best
     # effort, so a run must still be persistable if the capture helper fails.
-    environment_id: Optional[UUID] = None
+    environment_id: UUID | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -120,20 +121,20 @@ class RunEnvironment(BaseModel):
     environment_id: UUID = Field(default_factory=uuid4)
 
     # Host / runtime
-    os: Optional[str] = None  # platform.platform()
-    arch: Optional[str] = None  # platform.machine()
-    python: Optional[str] = None  # sys.version
-    hostname: Optional[str] = None  # platform.node()
+    os: str | None = None  # platform.platform()
+    arch: str | None = None  # platform.machine()
+    python: str | None = None  # sys.version
+    hostname: str | None = None  # platform.node()
 
     # Source control
-    git_commit: Optional[str] = None  # git rev-parse HEAD
-    git_dirty: Optional[bool] = None  # True/False/None (probe failed)
+    git_commit: str | None = None  # git rev-parse HEAD
+    git_dirty: bool | None = None  # True/False/None (probe failed)
 
     # Dependency snapshot, a JSON blob: {"anthropic": "1.2.3", "openai": None, ...}
-    lib_versions: Optional[str] = None
+    lib_versions: str | None = None
 
     # Container provenance: set by CI/CD via env var, NULL when running locally
-    docker_image_digest: Optional[str] = None
+    docker_image_digest: str | None = None
 
     captured_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -173,7 +174,7 @@ class RunResult(BaseModel):
     run_id: UUID  # FK to RunConfig.run_id
 
     # Output
-    output_diagram_code: Optional[str] = None  # Generated Mermaid / PlantUML / etc.
+    output_diagram_code: str | None = None  # Generated Mermaid / PlantUML / etc.
 
     # Token usage
     prompt_tokens: int
@@ -186,7 +187,7 @@ class RunResult(BaseModel):
     cost_usd: float
 
     # Error: None if successful, exception message otherwise
-    error: Optional[str] = None
+    error: str | None = None
 
     # Number of *retries* the underlying provider call needed (0 = first
     # attempt worked). Mirrors SubResult.retry_count for top-level runs.
@@ -219,12 +220,12 @@ class SubResult(BaseModel):
     run_id: UUID  # FK to RunConfig.run_id
     step_number: int  # 1, 2, 3...
     step_name: str  # "extract_entities", "extract_relationships", etc.
-    output_text: Optional[str] = None
+    output_text: str | None = None
     prompt_tokens: int
     completion_tokens: int
     duration_ms: int
     cost_usd: float
-    error: Optional[str] = None
+    error: str | None = None
     retry_count: int = 0  # 0 = first attempt worked
 
 
@@ -262,8 +263,8 @@ class MetricResult(BaseModel):
     run_id: UUID
 
     # Structural validity (None = validation was skipped)
-    parses_valid: Optional[bool]
-    parse_error: Optional[str] = None
+    parses_valid: bool | None
+    parse_error: str | None = None
 
     # Entity metrics: exact ID match
     entity_id_precision: float  # correct IDs / total IDs in output
@@ -315,12 +316,12 @@ class MetricResult(BaseModel):
     # P/R/F1 are None when the ground truth has no containers (metric N/A),
     # so aggregation can exclude those runs rather than averaging in a 0.
     # ------------------------------------------------------------------
-    container_id_precision: Optional[float] = None
-    container_id_recall: Optional[float] = None
-    container_id_f1: Optional[float] = None
-    container_name_precision: Optional[float] = None
-    container_name_recall: Optional[float] = None
-    container_name_f1: Optional[float] = None
+    container_id_precision: float | None = None
+    container_id_recall: float | None = None
+    container_id_f1: float | None = None
+    container_name_precision: float | None = None
+    container_name_recall: float | None = None
+    container_name_f1: float | None = None
     containers_in_output: int = 0
     containers_in_truth: int = 0
 
@@ -329,8 +330,8 @@ class MetricResult(BaseModel):
     # drawn as ``o--o`` edges. Undirected pairs (orientation-insensitive).
     # P/R/F1 are None when the ground truth has no attachments (metric N/A).
     # ------------------------------------------------------------------
-    attachment_precision: Optional[float] = None
-    attachment_recall: Optional[float] = None
-    attachment_f1: Optional[float] = None
+    attachment_precision: float | None = None
+    attachment_recall: float | None = None
+    attachment_f1: float | None = None
     attachments_in_output: int = 0
     attachments_in_truth: int = 0

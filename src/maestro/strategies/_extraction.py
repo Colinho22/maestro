@@ -16,6 +16,8 @@ Adding a new multi-step strategy?
   how that framework wires the same three steps.
 """
 
+from __future__ import annotations
+
 import json
 
 from maestro.prompts import render_rules
