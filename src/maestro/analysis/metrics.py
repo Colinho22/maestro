@@ -61,14 +61,18 @@ def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
     if puppeteer_config and Path(puppeteer_config).is_file():
         puppeteer_args = ["-p", puppeteer_config]
 
-    # mkstemp creates each file and returns (fd, path). Close the fds at once —
-    # we write the input via Path.write_text and mmdc opens both paths itself —
-    # which sidesteps Windows' exclusive-lock-on-open-handle behaviour.
-    in_fd, in_path = tempfile.mkstemp(suffix=".mmd")
-    out_fd, out_path = tempfile.mkstemp(suffix=".png")
-    os.close(in_fd)
-    os.close(out_fd)
+    # Initialised before the try so the finally cleanup is safe even if the
+    # mkstemp calls below raise (e.g. no temp dir / disk full).
+    in_path: str | None = None
+    out_path: str | None = None
     try:
+        # mkstemp creates each file and returns (fd, path). Close the fds at
+        # once — we write the input via Path.write_text and mmdc opens both
+        # paths itself — which sidesteps Windows' exclusive-lock behaviour.
+        in_fd, in_path = tempfile.mkstemp(suffix=".mmd")
+        out_fd, out_path = tempfile.mkstemp(suffix=".png")
+        os.close(in_fd)
+        os.close(out_fd)
         Path(in_path).write_text(diagram_code, encoding="utf-8")
         result = subprocess.run(
             [mmdc, *puppeteer_args, "-i", in_path, "-o", out_path, "-e", "png"],
@@ -84,8 +88,11 @@ def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
     except Exception as e:
         return (False, str(e)[:500])
     finally:
-        # Best-effort cleanup; teardown errors must not mask the result.
+        # Best-effort cleanup; teardown errors must not mask the result. Paths
+        # may be None if mkstemp itself failed.
         for p in (in_path, out_path):
+            if p is None:
+                continue
             try:
                 Path(p).unlink(missing_ok=True)
             except OSError:
