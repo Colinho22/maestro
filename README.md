@@ -33,9 +33,13 @@ run the experiment from a clean checkout.
   absent), bundled in the Docker image
 - Docker (optional) — only if you prefer the container path over a local install
 
-The local install path is tested on macOS. The Docker path runs Linux inside
-the container, so it is platform-independent and is the recommended route on
-Windows.
+The local install path is tested on macOS and works on Windows. The Docker path
+runs Linux inside the container, so it is platform-independent and is the
+recommended route on Windows — it bundles a headless Chromium, which the
+`parses_valid` structural-validity metric needs. A native Windows install
+computes that metric only if mermaid-cli and a Puppeteer Chrome build
+(`npx puppeteer browsers install chrome`) are present; without them the metric
+is skipped, and the rest of the pipeline is unaffected.
 
 ### 1. Clone and install
 
