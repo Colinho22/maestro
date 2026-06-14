@@ -94,6 +94,26 @@ def current_settings() -> ViewSettings:
     )
 
 
+def format_timestamp(ts: str | None) -> str:
+    """
+    Format a stored UTC timestamp string for display in the configured tz.
+
+    Shared by the run selectors so timestamps render consistently. Returns ""
+    for an empty value and passes a non-ISO string through unchanged.
+    """
+    from datetime import datetime
+
+    from maestro.analysis.timestamps import format_for_display
+
+    if not ts:
+        return ""
+    try:
+        dt = datetime.fromisoformat(ts)
+    except (ValueError, TypeError):
+        return ts
+    return format_for_display(dt, current_settings().display_tz)
+
+
 def render_settings_panel() -> None:
     """
     Render the gear/settings controls. Call inside the sidebar (the caller

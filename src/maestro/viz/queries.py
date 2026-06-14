@@ -345,13 +345,19 @@ def distinct_strategies(
 def list_runs(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     """
     Every run as a selectable entry: run_id, strategy, model, tier, example_id,
-    timestamp. Most recent first. Empty list if no runs.
+    run_number, timestamp. Most recent first. Empty list if no runs.
+
+    Returns all runs, controls included; each view filters to the subset it
+    needs (the run selectors drop controls via the faceted filter, since a
+    control produces no model-generated diagram to inspect). run_number is
+    included so selectors can distinguish repeats of the same cell, and so the
+    faceted filter can offer a run-number facet (see viz.run_filter).
     """
     if not table_exists(conn, "run_configs"):
         return []
     rows = conn.execute(
         """
-        SELECT run_id, strategy, model, tier, example_id, timestamp
+        SELECT run_id, strategy, model, tier, example_id, run_number, timestamp
         FROM run_configs
         ORDER BY timestamp DESC
         """

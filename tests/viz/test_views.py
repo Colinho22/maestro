@@ -257,7 +257,10 @@ def test_list_and_detail_roundtrip():
         conn, strategy="single_agent", model="gpt-4o-mini-2024-07-18", tier=1, f1=0.6
     )
     runs = q.list_runs(conn)
-    assert any(r["run_id"] == rid for r in runs)
+    row = next(r for r in runs if r["run_id"] == rid)
+    # run_number is exposed so selectors can distinguish repeats and the
+    # faceted filter can offer a run-number facet.
+    assert row["run_number"] == 1
     detail = q.run_detail(conn, rid)
     assert detail is not None
     assert detail["strategy"] == "single_agent"
