@@ -8,6 +8,38 @@ Comparing agentic orchestration frameworks for automated relational diagram gene
 
 ---
 
+## What it evaluates
+
+MAESTRO is a benchmark. It gives every configuration the same task, a structured
+input dataset to turn into a relational [Mermaid](https://mermaid.js.org/)
+diagram, then scores the output against a ground-truth diagram. The question it
+answers is whether multi-agent orchestration produces better relational output
+than a single agent, and at what cost.
+
+**Four orchestration strategies** generate the diagram, holding prompts and the
+output contract identical so only the orchestration differs:
+
+- `single_agent`: one prompt, one LLM call (the baseline)
+- `sop_based`: a hand-coded three-step procedure (extract entities, extract
+  relationships, render Mermaid)
+- `crew_ai`: the same three steps orchestrated with CrewAI
+- `lang_graph`: the same three steps orchestrated with LangGraph
+
+**Three control conditions** (no LLM, deterministic) bracket the score range so a
+strategy's numbers are interpretable: `null_control` (empty diagram) and
+`copy_control` (raw input) are the floor; `ground_truth_control` (the answer
+verbatim) is the ceiling.
+
+**Five providers** are under test: Anthropic, OpenAI, Mistral, Gemini, and
+DeepSeek, across a matrix of `inputs x strategies x models x repeats`, stratified
+by complexity tier.
+
+**Scoring** covers structural validity (does it parse, via `mmdc`), entity F1
+(id / name / lemma), relationship F1 (relaxed / strict), and an error taxonomy of
+what each diagram got wrong. Every cell is repeated and variance is reported.
+
+---
+
 ## Running the experiment
 
 The benchmark runs a matrix of `inputs × strategies × models × repeats`, scores

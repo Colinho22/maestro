@@ -9,10 +9,10 @@
 #
 # NOTE: custom_checks require a CodeRabbit plan that supports them (Pro+). On
 # a plan without custom-check support this entry is ignored, leaving the
-# built-in check OFF — i.e. no docstring nudge at all. If that's the case,
+# built-in check OFF, i.e. no docstring nudge at all. If that's the case,
 # prefer setting docstrings.mode "warning" with a low threshold instead.
 # Custom checks are LLM-evaluated (not an exact percentage), so this is an
-# advisory nudge, not arithmetic — matching the original intent. The real
+# advisory nudge, not arithmetic, matching the original intent. The real
 # merge gate is CI (ruff + pytest); see .github/workflows/ci.yml.
 reviews:
   pre_merge_checks:

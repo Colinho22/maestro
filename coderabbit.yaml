@@ -43,5 +43,5 @@ reviews:
       single-line private helpers (_name) when the parent class has
       module/class-level prose explaining the pattern; trivial @property
       accessors. Consistency with existing codebase style takes
-      precedence over universal coverage — this is a thesis artifact,
+      precedence over universal coverage: this is a thesis artifact,
       not a library API.

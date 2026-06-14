@@ -1,10 +1,10 @@
 services:
   # One image, two uses:
-  #   * `docker compose up`        → serves the Streamlit dashboard (default),
+  #   * `docker compose up`        -> serves the Streamlit dashboard (default),
   #                                  reading the experiment DB read-write so a
   #                                  future in-app run can write to it.
   #   * `docker compose run --rm maestro python -m maestro.run --tier 1`
-  #                                → runs an experiment on the SAME image; the
+  #                                -> runs an experiment on the SAME image; the
   #                                  command overrides the dashboard default.
   # The DB lives on the host at ./out so external tools (Jupyter, sqlite, BI)
   # can read it directly.
@@ -15,7 +15,7 @@ services:
         # Optional run-provenance stamp baked into the image, surfaced in
         # run_environments.docker_image_digest. Pass at build time, e.g.
         #   MAESTRO_IMAGE_DIGEST=$(git rev-parse HEAD) docker compose build
-        # Unset → recorded as NULL.
+        # Unset -> recorded as NULL.
         MAESTRO_IMAGE_DIGEST: ${MAESTRO_IMAGE_DIGEST:-}
     container_name: maestro
     env_file:
