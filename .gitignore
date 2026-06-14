@@ -31,5 +31,8 @@ Thumbs.db
 htmlcov/
 .tox/
 
+# Claude Code local working files (recaps, session notes, local settings)
+.claude/
+
 # Misc
 *.log
