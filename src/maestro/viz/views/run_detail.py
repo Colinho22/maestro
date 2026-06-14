@@ -18,8 +18,8 @@ from maestro.viz import db as viz_db
 from maestro.viz import queries as viz_queries
 from maestro.viz import settings as viz_settings
 from maestro.viz.chart import new_figure, render_chart
-from maestro.viz.components import empty_state
-from maestro.viz.theme import strategy_display_name
+from maestro.viz.components import empty_state, render_run_filter, run_label
+from maestro.viz.run_filter import exclude_controls
 
 # example_id → InputFile, for resolving input + ground-truth file paths. The
 # DB stores only example_id; the actual files live on disk per the config.
@@ -48,21 +48,27 @@ def render() -> None:
         return
 
     with viz_db.connect(db_path) as conn:
-        runs = viz_queries.list_runs(conn)
+        # Controls (null/copy/ground-truth) echo input/ground-truth rather than
+        # a generated diagram, so drop them from this per-run selector.
+        runs = exclude_controls(viz_queries.list_runs(conn))
         if not runs:
             empty_state("No runs available.")
             return
 
+        # Faceted filter, then a selectbox over the narrowed set. run_label
+        # includes run_number so repeats of the same cell are distinguishable.
+        filtered = render_run_filter(runs, key_prefix="run_detail")
+        if not filtered:
+            empty_state("No runs match the active filter.")
+            return
+
         labels = {
-            r["run_id"]: (
-                f"{strategy_display_name(r['strategy'])} | {r['model']} | "
-                f"tier {r['tier']} | {_fmt_ts(r['timestamp'])}"
-            )
-            for r in runs
+            r["run_id"]: run_label(r, fmt_ts=viz_settings.format_timestamp)
+            for r in filtered
         }
         run_id = st.selectbox(
             "Run",
-            options=[r["run_id"] for r in runs],
+            options=[r["run_id"] for r in filtered],
             format_func=lambda rid: labels[rid],
         )
 
@@ -79,22 +85,6 @@ def render() -> None:
     if subs:
         st.divider()
         _render_sub_trace(subs)
-
-
-def _fmt_ts(ts: str) -> str:
-    """Format a stored UTC timestamp for display in the configured tz."""
-    from datetime import datetime
-
-    from maestro.analysis.timestamps import format_for_display
-
-    if not ts:
-        return ""
-    cfg = viz_settings.current_settings()
-    try:
-        dt = datetime.fromisoformat(ts)
-    except (ValueError, TypeError):
-        return ts
-    return format_for_display(dt, cfg.display_tz)
 
 
 def _render_io(detail: dict) -> None:

@@ -82,6 +82,16 @@ _STRATEGY_VALUE_TO_NAME: dict[str, str] = {
     "lang_graph": "LangGraph",
 }
 
+# Display names for the control strategies. Kept separate from the map above
+# because that one drives strategy_color (its keys must exist in
+# STRATEGY_COLORS, which controls deliberately do not). These are display-only,
+# used by strategy_display_name so the run-filter offers readable labels.
+_CONTROL_VALUE_TO_NAME: dict[str, str] = {
+    "null_control": "Null Control",
+    "copy_control": "Copy Control",
+    "ground_truth_control": "Ground Truth Control",
+}
+
 # Model id (run_configs.model) → (provider display name, slot) where slot is
 # 0 for the efficiency model and 1 for the frontier model. Keep this in sync
 # with experiment_config.MODELS (two ids per provider).
@@ -179,10 +189,14 @@ def strategy_color(strategy_value: str) -> str:
 def strategy_display_name(strategy_value: str) -> str:
     """
     Human display name for a DB strategy value (e.g. ``"single_agent"`` →
-    ``"Single Agent"``), per the design guide. Falls back to the raw value for
-    anything unmapped (e.g. control strategies), so charts always have a label.
+    ``"Single Agent"``, ``"null_control"`` → ``"Null Control"``), per the design
+    guide. Falls back to the raw value for anything unmapped, so a label is
+    always available.
     """
-    return _STRATEGY_VALUE_TO_NAME.get(strategy_value, strategy_value)
+    return _STRATEGY_VALUE_TO_NAME.get(
+        strategy_value,
+        _CONTROL_VALUE_TO_NAME.get(strategy_value, strategy_value),
+    )
 
 
 def model_color(model_id: str) -> str:

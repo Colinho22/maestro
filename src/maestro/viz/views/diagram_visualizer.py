@@ -23,9 +23,9 @@ from maestro.experiment_config import INPUTS
 from maestro.viz import db as viz_db
 from maestro.viz import queries as viz_queries
 from maestro.viz import settings as viz_settings
-from maestro.viz.components import empty_state
+from maestro.viz.components import empty_state, render_run_filter, run_label
 from maestro.viz.mermaid_render import mmdc_available, render_mermaid_svg
-from maestro.viz.theme import strategy_display_name
+from maestro.viz.run_filter import exclude_controls
 
 # example_id → InputFile, for resolving the ground-truth file path.
 _INPUTS_BY_ID = {inp.example_id: inp for inp in INPUTS}
@@ -45,21 +45,28 @@ def render() -> None:
         return
 
     with viz_db.connect(db_path) as conn:
-        runs = viz_queries.list_runs(conn)
+        # Controls (null/copy/ground-truth) have no generated diagram to inspect
+        # here, so drop them from this per-run selector.
+        runs = exclude_controls(viz_queries.list_runs(conn))
         if not runs:
             empty_state("No runs available.")
             return
 
+        # Faceted filter narrows the run set; the selectbox then picks from the
+        # (small) result. run_label includes run_number so repeats of the same
+        # cell are individually selectable.
+        filtered = render_run_filter(runs, key_prefix="diagram_visualizer")
+        if not filtered:
+            empty_state("No runs match the active filter.")
+            return
+
         labels = {
-            r["run_id"]: (
-                f"{strategy_display_name(r['strategy'])} | {r['model']} | "
-                f"tier {r['tier']} | {r['example_id']}"
-            )
-            for r in runs
+            r["run_id"]: run_label(r, fmt_ts=viz_settings.format_timestamp)
+            for r in filtered
         }
         run_id = st.selectbox(
             "Run",
-            options=[r["run_id"] for r in runs],
+            options=[r["run_id"] for r in filtered],
             format_func=lambda rid: labels[rid],
         )
         detail = viz_queries.run_detail(conn, run_id)
