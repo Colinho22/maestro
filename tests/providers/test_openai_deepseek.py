@@ -69,7 +69,7 @@ def test_provider_constructs_and_stores_fields(provider_cls, pricing):
 # ---------------------------------------------------------------------------
 
 
-def _capture_create_kwargs(provider, prompt="x"):
+def _capture_create_kwargs(provider: OpenAIProvider, prompt: str = "x") -> dict:
     """Run complete() with a stubbed SDK client and return the create() kwargs."""
     from types import SimpleNamespace
 
