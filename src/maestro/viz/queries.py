@@ -286,12 +286,23 @@ def pareto_points(
     One row per scored run with the fields the Pareto view plots and tabulates:
     run_id, strategy, model, tier, cost_usd, duration_ms, entity_id_f1.
     Controls excluded. Optional strategy/tier filters. Empty list if none.
+
+    Defensive: rows where any plotted axis is NULL are excluded, since a
+    point needs all three coordinates to be rounded and scattered. The
+    schema currently makes these columns NOT NULL and the metric JOIN drops
+    unscored runs, so this filter is a guard against a future nullable
+    schema, not a live case.
     """
     needed = ("run_configs", "run_results", "metric_results")
     if not all(table_exists(conn, t) for t in needed):
         return []
 
-    where = [f"c.strategy NOT IN ({','.join('?' * len(_CONTROL_VALUES))})"]
+    where = [
+        f"c.strategy NOT IN ({','.join('?' * len(_CONTROL_VALUES))})",
+        "r.cost_usd IS NOT NULL",
+        "r.duration_ms IS NOT NULL",
+        "m.entity_id_f1 IS NOT NULL",
+    ]
     params: list[Any] = list(_CONTROL_VALUES)
     if strategies:
         where.append(f"c.strategy IN ({','.join('?' * len(strategies))})")

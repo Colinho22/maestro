@@ -165,9 +165,11 @@ def _render_sub_trace(subs: list[dict]) -> None:
         header = f"Step {s['step_number']}: {s['step_name']}"
         with st.expander(header):
             cols = st.columns(3)
-            cols[0].metric("Prompt tokens", f"{s['prompt_tokens']:,}")
-            cols[1].metric("Completion tokens", f"{s['completion_tokens']:,}")
-            cols[2].metric("Cost", f"${s['cost_usd']:.6f}")
+            # Defensive coalesce: these columns are NOT NULL in the current
+            # schema, but guarding keeps the trace rendering if that changes.
+            cols[0].metric("Prompt tokens", f"{s['prompt_tokens'] or 0:,}")
+            cols[1].metric("Completion tokens", f"{s['completion_tokens'] or 0:,}")
+            cols[2].metric("Cost", f"${s['cost_usd'] or 0.0:.6f}")
             if s.get("output_text"):
                 st.markdown("**Output**")
                 st.code(s["output_text"])

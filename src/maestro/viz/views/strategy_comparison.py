@@ -119,7 +119,9 @@ def _grouped_bar(
             width,
             label=label,
             color=colors,
-            alpha=1.0 - 0.22 * i,
+            # Clamp so a 5th+ variant cannot drive alpha negative (matplotlib
+            # rejects that); past the floor the variants stop fading.
+            alpha=max(0.1, 1.0 - 0.22 * i),
         )
 
     ax.set_xticks(x)

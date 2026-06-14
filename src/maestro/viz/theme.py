@@ -183,7 +183,10 @@ def strategy_color(strategy_value: str) -> str:
     name = _STRATEGY_VALUE_TO_NAME.get(strategy_value)
     if name is None:
         return CONTROL_COLOR
-    return STRATEGY_COLORS[name]
+    # Fall back to the control gray if the two dicts ever drift (a value
+    # mapped to a name with no color), so the chart degrades instead of
+    # raising, matching the promise above.
+    return STRATEGY_COLORS.get(name, CONTROL_COLOR)
 
 
 def strategy_display_name(strategy_value: str) -> str:
