@@ -45,6 +45,10 @@ _LIB_WHITELIST: tuple[str, ...] = (
     "langgraph",
     "pydantic",
     "python-dotenv",
+    # Drives the retry policy (MAX_ATTEMPTS, backoff). Its version changes
+    # retry timing and the retry_count recorded on a run, so it is part of
+    # the stack that produced a number and must be captured.
+    "tenacity",
     # Analysis pipeline deps: their version changes the statistics output
     # (ANOVA implementation details, default ddof, etc.), so capture them.
     # scipy is transitive (via statsmodels) rather than a declared dep, but
@@ -58,6 +62,12 @@ _LIB_WHITELIST: tuple[str, ...] = (
     # zoneinfo DB is in use there. On Windows, recording the tzdata wheel
     # version closes the reproducibility loop for timestamp display.
     "tzdata",
+    # Deliberately NOT whitelisted: streamlit and matplotlib. They ship in
+    # core deps (the dashboard and runner share one image, see CONTRIBUTING
+    # section 2), but the dashboard only reads the DB and renders; its version
+    # never changes a recorded number, so it is not part of a result's
+    # provenance. The whitelist tracks what produced a number, not every
+    # installed package.
 )
 
 

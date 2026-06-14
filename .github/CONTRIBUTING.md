@@ -192,9 +192,13 @@ which release.
 - **Derived values are computed at write time.** `cost_usd` is computed from token counts and
   the `ModelPricing` rate at the moment of the run, not recomputed at read time. The stored
   number is the one that was true when the call happened.
-- **Keep the library whitelist in sync.** `db/environment.py:_LIB_WHITELIST` mirrors the
-  runtime deps in `pyproject.toml`. A runtime dep that is not whitelisted silently stops being
+- **Keep the library whitelist in sync.** `db/environment.py:_LIB_WHITELIST` records the
+  runtime deps in `pyproject.toml` that affect a recorded number: anything that produces or
+  scores a run. A dep that affects results but is not whitelisted silently stops being
   recorded, and you only notice when a replication diverges and the smoking gun is missing.
+  The viz-only deps (streamlit, matplotlib) ship in core but never change a recorded number,
+  so they are deliberately excluded; the list is provenance, not an installed-package
+  inventory. A whitelisted-but-transitive dep (scipy) carries a one-line why, same as a pin.
 
 **Accessing the results DB.** `maestro.db` is a standard SQLite file (`./out/maestro.db`
 under Docker). To inspect it:

@@ -35,7 +35,7 @@ from maestro.analysis.statistics import (
     tradeoff_correctness_efficiency,
 )
 from maestro.analysis.timestamps import format_for_display
-from maestro.db.client import get_connection
+from maestro.db.client import get_readonly_connection
 from maestro.experiment_config import DB_PATH
 
 # Default output root, relative to project root (two parents up from this
@@ -276,9 +276,9 @@ def main(argv: list[str] | None = None) -> int:
     # _run_dir creates the (unique) directory itself.
     run_dir = _run_dir(args.out, now_utc)
 
-    # Read-only DB access. get_connection commits on exit, but the analysis
-    # issues no writes, so the commit is a no-op.
-    with get_connection(args.db) as conn:
+    # Read-only DB access: analysis never writes experiment rows, and mode=ro
+    # enforces that at the boundary instead of relying on a no-op commit.
+    with get_readonly_connection(args.db) as conn:
         df = load_dataframe(conn)
 
     if df.empty:
