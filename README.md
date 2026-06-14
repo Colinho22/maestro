@@ -12,7 +12,7 @@ Comparing agentic orchestration frameworks for automated relational diagram gene
 
 The benchmark runs a matrix of `inputs × strategies × models × repeats`, scores
 each generated Mermaid diagram against its ground truth, and records every
-result — plus the runtime environment — in a SQLite database. The steps below
+result (plus the runtime environment) in a SQLite database. The steps below
 run the experiment from a clean checkout.
 
 > This is a high-level walkthrough. A detailed guide (troubleshooting, full CLI
@@ -21,7 +21,7 @@ run the experiment from a clean checkout.
 ### Prerequisites
 
 - Python 3.11
-- API keys for the providers you intend to run —
+- API keys for the providers you intend to run:
   [Anthropic](https://docs.anthropic.com/en/api/overview),
   [OpenAI](https://platform.openai.com/docs/api-reference/authentication),
   [Mistral](https://docs.mistral.ai/getting-started/quickstarts/studio/activate-and-generate-api-key),
@@ -29,13 +29,13 @@ run the experiment from a clean checkout.
   [DeepSeek](https://api-docs.deepseek.com/) (see each provider's docs for
   obtaining a key)
 - [`mmdc`](https://github.com/mermaid-js/mermaid-cli) (mermaid-cli) for the
-  structural-validity metric — optional locally (the metric is skipped if it is
+  structural-validity metric (optional locally; the metric is skipped if it is
   absent), bundled in the Docker image
-- Docker (optional) — only if you prefer the container path over a local install
+- Docker (optional), only if you prefer the container path over a local install
 
 The local install path is tested on macOS and works on Windows. The Docker path
 runs Linux inside the container, so it is platform-independent and is the
-recommended route on Windows — it bundles a headless Chromium, which the
+recommended route on Windows: it bundles a headless Chromium, which the
 `parses_valid` structural-validity metric needs. A native Windows install
 computes that metric only if mermaid-cli and a Puppeteer Chrome build
 (`npx puppeteer browsers install chrome`) are present; without them the metric
@@ -61,7 +61,7 @@ Copy the template and fill in the keys for the providers you will use:
 
 ```bash
 cp .env.template .env
-# edit .env — keys are read from the environment at run time
+# edit .env (keys are read from the environment at run time)
 ```
 
 ### 3. Validate the setup with a small run
@@ -100,8 +100,8 @@ docker compose up          # → http://localhost:8501
 
 ### Reproducibility audit trail
 
-Every invocation snapshots its runtime environment — OS, architecture, Python
-version, library versions, git commit, and (under Docker) the image digest —
+Every invocation snapshots its runtime environment (OS, architecture, Python
+version, library versions, git commit, and under Docker the image digest)
 into the `run_environments` table, linked to each run. This lets a later
 replication attempt diagnose diverging numbers against the exact stack that
 produced the original data.
