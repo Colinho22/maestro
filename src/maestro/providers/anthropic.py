@@ -32,6 +32,7 @@ class AnthropicProvider(LLMProvider):
 
     # SYSTEM_PROMPT inherited from LLMProvider (maestro.prompts).
 
+    _PROVIDER_NAME = "anthropic"
     # Max tokens for the completion; diagram code is rarely long
     MAX_TOKENS = 4096
 
@@ -91,7 +92,7 @@ class AnthropicProvider(LLMProvider):
             response, _ = call_with_retry(
                 _do_call,
                 is_retryable=self._is_retryable,
-                provider_name="anthropic",
+                provider_name=self._PROVIDER_NAME,
                 stats=stats,
             )
 
@@ -109,6 +110,9 @@ class AnthropicProvider(LLMProvider):
             blocks = response.content or []
             output = getattr(blocks[0], "text", None) if blocks else None
             if output is None:
+                empty_error = (
+                    f"EmptyResponse: {self._PROVIDER_NAME} returned no text content"
+                )
                 return RunResult(
                     run_id=config.run_id,
                     output_diagram_code=None,
@@ -118,7 +122,7 @@ class AnthropicProvider(LLMProvider):
                     cost_usd=compute_cost(
                         prompt_tokens, completion_tokens, self.pricing
                     ),
-                    error="EmptyResponse: Anthropic returned no text content",
+                    error=empty_error,
                     retry_count=stats.retry_count,
                 )
 

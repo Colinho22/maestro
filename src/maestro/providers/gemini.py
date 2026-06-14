@@ -28,6 +28,7 @@ class GeminiProvider(LLMProvider):
 
     # SYSTEM_PROMPT inherited from LLMProvider (maestro.prompts).
 
+    _PROVIDER_NAME = "gemini"
     MAX_TOKENS = 4096
 
     def __init__(self, api_key: str, pricing: ModelPricing) -> None:
@@ -87,7 +88,7 @@ class GeminiProvider(LLMProvider):
             response, _ = call_with_retry(
                 _do_call,
                 is_retryable=self._is_retryable,
-                provider_name="gemini",
+                provider_name=self._PROVIDER_NAME,
                 stats=stats,
             )
 

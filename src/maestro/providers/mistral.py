@@ -29,6 +29,7 @@ class MistralProvider(LLMProvider):
 
     # SYSTEM_PROMPT inherited from LLMProvider (maestro.prompts).
 
+    _PROVIDER_NAME = "mistral"
     MAX_TOKENS = 4096
 
     def __init__(self, api_key: str, pricing: ModelPricing) -> None:
@@ -92,7 +93,7 @@ class MistralProvider(LLMProvider):
             response, _ = call_with_retry(
                 _do_call,
                 is_retryable=self._is_retryable,
-                provider_name="mistral",
+                provider_name=self._PROVIDER_NAME,
                 stats=stats,
             )
 
@@ -117,7 +118,7 @@ class MistralProvider(LLMProvider):
                     cost_usd=compute_cost(
                         prompt_tokens, completion_tokens, self.pricing
                     ),
-                    error="EmptyResponse: Mistral returned no content",
+                    error=f"EmptyResponse: {self._PROVIDER_NAME} returned no content",
                     retry_count=stats.retry_count,
                 )
 
