@@ -45,6 +45,10 @@ class DeepSeekProvider(OpenAIProvider):
     # Override so retry log lines read "deepseek", not the inherited "openai".
     _PROVIDER_NAME = "deepseek"
 
+    # DeepSeek's OpenAI-compatible endpoint uses the original max_tokens param,
+    # not OpenAI's GPT-5 max_completion_tokens. Override the inherited default.
+    _MAX_TOKENS_PARAM = "max_tokens"
+
     def __init__(self, api_key: str, pricing: ModelPricing) -> None:
         # Call LLMProvider.__init__ *explicitly* (not super(OpenAIProvider, ...))
         # to store api_key + pricing without running OpenAIProvider.__init__,

@@ -76,9 +76,9 @@ def test_unknown_model_does_not_dispatch():
     "model_substr, expected_cls, expected_env",
     [
         ("claude-haiku-4-5", AnthropicProvider, "ANTHROPIC_API_KEY"),
-        ("gpt-4o-mini", OpenAIProvider, "OPENAI_API_KEY"),
+        ("gpt-5.4-mini-2026-03-17", OpenAIProvider, "OPENAI_API_KEY"),
         ("mistral-small", MistralProvider, "MISTRAL_API_KEY"),
-        ("gemini-2.5-flash-lite", GeminiProvider, "GEMINI_API_KEY"),
+        ("gemini-3.1-flash-lite", GeminiProvider, "GEMINI_API_KEY"),
         ("deepseek-v4-flash", DeepSeekProvider, "DEEPSEEK_API_KEY"),
     ],
 )

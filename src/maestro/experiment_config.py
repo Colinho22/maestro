@@ -289,56 +289,80 @@ CONTROL_MODEL = ModelPricing(
     output_price_per_1m=0.0,
 )
 
+# Two models per provider: a frontier ("best") model and an efficiency model,
+# so the experiment can compare quality against cost within and across vendors.
+# Prices are USD per 1M tokens, verified against each provider's pricing page in
+# April 2026 for the frozen main run. IDs are pinned to dated snapshots where
+# the provider offers one, so the run stays reproducible.
+#
+# Note: provider dispatch (run.py) is by substring (claude / gpt / mistral /
+# gemini / deepseek), so any new model id must contain its provider's needle.
+# tests/providers/test_provider_dispatch.py enforces this for every entry here.
 MODELS: list[ModelPricing] = [
+    # Anthropic
     ModelPricing(
-        model="claude-haiku-4-5-20251001",
-        input_price_per_1m=0.80,
-        output_price_per_1m=4.00,
+        model="claude-opus-4-8",  # frontier
+        input_price_per_1m=5.00,
+        output_price_per_1m=25.00,
+        # Opus 4.7+ removed sampling params; sending temperature returns 400.
+        supports_temperature=False,
     ),
     ModelPricing(
-        # Pinned to snapshot for reproducibility
-        model="gpt-4o-mini-2024-07-18",
+        model="claude-haiku-4-5-20251001",  # efficiency
+        input_price_per_1m=1.00,
+        output_price_per_1m=5.00,
+    ),
+    # OpenAI (GPT-5 family: max_completion_tokens, no custom temperature)
+    ModelPricing(
+        model="gpt-5.5-2026-04-23",  # frontier
+        input_price_per_1m=5.00,
+        output_price_per_1m=30.00,
+        supports_temperature=False,
+    ),
+    ModelPricing(
+        model="gpt-5.4-mini-2026-03-17",  # efficiency
+        input_price_per_1m=0.75,
+        output_price_per_1m=4.50,
+        supports_temperature=False,
+    ),
+    # Mistral
+    ModelPricing(
+        model="mistral-medium-3-5",  # frontier
+        input_price_per_1m=1.50,
+        output_price_per_1m=7.50,
+    ),
+    ModelPricing(
+        model="mistral-small-2603",  # efficiency
         input_price_per_1m=0.15,
         output_price_per_1m=0.60,
     ),
+    # Gemini
     ModelPricing(
-        model="mistral-small-2603",
-        input_price_per_1m=0.15,
-        output_price_per_1m=0.60,
+        model="gemini-3.5-flash",  # frontier
+        input_price_per_1m=1.50,
+        output_price_per_1m=9.00,
     ),
     ModelPricing(
-        model="gemini-2.5-flash-lite",
-        input_price_per_1m=0.10,
-        output_price_per_1m=0.40,
+        model="gemini-3.1-flash-lite",  # efficiency
+        input_price_per_1m=0.25,
+        output_price_per_1m=1.50,
     ),
-    # DeepSeek — the cross-provider replication dimension's emerging-Chinese
-    # entry (proposal §3.2). Consumed via the OpenAI-compatible endpoint
-    # (see providers/deepseek.py). Efficiency-tier model only for now; the
-    # edge model (deepseek-v4-pro) can be added later.
-    #
-    # Model id: "deepseek-v4-flash" is the CURRENT model as confirmed against
-    # the DeepSeek API docs (https://api-docs.deepseek.com/) on 2026-06-01.
-    # The older "deepseek-chat"/"deepseek-reasoner" aliases are the *legacy*
-    # names slated for deprecation on 2026-07-24 — deliberately avoided here so
-    # the pinned id outlives the frozen main run.
-    #
-    # Pricing is the *cache-miss* (standard) rate as of 2026-06-01
-    # (https://api-docs.deepseek.com/quick_start/pricing): DeepSeek also offers
-    # a ~10x-cheaper cache-hit input price, but ModelPricing has a single input
-    # rate, so we use cache-miss — every call is costed as a miss, making the
-    # tracked cost an upper bound on actual spend (never an under-count).
-    # Verify both id and price against the live console before the frozen run.
+    # DeepSeek: the cross-provider replication dimension's emerging-Chinese
+    # entry (proposal section 3.2), consumed via the OpenAI-compatible endpoint
+    # (see providers/deepseek.py). Pricing is the cache-MISS (standard) rate;
+    # DeepSeek also offers a cheaper cache-hit input price, but ModelPricing has
+    # a single input rate, so cache-miss makes the tracked cost an upper bound
+    # on actual spend (never an under-count).
     ModelPricing(
-        model="deepseek-v4-flash",
+        model="deepseek-v4-pro",  # frontier
+        input_price_per_1m=0.435,
+        output_price_per_1m=0.87,
+    ),
+    ModelPricing(
+        model="deepseek-v4-flash",  # efficiency
         input_price_per_1m=0.14,
         output_price_per_1m=0.28,
     ),
-    # --- Add new models below ---
-    # ModelPricing(
-    #     model="claude-sonnet-4-20250514",
-    #     input_price_per_1m=3.00,
-    #     output_price_per_1m=15.00,
-    # ),
 ]
 
 
@@ -380,9 +404,12 @@ CONTROL_STRATEGIES: set[Strategy] = {
 # Number of repeated runs per (input, strategy, model) cell
 DEFAULT_REPEATS = 5
 
-# SQLite database path. Defaults to maestro.db in the project root; override
-# with MAESTRO_DB_PATH so a containerized run can write the DB to a mounted
-# host volume (the project root holds the installed package and is not bind
-# mounted) without touching code.
+# SQLite database path. One canonical location, out/maestro.db, used by every
+# consumer: the local runner, the Docker runner, and the visualizer all resolve
+# here by default, so results land in one place regardless of how the run was
+# launched. out/ is the host-accessible experiment-output directory (the
+# project root holds the installed package). MAESTRO_DB_PATH overrides it; the
+# Docker compose still sets it explicitly so the path matches the mount.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-DB_PATH = Path(os.environ.get("MAESTRO_DB_PATH") or PROJECT_ROOT / "maestro.db")
+DEFAULT_DB_PATH = PROJECT_ROOT / "out" / "maestro.db"
+DB_PATH = Path(os.environ.get("MAESTRO_DB_PATH") or DEFAULT_DB_PATH)
