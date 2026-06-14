@@ -1,5 +1,5 @@
 """
-MAESTRO — DB client
+MAESTRO DB client
 Handles SQLite connection and schema initialization.
 """
 
@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# Schema — creates tables if they don't exist
+# Schema: creates tables if they don't exist
 # ---------------------------------------------------------------------------
 
 SCHEMA = """
@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS metric_results (
 def init_db(db_path: Path) -> None:
     """
     Create the SQLite file and tables if they don't exist.
-    Safe to call on every run — no data is overwritten.
+    Safe to call on every run: no data is overwritten.
 
     Also runs the small set of additive migrations needed to bring a
     pre-existing database up to the current schema. Old rows keep their

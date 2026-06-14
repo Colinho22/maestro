@@ -1,5 +1,5 @@
 """
-MAESTRO viz — Pareto view (RQ4).
+MAESTRO viz: Pareto view (RQ4).
 
 Correctness vs. efficiency scatter: entity-ID F1 against cost and against
 latency, colored by strategy and shaped by tier. Since matplotlib figures
@@ -20,7 +20,7 @@ from maestro.viz.chart import new_figure, render_chart
 from maestro.viz.components import empty_state
 from maestro.viz.theme import strategy_color, strategy_display_name
 
-# Tier → matplotlib marker shape. Defined here (not the theme) as it is a
+# Tier -> matplotlib marker shape. Defined here (not the theme) as it is a
 # Pareto-specific encoding.
 _TIER_MARKER = {1: "o", 2: "s", 3: "D"}
 _DEFAULT_MARKER = "o"
@@ -28,7 +28,7 @@ _DEFAULT_MARKER = "o"
 
 def render() -> None:
     """Draw the Pareto page."""
-    st.title("Pareto — correctness vs. efficiency")
+    st.title("Pareto: correctness vs. efficiency")
 
     db_path: Path = viz_settings.current_settings().db_path
     if not viz_db.database_exists(db_path):
@@ -85,7 +85,7 @@ def render() -> None:
         key="pareto-latency",
     )
 
-    # No hover on static figures — a table carries the per-run detail.
+    # No hover on static figures: a table carries the per-run detail.
     st.caption("Per-run detail")
     st.dataframe(
         [
@@ -136,7 +136,7 @@ def _scatter(
     ax.set_xlabel(xlabel)
     ax.set_ylabel("Entity-ID F1")
     ax.set_ylim(0, 1)
-    ax.grid(axis="both")  # scatter → both-axis grid
+    ax.grid(axis="both")  # scatter -> both-axis grid
 
     # Two legends: color = strategy, marker = tier.
     from matplotlib.lines import Line2D

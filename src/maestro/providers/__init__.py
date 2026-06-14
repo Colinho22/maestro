@@ -1,5 +1,5 @@
 """
-MAESTRO — providers package
+MAESTRO: providers package
 Import providers from here to keep strategy code clean.
 """
 

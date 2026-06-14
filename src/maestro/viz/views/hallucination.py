@@ -1,9 +1,9 @@
 """
-MAESTRO viz — Hallucination Taxonomy view (RQ3).
+MAESTRO viz: Hallucination Taxonomy view (RQ3).
 
 Exploratory characterization of error types per strategy: stacked bars of the
 four taxonomy categories (missing / extra / false / duplicate) at the entity
-and relationship levels. Controls are included — their error profile is
+and relationship levels. Controls are included: their error profile is
 itself informative.
 
 The four-category error palette is defined here rather than in the shared
@@ -35,7 +35,7 @@ _ERROR_COLORS = {
     "false": "#E74C3C",  # present but wrong
     "duplicate": "#95A5A6",  # repeated
 }
-# Short category label (the taxonomy column suffix) → display label.
+# Short category label (the taxonomy column suffix) -> display label.
 _CATEGORY_LABEL = {
     "missing": "Missing",
     "extra": "Extra",
@@ -91,7 +91,7 @@ def render() -> None:
 
 
 def _category_of(column: str) -> str:
-    """'missing_entities' / 'extra_relationships' → 'missing' / 'extra'."""
+    """'missing_entities' / 'extra_relationships' -> 'missing' / 'extra'."""
     return column.split("_", 1)[0]
 
 
@@ -156,7 +156,7 @@ def _stacked_bar(
     ax.set_xticks(x)
     ax.set_xticklabels(names)
     ax.set_ylabel("Error count")
-    ax.grid(axis="y")  # vertical bars → horizontal grid only
+    ax.grid(axis="y")  # vertical bars -> horizontal grid only
     ax.legend(title="Error type")
     fig.tight_layout()
     render_chart(fig, filename=filename, key=key, caption=title)

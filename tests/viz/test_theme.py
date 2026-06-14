@@ -1,6 +1,6 @@
 """
 Tests for the viz design system: theme palettes (per the Visualization Design
-Guide), the DB-value→color mappings, style application, and the chart export
+Guide), the DB-value->color mappings, style application, and the chart export
 path.
 
 These run without a Streamlit server. The export path (savefig to PNG/SVG
@@ -20,7 +20,7 @@ pytest.importorskip("streamlit")
 
 import matplotlib  # noqa: E402
 
-matplotlib.use("Agg")  # headless backend — no display needed for tests
+matplotlib.use("Agg")  # headless backend: no display needed for tests
 
 from maestro.experiment_config import CONTROL_STRATEGIES, MODELS  # noqa: E402
 from maestro.schemas import Strategy  # noqa: E402
@@ -37,7 +37,7 @@ _LLM_STRATEGIES = [s.value for s in Strategy if s not in CONTROL_STRATEGIES]
 
 
 def test_strategy_palette_matches_guide():
-    """The frozen strategy gradient — display names and hexes verbatim."""
+    """The frozen strategy gradient: display names and hexes verbatim."""
     assert theme.STRATEGY_COLORS == {
         "Single Agent": "#ED93B1",
         "SOP": "#D4537E",
@@ -62,7 +62,7 @@ def test_heat_colormap_is_ylorrd():
 
 
 # ---------------------------------------------------------------------------
-# DB-value → color mappings cover the real entities
+# DB-value -> color mappings cover the real entities
 # ---------------------------------------------------------------------------
 
 
@@ -115,7 +115,7 @@ def test_apply_thesis_style_sets_rcparams():
 
 
 # ---------------------------------------------------------------------------
-# Export path — the thesis-figure deliverable
+# Export path: the thesis-figure deliverable
 # ---------------------------------------------------------------------------
 
 

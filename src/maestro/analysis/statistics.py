@@ -1,25 +1,25 @@
 """
-MAESTRO — Statistical analysis pipeline (compute only; no visualization).
+MAESTRO Statistical analysis pipeline (compute only; no visualization).
 
 Reads the experiment database (read-only) and produces canonical,
 paper-ready statistics as JSON plus an assembled ``report.md``. The
-visualizer is a separate consumer of these JSON outputs — it does
+visualizer is a separate consumer of these JSON outputs; it does
 not duplicate the math here.
 
 ## What this module computes
 
-- **Descriptives** — per-cell (strategy × model × tier) mean / median / std
+- **Descriptives**: per-cell (strategy × model × tier) mean / median / std
   for the primary correctness DV and the efficiency DVs. Controls are
   *included* here (they are the sanity floor/ceiling anchors).
-- **ANOVA** — factorial models on the primary correctness DV. Controls are
+- **ANOVA**: factorial models on the primary correctness DV. Controls are
   *excluded* (their F1 is 0 or 1 by construction and would distort the
   F-statistic). ``single_agent`` is the reference level: it is the
   comparison *baseline*, distinct from the control conditions.
-- **Effect sizes** — partial η² per ANOVA term, Cohen's d for pairwise
+- **Effect sizes**: partial η² per ANOVA term, Cohen's d for pairwise
   strategy contrasts.
-- **Error taxonomy** — descriptive characterization of the eight taxonomy
+- **Error taxonomy**: descriptive characterization of the eight taxonomy
   counts per strategy (exploratory; no inferential test).
-- **Correctness/efficiency trade-off** — per-strategy correctness against
+- **Correctness/efficiency trade-off**: per-strategy correctness against
   cost and latency, plus a correctness-to-cost ratio.
 
 ## Naming & traceability
@@ -28,10 +28,10 @@ Output filenames are content-based (test + factors), not RQ-numbered: an
 ``anova_strategy_by_tier.json`` stays truthful even if the research
 questions are reframed. Each JSON carries *method* metadata
 (``analysis``, ``dependent_variable``, ``factors``, ``term_of_interest``,
-``schema_version``) but no ``research_question`` field — the RQ→file
+``schema_version``) but no ``research_question`` field: the RQ->file
 mapping is an interpretation concern that lives in ``report.md`` and the
 visualizer, not in the data. See the project memory note for the full
-RQ→file table.
+RQ->file table.
 
 ## Graceful degradation on sparse data
 
@@ -100,7 +100,7 @@ def load_dataframe(conn: sqlite3.Connection) -> "pd.DataFrame":
     into a pandas DataFrame. Read-only.
 
     Returns an empty DataFrame (no rows) when the database has no metriced
-    runs yet — callers handle the empty case rather than this raising.
+    runs yet; callers handle the empty case rather than this raising.
     """
     import pandas as pd
 
@@ -123,7 +123,7 @@ def _experimental(df: "pd.DataFrame") -> "pd.DataFrame":
 
 
 # ---------------------------------------------------------------------------
-# Factor guard — graceful degradation
+# Factor guard: graceful degradation
 # ---------------------------------------------------------------------------
 
 
@@ -147,7 +147,7 @@ def _guard_factors(df: "pd.DataFrame", factors: list[str]) -> dict | None:
     describing the first under-leveled factor when not.
 
     The stub is the canonical "we could not compute this, and here's
-    exactly why" record — honest output on a sparse corpus, never a crash.
+    exactly why" record: honest output on a sparse corpus, never a crash.
     """
     if df.empty:
         return {"status": "skipped", "reason": "no experimental rows in database"}
@@ -175,7 +175,7 @@ def describe(df: "pd.DataFrame") -> dict[str, Any]:
     """
     Per-cell descriptive statistics (mean / median / std) for the primary
     correctness DV and the efficiency DVs, grouped by
-    (strategy, model, tier). Controls are INCLUDED — their cells are the
+    (strategy, model, tier). Controls are INCLUDED: their cells are the
     sanity floor/ceiling anchors for interpreting absolute F1.
     """
     metrics = [PRIMARY_DV, *EFFICIENCY_DVS]
@@ -229,7 +229,7 @@ def _anova(
     partial η² per term.
 
     ``factors`` of length 2 are crossed with ``*`` so the interaction term
-    is included — that interaction is the quantity of interest for the
+    is included: that interaction is the quantity of interest for the
     "does complexity moderate the effect" and "does it hold across models"
     questions. ``term_of_interest`` records which term answers the driving
     question (e.g. ``"C(strategy):C(tier)"``); it is metadata only.
@@ -327,7 +327,7 @@ def anova_strategy_by_tier(df: "pd.DataFrame") -> dict[str, Any]:
 def anova_strategy_by_model(df: "pd.DataFrame") -> dict[str, Any]:
     """
     Two-way ANOVA: correctness ~ strategy × model. The interaction probes
-    whether the strategy effect holds across models / providers — a
+    whether the strategy effect holds across models / providers: a
     cross-cutting robustness check, not tied to a single RQ.
     """
     return _anova(
@@ -461,7 +461,7 @@ def _cohens_d(a, b) -> float | str | None:
     Zero pooled variance is a real case here: every run in a cell can score
     an identical F1 (e.g. a deterministic strategy on a single input). When
     that happens, the effect size is *not* zero unless the means also match
-    — two perfectly-consistent strategies at different score levels are
+    two perfectly-consistent strategies at different score levels are
     maximally separated, i.e. an infinite standardized difference. Returning
     a string sentinel (instead of 0.0 or null) preserves that signal in
     JSON, which cannot represent infinity.
@@ -482,7 +482,7 @@ def _cohens_d(a, b) -> float | str | None:
             return 0.0
         # Infinite standardized difference. JSON has no infinity and the
         # writer enforces allow_nan=False, so emit a signed string sentinel
-        # that survives serialization and still carries the sign — rather
+        # that survives serialization and still carries the sign, rather
         # than letting _to_native collapse inf to null (indistinguishable
         # from "not computed").
         return "inf" if mean_diff > 0 else "-inf"
@@ -500,7 +500,7 @@ def error_taxonomy_by_strategy(df: "pd.DataFrame") -> dict[str, Any]:
     strategy (mean count per run). Exploratory: no inferential test, per
     the exploratory framing of the error-pattern research question.
 
-    Controls are included — their taxonomy profile is itself informative
+    Controls are included: their taxonomy profile is itself informative
     (e.g. the copy control's "extra" counts reveal input/diagram overlap).
     """
     out: dict[str, Any] = {
@@ -535,7 +535,7 @@ def error_taxonomy_by_strategy(df: "pd.DataFrame") -> dict[str, Any]:
 def tradeoff_correctness_efficiency(df: "pd.DataFrame") -> dict[str, Any]:
     """
     Per-strategy mean correctness against mean cost and latency, plus a
-    correctness-to-cost ratio — the numeric backing for the Pareto
+    correctness-to-cost ratio: the numeric backing for the Pareto
     trade-off figure (the figure itself is rendered by the visualizer).
 
     Experimental rows only: the trade-off question compares the orchestration

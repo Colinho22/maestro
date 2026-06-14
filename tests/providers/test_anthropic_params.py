@@ -44,7 +44,7 @@ def _capture_create_kwargs(pricing: ModelPricing) -> dict:
 
 
 def test_omits_temperature_when_unsupported():
-    """Opus 4.7+/Fable reject temperature — it must not be sent."""
+    """Opus 4.7+/Fable reject temperature: it must not be sent."""
     pricing = ModelPricing(
         model="claude-opus-4-8",
         input_price_per_1m=5.0,
@@ -57,7 +57,7 @@ def test_omits_temperature_when_unsupported():
 
 
 def test_includes_temperature_when_supported():
-    """Haiku 4.5 still accepts temperature — it must be sent."""
+    """Haiku 4.5 still accepts temperature: it must be sent."""
     pricing = ModelPricing(
         model="claude-haiku-4-5-20251001",
         input_price_per_1m=1.0,

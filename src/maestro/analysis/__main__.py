@@ -1,5 +1,5 @@
 """
-MAESTRO — analysis CLI entry point.
+MAESTRO analysis CLI entry point.
 
     python -m maestro.analysis [--db PATH] [--out DIR] [--display-tz TZ]
 
@@ -56,7 +56,7 @@ _ANALYSES: list[tuple[str, Callable]] = [
     ("tradeoff_correctness_efficiency.json", tradeoff_correctness_efficiency),
 ]
 
-# RQ → file mapping, surfaced in report.md. This is the *interpretation*
+# RQ -> file mapping, surfaced in report.md. This is the *interpretation*
 # layer: it lives in the human-facing report, never in the data files (so
 # the JSON stays reusable if the RQs are reframed). Keep in sync with the
 # thesis RQ definitions.
@@ -134,7 +134,7 @@ def _run_dir(out_root: Path, now_utc: datetime) -> Path:
     report.md. Two invocations within the same second would otherwise map to
     the same directory and silently overwrite each other's outputs, so the
     directory is created with ``exist_ok=False`` and, on collision, a short
-    numeric suffix (``-1``, ``-2``, …) is appended until an unused name is
+    numeric suffix (``-1``, ``-2``, ...) is appended until an unused name is
     found. The first run of any given second keeps the clean stamp.
     """
     stamp = now_utc.strftime("%Y%m%dT%H%M%SZ")
@@ -173,15 +173,15 @@ def _build_report(
     """Assemble a human-readable markdown summary embeddable into the thesis."""
     when = format_for_display(now_utc, display_tz)
     lines: list[str] = []
-    lines.append("# MAESTRO — Statistical Analysis Report")
+    lines.append("# MAESTRO Statistical Analysis Report")
     lines.append("")
     lines.append(f"- Generated: {when}")
     lines.append(f"- Database: `{db_path}`")
     lines.append(f"- Output schema version: {SCHEMA_VERSION}")
     lines.append("")
 
-    # RQ → file mapping (interpretation layer — lives here, not in the JSON).
-    lines.append("## Research question → output mapping")
+    # RQ -> file mapping (interpretation layer, lives here, not in the JSON).
+    lines.append("## Research question -> output mapping")
     lines.append("")
     lines.append("| RQ | Output file(s) | What it answers |")
     lines.append("| --- | --- | --- |")
@@ -197,13 +197,13 @@ def _build_report(
     n_cells = len(desc.get("cells", []))
     lines.append(f"- Descriptive cells: {n_cells}")
 
-    _summarize_anova(lines, "RQ1 — strategy", results.get("anova_strategy.json", {}))
+    _summarize_anova(lines, "RQ1: strategy", results.get("anova_strategy.json", {}))
     _summarize_anova(
-        lines, "RQ2 — strategy×tier", results.get("anova_strategy_by_tier.json", {})
+        lines, "RQ2: strategy×tier", results.get("anova_strategy_by_tier.json", {})
     )
     _summarize_anova(
         lines,
-        "robustness — strategy×model",
+        "robustness: strategy×model",
         results.get("anova_strategy_by_model.json", {}),
     )
     lines.append("")
@@ -213,7 +213,7 @@ def _build_report(
     lines.append(
         "- Analyses reported as *skipped* lacked a factor with ≥2 observed "
         "levels in the current corpus (e.g. a single input tier). They "
-        "recompute automatically once the corpus grows — no code change."
+        "recompute automatically once the corpus grows: no code change."
     )
     lines.append(
         "- Control conditions are excluded from ANOVA (their F1 is 0 or 1 "
@@ -229,7 +229,7 @@ def _summarize_anova(lines: list[str], label: str, payload: dict[str, Any]) -> N
     """Append a one-line summary of an ANOVA result (or its skip reason)."""
     status = payload.get("status")
     if status == "skipped":
-        lines.append(f"- {label}: skipped — {payload.get('reason', 'n/a')}")
+        lines.append(f"- {label}: skipped: {payload.get('reason', 'n/a')}")
         return
     if status != "ok":
         lines.append(f"- {label}: not computed")
@@ -263,7 +263,7 @@ def main(argv: list[str] | None = None) -> int:
     Run the analysis pipeline end to end and write all outputs.
 
     Returns a process exit code: 0 on success, 1 if the database path does
-    not exist. A missing/empty database is not an error — it produces
+    not exist. A missing/empty database is not an error: it produces
     empty-status outputs and still returns 0.
     """
     args = _parse_args(argv)

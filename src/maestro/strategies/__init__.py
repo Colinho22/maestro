@@ -1,5 +1,5 @@
 """
-MAESTRO — strategies package
+MAESTRO: strategies package
 """
 
 from maestro.strategies.base import BaseStrategy

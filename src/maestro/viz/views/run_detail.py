@@ -1,5 +1,5 @@
 """
-MAESTRO viz — Run Detail view (diagnostic, no RQ mapping).
+MAESTRO viz: Run Detail view (diagnostic, no RQ mapping).
 
 Pick one run and inspect it: the input spec + ground truth (read from the
 file system via experiment_config.INPUTS), the generated diagram with a
@@ -21,7 +21,7 @@ from maestro.viz.chart import new_figure, render_chart
 from maestro.viz.components import empty_state, render_run_filter, run_label
 from maestro.viz.run_filter import exclude_controls
 
-# example_id → InputFile, for resolving input + ground-truth file paths. The
+# example_id -> InputFile, for resolving input + ground-truth file paths. The
 # DB stores only example_id; the actual files live on disk per the config.
 _INPUTS_BY_ID = {inp.example_id: inp for inp in INPUTS}
 
@@ -132,7 +132,7 @@ def _read_or_note(path: Path) -> str:
 
 
 def _render_metric_breakdown(detail: dict) -> None:
-    """Horizontal bar of the run's F1 scores. Neutral color — one run only."""
+    """Horizontal bar of the run's F1 scores. Neutral color: one run only."""
     st.subheader("Metric breakdown")
     values = [(col, detail.get(col)) for col in _METRIC_COLUMNS]
     values = [(c, v) for c, v in values if v is not None]
@@ -147,7 +147,7 @@ def _render_metric_breakdown(detail: dict) -> None:
     ax.barh(labels, scores, color="#7F8C8D")
     ax.set_xlim(0, 1)
     ax.set_xlabel("F1")
-    ax.grid(axis="x")  # horizontal bars → vertical grid only
+    ax.grid(axis="x")  # horizontal bars -> vertical grid only
     ax.invert_yaxis()  # first metric on top
     fig.tight_layout()
     render_chart(

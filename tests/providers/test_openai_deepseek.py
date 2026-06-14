@@ -4,8 +4,8 @@ Tests for the OpenAI provider and its DeepSeek subclass.
 DeepSeekProvider is a deliberately thin subclass of OpenAIProvider: DeepSeek
 exposes an OpenAI-compatible API, so the two share complete() / _is_retryable
 / _error_result / cost logic and differ only in the SDK client's base_url and
-the API key source. These tests assert exactly that contract — that the two
-providers stay in sync where they should and diverge only where intended —
+the API key source. These tests assert exactly that contract: that the two
+providers stay in sync where they should and diverge only where intended,
 so a future change to OpenAIProvider.__init__ that breaks the subclass is
 caught here rather than at experiment time.
 
@@ -41,7 +41,7 @@ _DEEPSEEK_PRICING = ModelPricing(
 
 
 # ---------------------------------------------------------------------------
-# Construction — both providers, parametrized
+# Construction: both providers, parametrized
 # ---------------------------------------------------------------------------
 
 
@@ -65,7 +65,7 @@ def test_provider_constructs_and_stores_fields(provider_cls, pricing):
 
 
 # ---------------------------------------------------------------------------
-# Request params — token-param name + temperature omission per model/provider
+# Request params: token-param name + temperature omission per model/provider
 # ---------------------------------------------------------------------------
 
 
@@ -123,7 +123,7 @@ def test_deepseek_keeps_max_tokens_and_temperature():
 
 
 # ---------------------------------------------------------------------------
-# Inheritance contract — DeepSeek IS an OpenAIProvider, but points elsewhere
+# Inheritance contract: DeepSeek IS an OpenAIProvider, but points elsewhere
 # ---------------------------------------------------------------------------
 
 
@@ -150,7 +150,7 @@ def test_deepseek_is_openai_subclass():
 def test_provider_name_overridden_for_retry_logs():
     """
     DeepSeek overrides _PROVIDER_NAME so retry log lines read 'deepseek',
-    not the inherited 'openai' — otherwise multi-provider run logs would
+    not the inherited 'openai', otherwise multi-provider run logs would
     misattribute DeepSeek failures to OpenAI.
     """
     assert OpenAIProvider._PROVIDER_NAME == "openai"
@@ -189,7 +189,7 @@ def test_base_url_diverges_between_providers():
 
 
 # ---------------------------------------------------------------------------
-# run.py wiring — dispatch + preflight resolve both providers
+# run.py wiring: dispatch + preflight resolve both providers
 # ---------------------------------------------------------------------------
 
 

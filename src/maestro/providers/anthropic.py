@@ -1,5 +1,5 @@
 """
-MAESTRO — Anthropic provider implementation
+MAESTRO: Anthropic provider implementation
 Wraps the Anthropic messages API into the LLMProvider interface.
 """
 
@@ -25,22 +25,22 @@ _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 class AnthropicProvider(LLMProvider):
     """
     Concrete provider for Anthropic models (claude-opus-4-8, claude-haiku-4-5, etc.)
-    Uses the official anthropic SDK — add 'anthropic>=0.25.0' to pyproject.toml.
+    Uses the official anthropic SDK; add 'anthropic>=0.25.0' to pyproject.toml.
     """
 
     # SYSTEM_PROMPT inherited from LLMProvider (maestro.prompts).
 
-    # Max tokens for the completion — diagram code is rarely long
+    # Max tokens for the completion; diagram code is rarely long
     MAX_TOKENS = 4096
 
     def __init__(self, api_key: str, pricing: ModelPricing) -> None:
         super().__init__(api_key, pricing)
-        # Initialise the SDK client once — reused for all calls
+        # Initialise the SDK client once, reused for all calls
         self._client = anthropic.Anthropic(api_key=api_key)
 
     @staticmethod
     def _is_retryable(exc: BaseException) -> bool:
-        """Mirrors OpenAIProvider._is_retryable — same SDK exception shape."""
+        """Mirrors OpenAIProvider._is_retryable: same SDK exception shape."""
         if isinstance(exc, (APIConnectionError, APITimeoutError, RateLimitError)):
             return True
         if isinstance(exc, APIStatusError):
@@ -55,7 +55,7 @@ class AnthropicProvider(LLMProvider):
     ) -> RunResult:
         """
         Call the Anthropic messages endpoint and return a RunResult.
-        Never raises — all exceptions are captured into RunResult.error.
+        Never raises: all exceptions are captured into RunResult.error.
         Transient failures are retried with exponential backoff via
         ``call_with_retry``; non-retryable errors fall through to the
         handlers below on the first attempt.
@@ -67,7 +67,7 @@ class AnthropicProvider(LLMProvider):
         )
 
         # Owned by the caller so retry_count survives an exhausted-retries
-        # exception — the except blocks below read stats.retry_count to
+        # exception: the except blocks below read stats.retry_count to
         # record it on the failed RunResult.
         stats = RetryStats()
 
@@ -99,7 +99,7 @@ class AnthropicProvider(LLMProvider):
             prompt_tokens = response.usage.input_tokens
             completion_tokens = response.usage.output_tokens
 
-            # Response content is a list of blocks — grab the first text block
+            # Response content is a list of blocks; grab the first text block
             output = response.content[0].text
 
             return RunResult(
@@ -128,7 +128,7 @@ class AnthropicProvider(LLMProvider):
             )
 
         except Exception as e:
-            # Catch-all — unexpected failures should not crash the experiment
+            # Catch-all: unexpected failures should not crash the experiment
             return self._error_result(
                 config, start_ms, f"UnexpectedError: {e}", stats.retry_count
             )

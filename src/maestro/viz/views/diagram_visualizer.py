@@ -1,5 +1,5 @@
 """
-MAESTRO viz — Diagram Visualizer view (diagnostic, no RQ mapping).
+MAESTRO viz: Diagram Visualizer view (diagnostic, no RQ mapping).
 
 Side-by-side comparison of a run's ground-truth diagram and its generated
 diagram. Ground truth is read from the file system via
@@ -7,8 +7,8 @@ experiment_config.INPUTS (the DB stores only example_id); the generated
 diagram comes from run_results.
 
 A Code / Visualization toggle switches both panes together. Visualization
-renders with the mmdc CLI — the same engine the metric pipeline uses for
-``parses_valid`` — so the rendered picture is consistent with the recorded
+renders with the mmdc CLI, the same engine the metric pipeline uses for
+``parses_valid``, so the rendered picture is consistent with the recorded
 validity, deterministic, and reproducible. When mmdc is unavailable (or a
 source fails to render), the pane falls back to showing the source code.
 """
@@ -27,7 +27,7 @@ from maestro.viz.components import empty_state, render_run_filter, run_label
 from maestro.viz.mermaid_render import mmdc_available, render_mermaid_svg
 from maestro.viz.run_filter import exclude_controls
 
-# example_id → InputFile, for resolving the ground-truth file path.
+# example_id -> InputFile, for resolving the ground-truth file path.
 _INPUTS_BY_ID = {inp.example_id: inp for inp in INPUTS}
 
 
@@ -129,8 +129,8 @@ def _render_side_by_side(detail: dict, *, render_visual: bool) -> None:
 def _render_diagram(source: str, *, render_visual: bool) -> None:
     """
     Show ``source`` as a rendered SVG (Visualization mode) or as code. Falls
-    back to code if rendering fails — e.g. invalid Mermaid the metric pipeline
-    also rejected — so a broken diagram still shows its source for inspection.
+    back to code if rendering fails, e.g. invalid Mermaid the metric pipeline
+    also rejected, so a broken diagram still shows its source for inspection.
     """
     if render_visual:
         svg = render_mermaid_svg(source)
@@ -138,13 +138,13 @@ def _render_diagram(source: str, *, render_visual: bool) -> None:
             # st.image treats a string as a path, so an SVG string can't go
             # there. Embed the SVG markup directly; constrain width so it
             # scales to the column. The SVG comes from our own mmdc render of
-            # data already in the DB — not arbitrary user input.
+            # data already in the DB, not arbitrary user input.
             st.markdown(
                 f'<div style="max-width:100%">{svg}</div>',
                 unsafe_allow_html=True,
             )
             return
-        st.caption("Could not render this source — showing code instead.")
+        st.caption("Could not render this source: showing code instead.")
     st.code(source, language="mermaid")
 
 

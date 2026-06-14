@@ -1,5 +1,5 @@
 """
-MAESTRO — DB queries
+MAESTRO DB queries
 Insert and fetch operations for RunConfig and RunResult.
 """
 
@@ -15,7 +15,7 @@ from maestro.schemas import (
 
 
 def insert_run_environment(conn: sqlite3.Connection, env: RunEnvironment) -> None:
-    """Persist a RunEnvironment row — raises if environment_id already exists."""
+    """Persist a RunEnvironment row; raises if environment_id already exists."""
     conn.execute(
         """
         INSERT INTO run_environments
@@ -42,7 +42,7 @@ def insert_run_environment(conn: sqlite3.Connection, env: RunEnvironment) -> Non
 
 
 def insert_run_config(conn: sqlite3.Connection, config: RunConfig) -> None:
-    """Persist a RunConfig row — raises if run_id already exists."""
+    """Persist a RunConfig row; raises if run_id already exists."""
     conn.execute(
         """
         INSERT INTO run_configs
@@ -65,7 +65,7 @@ def insert_run_config(conn: sqlite3.Connection, config: RunConfig) -> None:
 
 
 def insert_run_result(conn: sqlite3.Connection, result: RunResult) -> None:
-    """Persist a RunResult row — raises if run_id already exists."""
+    """Persist a RunResult row; raises if run_id already exists."""
     conn.execute(
         """
         INSERT INTO run_results
@@ -151,7 +151,7 @@ def fetch_completed_cells(conn: sqlite3.Connection) -> set[tuple[str, str, str, 
 
     "Successful" mirrors ``RunResult.success`` (schemas.py): no error,
     non-empty output_diagram_code. A row with ``error IS NOT NULL`` or
-    an empty/NULL diagram is *not* in this set — so resume logic will
+    an empty/NULL diagram is *not* in this set, so resume logic will
     re-execute those cells, giving transient failures another attempt.
 
     Used by ``build_matrix`` to skip already-done work on resume.
@@ -172,7 +172,7 @@ def fetch_completed_cells(conn: sqlite3.Connection) -> set[tuple[str, str, str, 
 def fetch_failed_cells(conn: sqlite3.Connection) -> set[tuple[str, str, str, int]]:
     """
     Return the set of (example_id, strategy, model, run_number) tuples
-    whose persisted RunResults are *all* failures — i.e. there is at
+    whose persisted RunResults are *all* failures, i.e. there is at
     least one failed attempt AND no successful attempt for that cell.
 
     Why this matters: ``run_configs`` has no unique constraint on the
@@ -180,7 +180,7 @@ def fetch_failed_cells(conn: sqlite3.Connection) -> set[tuple[str, str, str, int
     initial failure followed by a successful ``--rerun-failed``
     retry). If we returned every cell with any failure, the next
     ``--rerun-failed`` invocation would re-execute cells that have
-    *already* been recovered — wasting API spend and overwriting
+    *already* been recovered, wasting API spend and overwriting
     presumably-good metric rows.
 
     Used by ``--rerun-failed`` to narrow the matrix to only cells
@@ -217,7 +217,7 @@ def fetch_failed_cells(conn: sqlite3.Connection) -> set[tuple[str, str, str, int
 
 
 def fetch_all_results(conn: sqlite3.Connection) -> list[sqlite3.Row]:
-    """Fetch all joined rows — used by the analysis script."""
+    """Fetch all joined rows; used by the analysis script."""
     return conn.execute(
         """
         SELECT c.*, r.*
@@ -235,7 +235,7 @@ def fetch_analysis_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
 
     Read-only. Columns are listed *explicitly* rather than via ``c.*, r.*,
     m.*`` on purpose: all three tables carry a ``run_id`` column, and a
-    star-join would emit it three times — sqlite3.Row keeps only the last
+    star-join would emit it three times: sqlite3.Row keeps only the last
     value under that key, silently shadowing the others. The other ``fetch_*``
     helpers use star-joins and tolerate the collision because they don't read
     the duplicated keys; this one selects every column it needs by name so the
@@ -249,7 +249,7 @@ def fetch_analysis_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     breakdowns.
 
     An INNER join means runs without a metric row (e.g. a failed run that
-    never got scored) are excluded — analysis operates on scored runs only.
+    never got scored) are excluded: analysis operates on scored runs only.
     """
     return conn.execute(
         """

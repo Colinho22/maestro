@@ -7,7 +7,7 @@ the per-step ``system_prompt`` to ``provider.complete()``, so steps 1 and 2
 provider's default Mermaid system prompt. This test pins the corrected wiring.
 
 CodeRabbit originally suggested asserting on the *built user prompt*, but the
-system prompt is a separate kwarg — the assertion has to be made on the call
+system prompt is a separate kwarg: the assertion has to be made on the call
 captured at the provider boundary, which is what ``RecordingProvider`` records.
 """
 
@@ -41,9 +41,9 @@ def test_sop_forwards_per_step_system_prompt(tmp_path, recording_provider_factor
     Each of the three SOP steps must pass the right ``system_prompt`` through
     to ``provider.complete()``:
 
-    - Step 1 (extract_entities)      → JSON_EXTRACTION_SYSTEM_PROMPT
-    - Step 2 (extract_relationships) → JSON_EXTRACTION_SYSTEM_PROMPT
-    - Step 3 (generate_mermaid)      → None  (provider falls back to its default)
+    - Step 1 (extract_entities)      -> JSON_EXTRACTION_SYSTEM_PROMPT
+    - Step 2 (extract_relationships) -> JSON_EXTRACTION_SYSTEM_PROMPT
+    - Step 3 (generate_mermaid)      -> None  (provider falls back to its default)
 
     The mock provider returns schema-valid JSON for steps 1 and 2 so
     ``validate_step_payload`` accepts them and there is exactly one call per
@@ -78,7 +78,7 @@ def test_sop_forwards_per_step_system_prompt(tmp_path, recording_provider_factor
         outputs=[
             _valid_step1_output(),
             _valid_step2_output(),
-            "graph TD\n  e1",  # step 3 — any non-empty string is accepted
+            "graph TD\n  e1",  # step 3: any non-empty string is accepted
         ]
     )
     strategy = SOPStrategy(provider)

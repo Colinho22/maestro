@@ -32,7 +32,7 @@ def test_explicit_tz_arg_wins(monkeypatch):
     # 21:43 UTC + 2h DST = 23:43 CEST
     assert "23:43" in out
     assert "CEST" in out
-    # %Z produces zone abbreviations, not full names — assert the
+    # %Z produces zone abbreviations, not full names: assert the
     # abbreviation Asia/Tokyo *would* have produced is absent, which
     # is the meaningful "env var was ignored" check.
     assert "JST" not in out
@@ -47,7 +47,7 @@ def test_env_var_used_when_arg_absent(monkeypatch):
 
 
 def test_system_local_default(monkeypatch):
-    """No arg, no env var → falls back to system local without crashing.
+    """No arg, no env var -> falls back to system local without crashing.
 
     We can't pin the exact output because the test runner's local zone
     varies, but the call must produce *some* well-formed string with
@@ -56,7 +56,7 @@ def test_system_local_default(monkeypatch):
     monkeypatch.delenv(ENV_VAR, raising=False)
     out = format_for_display(SUMMER_UTC)
     assert "2026-06-15" in out
-    # Should contain *some* zone abbreviation token — not literally
+    # Should contain *some* zone abbreviation token, not literally
     # checking which one because that depends on the runner.
     assert len(out.split()) >= 3  # date + time + zone abbr
 
@@ -75,7 +75,7 @@ def test_malformed_tz_falls_back_to_utc(monkeypatch, capsys):
 
 def test_malformed_env_var_falls_back_to_utc(monkeypatch, capsys):
     """A malformed MAESTRO_DISPLAY_TZ takes the env-var branch of the
-    warning code path — different stderr text than the kwarg branch."""
+    warning code path: different stderr text than the kwarg branch."""
     monkeypatch.setenv(ENV_VAR, "Mars/Olympus_Mons")
     out = format_for_display(SUMMER_UTC)
     assert "UTC" in out

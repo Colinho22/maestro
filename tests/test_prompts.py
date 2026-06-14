@@ -4,12 +4,12 @@ Guards for the single-source-of-truth Mermaid output contract (maestro.prompts).
 These tests pin the contract so it cannot silently drift back into the
 per-provider / per-strategy copies it was consolidated from:
 
-  * snapshot           — the canonical identity + rules text is intentional,
+  * snapshot:            the canonical identity + rules text is intentional,
                          so a change must be a deliberate edit to this file.
-  * no-duplication     — every provider's SYSTEM_PROMPT *is* the shared
+  * no-duplication:      every provider's SYSTEM_PROMPT *is* the shared
                          identity object (catches anyone re-inlining a literal),
                          and the identity actually reaches provider.complete().
-  * identical-injection — the rules block embedded in the single-agent prompt
+  * identical-injection: the rules block embedded in the single-agent prompt
                          equals the one in multi-step step 3 (the drift this
                          refactor fixed).
 """
@@ -31,7 +31,7 @@ from maestro.strategies._extraction import STEP_3_PROMPT
 from maestro.strategies.single import PROMPT_TEMPLATE
 
 # Concrete providers whose SYSTEM_PROMPT must resolve to the shared identity.
-# deepseek defines no literal of its own — it must inherit via OpenAIProvider.
+# deepseek defines no literal of its own: it must inherit via OpenAIProvider.
 _PROVIDERS = [
     AnthropicProvider,
     OpenAIProvider,
@@ -42,7 +42,7 @@ _PROVIDERS = [
 
 
 # ---------------------------------------------------------------------------
-# Snapshot — canonical text is pinned; edits must be deliberate.
+# Snapshot: canonical text is pinned; edits must be deliberate.
 # ---------------------------------------------------------------------------
 
 
@@ -62,7 +62,7 @@ def test_rules_snapshot():
         '- Wrap node labels in double quotes, e.g. node_id["My Label"], so '
         "labels with spaces, parentheses, slashes, or line breaks stay "
         "parseable\n"
-        "- If a node has no label, write just its id (e.g. gw_result) — "
+        "- If a node has no label, write just its id (e.g. gw_result): "
         'never an empty bracket like node_id[""]\n'
         "- Quote edge labels the same way, with no spaces inside the pipes, "
         'e.g. a -->|"My edge"| b; for an unlabelled edge use a plain arrow '
@@ -81,7 +81,7 @@ def test_rules_are_brace_free():
 
 
 # ---------------------------------------------------------------------------
-# No-duplication — providers share the one identity object, not copies.
+# No-duplication: providers share the one identity object, not copies.
 # ---------------------------------------------------------------------------
 
 
@@ -103,7 +103,7 @@ def test_fallback_identity_resolves_to_shared(recording_provider_factory):
     self.SYSTEM_PROMPT (the ``system_prompt if system_prompt is not None else
     self.SYSTEM_PROMPT`` expression in every complete()). This exercises that
     fallback expression against an LLMProvider subclass and asserts it resolves
-    to the shared identity object — so a re-inlined per-provider literal would
+    to the shared identity object, so a re-inlined per-provider literal would
     be caught here, not just at the class-attribute level.
     """
     provider = recording_provider_factory(outputs=["graph TD\n  a"])
@@ -115,7 +115,7 @@ def test_fallback_identity_resolves_to_shared(recording_provider_factory):
 
 
 # ---------------------------------------------------------------------------
-# Identical-injection — single-agent and step 3 carry the same rules block.
+# Identical-injection: single-agent and step 3 carry the same rules block.
 # ---------------------------------------------------------------------------
 
 
@@ -143,7 +143,7 @@ def test_templates_format_without_stray_braces():
 
 
 # ---------------------------------------------------------------------------
-# render_rules — baseline vs append-only skills layer.
+# render_rules: baseline vs append-only skills layer.
 # ---------------------------------------------------------------------------
 
 

@@ -1,5 +1,5 @@
 """
-MAESTRO — Abstract LLM provider interface
+MAESTRO: Abstract LLM provider interface
 All concrete providers (OpenAI, Anthropic, etc.) must implement this.
 """
 
@@ -12,10 +12,10 @@ from maestro.schemas import ModelPricing, RunConfig, RunResult
 class LLMProvider(ABC):
     """
     Base class for all LLM providers.
-    One instance per provider — reused across multiple runs.
+    One instance per provider, reused across multiple runs.
     """
 
-    # Centralized temperature setting — 0 for reproducibility across all providers
+    # Centralized temperature setting: 0 for reproducibility across all providers
     TEMPERATURE = 0
 
     # Default system identity for Mermaid generation, shared by every provider.
@@ -25,7 +25,7 @@ class LLMProvider(ABC):
     SYSTEM_PROMPT = MERMAID_SYSTEM_IDENTITY
 
     def __init__(self, api_key: str, pricing: ModelPricing) -> None:
-        # api_key stored on instance — never logged or serialised
+        # api_key stored on instance, never logged or serialised
         self.api_key = api_key
         self.pricing = pricing
 
@@ -49,7 +49,7 @@ class LLMProvider(ABC):
         - Populate prompt_tokens + completion_tokens from the API response
         - Call compute_cost() and set cost_usd
         - Catch all API exceptions and surface them via RunResult.error
-        - Never raise — always return a RunResult (success or error)
+        - Never raise: always return a RunResult (success or error)
         """
         ...
 

@@ -1,5 +1,5 @@
 """
-MAESTRO viz — Strategy Comparison view (RQ1, RQ2).
+MAESTRO viz: Strategy Comparison view (RQ1, RQ2).
 
 Grouped bars of entity- and relationship-level correctness per orchestration
 strategy, filterable by tier and model, with a precision / recall / F1 toggle.

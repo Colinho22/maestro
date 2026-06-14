@@ -3,11 +3,11 @@ Filter validation in run.build_matrix.
 
 The --strategy / --model / --example flags accept comma-separated lists. A typo
 in a list would silently shrink the experiment matrix (run fewer cells than the
-user intended) — costly to notice halfway through a multi-hour run. These tests
+user intended): costly to notice halfway through a multi-hour run. These tests
 pin the fail-fast behavior:
 
-  * unknown --strategy / --example  → exit 2 (strict)
-  * unknown --model                 → exit 2 *only* when a real LLM strategy is
+  * unknown --strategy / --example  -> exit 2 (strict)
+  * unknown --model                 -> exit 2 *only* when a real LLM strategy is
                                       selected; a control-only run ignores
                                       --model (controls use no model), so a
                                       bad model there is a deliberate no-op.
@@ -98,6 +98,6 @@ def test_unknown_model_is_noop_for_control_only_run():
     matrix = build_matrix(
         _args(model="typo_model", strategy="null_control", example="bpmn_1_03")
     )
-    # One control row for the single input — bad model ignored, no exit.
+    # One control row for the single input: bad model ignored, no exit.
     assert len(matrix) == 1
     assert matrix[0]["strategy"].value == "null_control"

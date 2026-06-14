@@ -1,8 +1,8 @@
 """
-MAESTRO — Control strategies.
+MAESTRO: Control strategies.
 
 **Controls are not baselines.** ``SingleAgentStrategy`` (in ``single.py``)
-is the *comparison baseline* — the simplest real LLM-using approach that
+is the *comparison baseline*: the simplest real LLM-using approach that
 the orchestration strategies are measured against. The classes here are
 *control conditions* in the DSR / experimental-method sense: deterministic
 non-strategies that bypass the LLM entirely and have a known expected
@@ -28,14 +28,14 @@ All class names keep the ``Strategy`` suffix per ``coderabbit.yaml``.
 
 Determinism: each control's output is a pure function of the input file
 (NullControl ignores even that). The matrix builder collapses the
-``model`` and ``run_number`` dimensions for controls — running them 5×
+``model`` and ``run_number`` dimensions for controls: running them 5×
 per model would just produce duplicate rows.
 
 Duration semantics: ``RunResult.duration_ms`` for control rows reflects
 the wall-clock cost of the strategy itself, which is effectively zero
 for NullControl (no I/O) and a single small file read for the other
 two. Analysis code that filters on ``duration_ms > 0`` to "exclude
-errored runs" would inadvertently exclude NullControl rows — filter on
+errored runs" would inadvertently exclude NullControl rows: filter on
 ``error IS NULL`` (or ``RunResult.success``) instead.
 """
 
@@ -68,7 +68,7 @@ class NullControlStrategy(BaseStrategy):
         """
         Return a RunResult carrying the empty diagram. ``input_file`` is
         accepted to satisfy the BaseStrategy contract but deliberately not
-        read — the floor must be input-independent so the score reflects
+        read: the floor must be input-independent so the score reflects
         only the metric pipeline's response to "no entities, no edges".
         """
         start = time.monotonic()
@@ -91,7 +91,7 @@ class CopyInputControlStrategy(BaseStrategy):
     Expected metric behavior: ``parses_valid=False`` (the input is JSON,
     not Mermaid) and F1 ≈ 0 (the entity/relationship extractor won't find
     valid Mermaid syntax in a JSON document). If this scores meaningfully
-    above zero, the parser is too permissive — e.g. regex-matching loose
+    above zero, the parser is too permissive, e.g. regex-matching loose
     patterns that happen to appear in JSON strings.
     """
 
@@ -101,7 +101,7 @@ class CopyInputControlStrategy(BaseStrategy):
         """
         Read ``input_file.file_path`` and shove its bytes into
         ``output_diagram_code`` unmodified. The metric pipeline will see
-        JSON where Mermaid was expected — exactly the input shape needed
+        JSON where Mermaid was expected: exactly the input shape needed
         to test whether the parser is too permissive.
         """
         start = time.monotonic()
@@ -132,7 +132,7 @@ class GroundTruthEchoControlStrategy(BaseStrategy):
     ``None`` if ``mmdc`` is not installed locally). If this *fails* to
     score 1.0 on any metric, the metric pipeline is over-strict in a way
     that would penalise real strategies even when they produce the
-    correct answer — a louder bug than the floor controls catch.
+    correct answer, a louder bug than the floor controls catch.
 
     Reading the ground truth is the whole point of this control; there is
     no "leak" because no learning happens here. The control row exists
@@ -145,7 +145,7 @@ class GroundTruthEchoControlStrategy(BaseStrategy):
         """
         Read the ground truth file and return its contents as the
         ``output_diagram_code``. The downstream metric pipeline will then
-        compare ground truth to itself — anything less than F1 = 1.0
+        compare ground truth to itself: anything less than F1 = 1.0
         indicates a bug in the scoring code, not in the "model".
         """
         start = time.monotonic()

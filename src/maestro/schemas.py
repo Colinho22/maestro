@@ -12,7 +12,7 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, Field, computed_field
 
 # ---------------------------------------------------------------------------
-# Enums — constrain experiment dimensions to valid values
+# Enums: constrain experiment dimensions to valid values
 # ---------------------------------------------------------------------------
 
 
@@ -29,7 +29,7 @@ class Strategy(str, Enum):
     CREW_AI = "crew_ai"
     LANG_GRAPH = "lang_graph"
 
-    # Control conditions — bypass the LLM, deterministic, used as metric-
+    # Control conditions: bypass the LLM, deterministic, used as metric-
     # pipeline sanity checks and as interpretation anchors for absolute F1.
     # See maestro.strategies.controls.* for the implementations.
     NULL_CONTROL = "null_control"  # floor: empty diagram
@@ -45,7 +45,7 @@ class Tier(int, Enum):
 
     Integer values are persisted to ``run_configs.tier``. Changing the
     enum (rename or bucket-shift) is therefore a breaking change for any
-    pre-existing DB — start a fresh ``maestro.db`` after renaming.
+    pre-existing DB; start a fresh ``maestro.db`` after renaming.
 
     Tier names align with the thesis proposal (§3 / Table 3): Simple,
     Complex, Cross-layer. TODO: once the full input corpus is collected,
@@ -59,7 +59,7 @@ class Tier(int, Enum):
 
 
 # ---------------------------------------------------------------------------
-# InputFile — describes one diagram generation task
+# InputFile: describes one diagram generation task
 # ---------------------------------------------------------------------------
 
 
@@ -78,7 +78,7 @@ class InputFile(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# RunConfig — captures the full experimental context of one run
+# RunConfig: captures the full experimental context of one run
 # ---------------------------------------------------------------------------
 
 
@@ -97,12 +97,12 @@ class RunConfig(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     # FK to run_environments.environment_id. Optional because rows written
     # before this column existed have NULL, and because env capture is best
-    # effort — a run must still be persistable if the capture helper fails.
+    # effort, so a run must still be persistable if the capture helper fails.
     environment_id: Optional[UUID] = None
 
 
 # ---------------------------------------------------------------------------
-# RunEnvironment — runtime stack snapshot, one row per CLI invocation
+# RunEnvironment: runtime stack snapshot, one row per CLI invocation
 # ---------------------------------------------------------------------------
 
 
@@ -113,7 +113,7 @@ class RunEnvironment(BaseModel):
     One row per CLI invocation, referenced by ``RunConfig.environment_id``.
     All fields except ``environment_id`` and ``captured_at`` are nullable
     because the underlying probe (subprocess, env var, package import) may
-    legitimately fail — a missing field must be recorded as ``None`` rather
+    legitimately fail, so a missing field must be recorded as ``None`` rather
     than aborting the experiment.
     """
 
@@ -129,17 +129,17 @@ class RunEnvironment(BaseModel):
     git_commit: Optional[str] = None  # git rev-parse HEAD
     git_dirty: Optional[bool] = None  # True/False/None (probe failed)
 
-    # Dependency snapshot — JSON blob: {"anthropic": "1.2.3", "openai": None, ...}
+    # Dependency snapshot, a JSON blob: {"anthropic": "1.2.3", "openai": None, ...}
     lib_versions: Optional[str] = None
 
-    # Container provenance — set by CI/CD via env var, NULL when running locally
+    # Container provenance: set by CI/CD via env var, NULL when running locally
     docker_image_digest: Optional[str] = None
 
     captured_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # ---------------------------------------------------------------------------
-# ModelPricing — lookup table for cost calculation
+# ModelPricing: lookup table for cost calculation
 # ---------------------------------------------------------------------------
 
 
@@ -160,7 +160,7 @@ class ModelPricing(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# RunResult — output and statistics of one LLM call
+# RunResult: output and statistics of one LLM call
 # ---------------------------------------------------------------------------
 
 
@@ -182,10 +182,10 @@ class RunResult(BaseModel):
     # Performance
     duration_ms: int  # Wall-clock time for the LLM call
 
-    # Cost — computed from token counts + ModelPricing at write time
+    # Cost: computed from token counts + ModelPricing at write time
     cost_usd: float
 
-    # Error — None if successful, exception message otherwise
+    # Error: None if successful, exception message otherwise
     error: Optional[str] = None
 
     # Number of *retries* the underlying provider call needed (0 = first
@@ -217,7 +217,7 @@ class SubResult(BaseModel):
 
     sub_id: UUID = Field(default_factory=uuid4)
     run_id: UUID  # FK to RunConfig.run_id
-    step_number: int  # 1, 2, 3…
+    step_number: int  # 1, 2, 3...
     step_name: str  # "extract_entities", "extract_relationships", etc.
     output_text: Optional[str] = None
     prompt_tokens: int
@@ -229,7 +229,7 @@ class SubResult(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Helper — compute cost from token counts and pricing
+# Helper: compute cost from token counts and pricing
 # ---------------------------------------------------------------------------
 
 
@@ -240,7 +240,7 @@ def compute_cost(
 ) -> float:
     """
     Calculate USD cost for one LLM call.
-    Prices are per 1M tokens — divide by 1_000_000.
+    Prices are per 1M tokens, so divide by 1_000_000.
     """
     input_cost = (prompt_tokens / 1_000_000) * pricing.input_price_per_1m
     output_cost = (completion_tokens / 1_000_000) * pricing.output_price_per_1m
@@ -248,7 +248,7 @@ def compute_cost(
 
 
 # ---------------------------------------------------------------------------
-# Metric Result — comparison to ground truth
+# Metric Result: comparison to ground truth
 # ---------------------------------------------------------------------------
 
 
@@ -265,27 +265,27 @@ class MetricResult(BaseModel):
     parses_valid: Optional[bool]
     parse_error: Optional[str] = None
 
-    # Entity metrics — exact ID match
+    # Entity metrics: exact ID match
     entity_id_precision: float  # correct IDs / total IDs in output
     entity_id_recall: float  # correct IDs / total IDs in ground truth
     entity_id_f1: float
 
-    # Entity metrics — fuzzy name match
+    # Entity metrics: fuzzy name match
     entity_name_precision: float
     entity_name_recall: float
     entity_name_f1: float
 
-    # Entity metrics — lemmatized name match
+    # Entity metrics: lemmatized name match
     entity_lemma_precision: float
     entity_lemma_recall: float
     entity_lemma_f1: float
 
-    # Relationship metrics — relaxed (source + target match, ignores type)
+    # Relationship metrics: relaxed (source + target match, ignores type)
     relationship_relaxed_precision: float
     relationship_relaxed_recall: float
     relationship_relaxed_f1: float
 
-    # Relationship metrics — strict (source + target + type must all match)
+    # Relationship metrics: strict (source + target + type must all match)
     relationship_strict_precision: float
     relationship_strict_recall: float
     relationship_strict_f1: float
@@ -309,7 +309,7 @@ class MetricResult(BaseModel):
     duplicate_relationships: int
 
     # ------------------------------------------------------------------
-    # Container metrics — pools / lanes / boundaries / expanded sub-processes
+    # Container metrics: pools / lanes / boundaries / expanded sub-processes
     # (subgraphs). Scored as a SEPARATE dimension from entities so swimlane
     # structure can be evaluated without polluting the entity metric/tiers.
     # P/R/F1 are None when the ground truth has no containers (metric N/A),
@@ -325,7 +325,7 @@ class MetricResult(BaseModel):
     containers_in_truth: int = 0
 
     # ------------------------------------------------------------------
-    # Attachment metrics — BPMN boundary-event / compensation associations,
+    # Attachment metrics: BPMN boundary-event / compensation associations,
     # drawn as ``o--o`` edges. Undirected pairs (orientation-insensitive).
     # P/R/F1 are None when the ground truth has no attachments (metric N/A).
     # ------------------------------------------------------------------

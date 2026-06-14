@@ -1,5 +1,5 @@
 """
-MAESTRO — Retry-with-backoff helper shared by every provider.
+MAESTRO: Retry-with-backoff helper shared by every provider.
 
 Why this lives in its own module:
 - The retry policy (max attempts, wait shape, what counts as retryable) is
@@ -40,7 +40,7 @@ from tenacity import (
 T = TypeVar("T")
 
 
-# Policy constants — tuned for thesis-scale experiments (~5000 calls per run).
+# Policy constants, tuned for thesis-scale experiments (~5000 calls per run).
 # `MAX_ATTEMPTS` includes the first call, so 5 total attempts = 4 retries.
 # Backoff is capped at 60s so a long string of 429s on one provider doesn't
 # stall the whole matrix for many minutes.
@@ -87,7 +87,7 @@ def call_with_retry(
     pre-create a ``RetryStats`` and pass it in: the helper mutates it in
     place, so the caller's exception handlers can read ``stats.retry_count``
     after the helper raised. If ``stats`` is omitted, a fresh instance is
-    created — convenient for success-only callers and tests.
+    created, convenient for success-only callers and tests.
     """
     if stats is None:
         stats = RetryStats()

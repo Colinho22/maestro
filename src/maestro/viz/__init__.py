@@ -1,5 +1,5 @@
 """
-MAESTRO viz — Streamlit dashboard for exploring experiment results.
+MAESTRO viz: Streamlit dashboard for exploring experiment results.
 
 Read-only consumer of the experiment SQLite database (and, where useful, the
 JSON outputs of ``maestro.analysis``). Launch with:

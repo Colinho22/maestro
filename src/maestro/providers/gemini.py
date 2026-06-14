@@ -1,5 +1,5 @@
 """
-MAESTRO — Gemini provider implementation
+MAESTRO: Gemini provider implementation
 Wraps the Google Gen AI generate_content API into the LLMProvider interface.
 """
 
@@ -54,7 +54,7 @@ class GeminiProvider(LLMProvider):
     ) -> RunResult:
         """
         Call the Gemini generate_content endpoint and return a RunResult.
-        Never raises — all exceptions are captured into RunResult.error.
+        Never raises: all exceptions are captured into RunResult.error.
         Transient failures are retried with exponential backoff via
         ``call_with_retry``.
         """
@@ -65,7 +65,7 @@ class GeminiProvider(LLMProvider):
         )
 
         # Owned by the caller so retry_count survives an exhausted-retries
-        # exception — the except blocks below read stats.retry_count to
+        # exception: the except blocks below read stats.retry_count to
         # record it on the failed RunResult.
         stats = RetryStats()
 

@@ -1,5 +1,5 @@
 """
-MAESTRO — Mistral provider implementation
+MAESTRO: Mistral provider implementation
 Wraps the Mistral chat completions API into the LLMProvider interface.
 """
 
@@ -38,7 +38,7 @@ class MistralProvider(LLMProvider):
         """
         mistralai exposes ``SDKError`` carrying ``raw_response: httpx.Response``;
         we read ``status_code`` from there. ``NoResponseError`` means the SDK
-        got nothing back at all — always transient. Low-level httpx network
+        got nothing back at all, always transient. Low-level httpx network
         errors (connect / timeout) also surface unwrapped on some failure
         modes and are equally transient.
         """
@@ -59,7 +59,7 @@ class MistralProvider(LLMProvider):
     ) -> RunResult:
         """
         Call the Mistral chat completions endpoint and return a RunResult.
-        Never raises — all exceptions are captured into RunResult.error.
+        Never raises: all exceptions are captured into RunResult.error.
         Transient failures are retried with exponential backoff via
         ``call_with_retry``.
         """
@@ -70,7 +70,7 @@ class MistralProvider(LLMProvider):
         )
 
         # Owned by the caller so retry_count survives an exhausted-retries
-        # exception — the except blocks below read stats.retry_count to
+        # exception: the except blocks below read stats.retry_count to
         # record it on the failed RunResult.
         stats = RetryStats()
 
@@ -97,7 +97,7 @@ class MistralProvider(LLMProvider):
             duration_ms = int((time.monotonic() - start_ms) * 1000)
 
             # usage / choices / message.content can be missing on truncated or
-            # malformed responses — guard each access so token usage is still
+            # malformed responses; guard each access so token usage is still
             # recorded when content is absent.
             usage = response.usage
             prompt_tokens = getattr(usage, "prompt_tokens", 0) or 0

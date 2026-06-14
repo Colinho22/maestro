@@ -1,13 +1,13 @@
 """
-MAESTRO viz — reference chart.
+MAESTRO viz: reference chart.
 
 A single, complete chart that exercises the whole rendering path
-(query → themed figure → display + PNG/SVG export). It is the copy-paste
-starting point for the data views: a new view follows this exact shape —
+(query -> themed figure -> display + PNG/SVG export). It is the copy-paste
+starting point for the data views: a new view follows this exact shape,
 open a read-only connection, run a query, build a figure with ``new_figure``
 and the named palette, hand it to ``render_chart``.
 
-The chart itself — mean entity-ID F1 per strategy — is deliberately simple;
+The chart itself, mean entity-ID F1 per strategy, is deliberately simple;
 its job is to prove the design system works end to end against real data.
 """
 
@@ -101,7 +101,7 @@ def render_reference_chart(db_path: Path) -> None:
         filename="entity_id_f1_by_strategy",
         key="reference-chart",
         caption=(
-            "Reference chart — mean entity-ID F1 per strategy. This is the "
+            "Reference chart: mean entity-ID F1 per strategy. This is the "
             "design-system template the data views follow."
         ),
     )

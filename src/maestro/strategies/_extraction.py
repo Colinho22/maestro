@@ -1,14 +1,14 @@
 """
-MAESTRO — Shared task definition for multi-step strategies.
+MAESTRO: Shared task definition for multi-step strategies.
 
 This module is the experimental *control variable*: the prompts, the JSON
 schemas, the validation rules and the retry budget are byte-identical across
 every multi-step strategy (SOP, CrewAI, LangGraph). Only the *orchestration*
-differs between strategies — what each strategy file expresses in its own
+differs between strategies: what each strategy file expresses in its own
 shape.
 
 Single-agent does not import from here: its baseline prompt is intentionally
-distinct (one shot → diagram, no decomposition) and lives in `single.py`.
+distinct (one shot -> diagram, no decomposition) and lives in `single.py`.
 
 Adding a new multi-step strategy?
 - Reuse the prompts, schemas and validators from this module unchanged.
@@ -21,7 +21,7 @@ import json
 from maestro.prompts import render_rules
 
 # ---------------------------------------------------------------------------
-# Step 1 — Extract entities (nodes) from the input dataset
+# Step 1: Extract entities (nodes) from the input dataset
 # ---------------------------------------------------------------------------
 
 STEP_1_PROMPT = """\
@@ -29,7 +29,7 @@ You are given a dataset describing entities and their relationships.
 Your task is to extract all entities (nodes) and their hierarchy.
 
 Rules:
-- Output valid JSON only — no explanations, no markdown fencing
+- Output valid JSON only, no explanations, no markdown fencing
 - Include every entity from the input
 - Capture parent-child relationships (pools, lanes, subprocesses)
 - Use this exact schema:
@@ -50,7 +50,7 @@ Input data:
 
 
 # ---------------------------------------------------------------------------
-# Step 2 — Extract relationships (edges) from input + entities
+# Step 2: Extract relationships (edges) from input + entities
 # ---------------------------------------------------------------------------
 
 STEP_2_PROMPT = """\
@@ -58,7 +58,7 @@ You are given a list of entities and the original dataset.
 Your task is to extract all relationships (edges) between entities.
 
 Rules:
-- Output valid JSON only — no explanations, no markdown fencing
+- Output valid JSON only, no explanations, no markdown fencing
 - Include every sequence flow, message flow, and association
 - Do not invent relationships not present in the data
 - Use this exact schema:
@@ -83,7 +83,7 @@ Original input data:
 
 
 # ---------------------------------------------------------------------------
-# Step 3 — Render Mermaid diagram from entities + relationships
+# Step 3: Render Mermaid diagram from entities + relationships
 # ---------------------------------------------------------------------------
 
 # Rules come from the canonical contract (maestro.prompts) so step 3 and the
@@ -121,10 +121,10 @@ JSON_EXTRACTION_SYSTEM_PROMPT = (
 
 
 # ---------------------------------------------------------------------------
-# Retry budget — identical across all multi-step strategies
+# Retry budget: identical across all multi-step strategies
 # ---------------------------------------------------------------------------
 
-# Number of *additional* attempts after the first one (1 → up to 2 calls per step).
+# Number of *additional* attempts after the first one (1 -> up to 2 calls per step).
 MAX_RETRIES = 1
 
 
@@ -159,10 +159,10 @@ def validate_step_payload(
     Step 3 is Mermaid (free-form text) and is not validated here.
 
     Schema rule:
-    - Step 1 → top-level dict with key "entities" → list
-    - Step 2 → top-level dict with key "relationships" → list
+    - Step 1 -> top-level dict with key "entities" -> list
+    - Step 2 -> top-level dict with key "relationships" -> list
 
-    Field-level shape (id, name, type, …) is intentionally NOT enforced —
+    Field-level shape (id, name, type, ...) is intentionally NOT enforced:
     we want to capture model errors as data, not reject borderline outputs.
     """
     expected_key = "entities" if step_number == 1 else "relationships"

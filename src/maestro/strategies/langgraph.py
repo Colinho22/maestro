@@ -1,9 +1,9 @@
 """
-MAESTRO — LangGraph strategy.
+MAESTRO: LangGraph strategy.
 
 Orchestration shape: *the procedure expressed as an explicit state graph*.
-The same three steps as SOP and CrewAI — extract entities, extract
-relationships, render Mermaid — but each step is a node in a
+The same three steps as SOP and CrewAI (extract entities, extract
+relationships, render Mermaid) but each step is a node in a
 ``StateGraph`` and the order is encoded as edges between nodes.
 
 Reader's-eye view:
@@ -11,16 +11,16 @@ Reader's-eye view:
   the graph: input data, the two intermediate JSON payloads, the final
   diagram, an accumulating list of ``SubResult``, and an ``error`` channel
   used to short-circuit.
-- Three node functions — one per step — each take the current state, call
+- Three node functions, one per step, each take the current state, call
   ``provider.complete()``, validate (steps 1 and 2), retry on failure, and
   return a *partial state update*. LangGraph merges these into the running
   state.
 - The graph itself is built up with explicit ``add_node`` /
   ``add_edge`` / ``add_conditional_edges`` calls. The reader can read those
-  five lines and see the DAG: ``START → entities → relationships → mermaid
-  → END``, with each step routed to ``END`` early if its predecessor failed.
+  five lines and see the DAG: ``START -> entities -> relationships -> mermaid
+  -> END``, with each step routed to ``END`` early if its predecessor failed.
 - Unlike CrewAI there is no LLM adapter to write: LangGraph imposes no
-  abstraction over the model — node functions call our provider directly.
+  abstraction over the model: node functions call our provider directly.
 
 Prompts, retry budget and JSON validation come from ``_extraction.py`` so
 SOP, CrewAI and LangGraph share the experimental control variable.
@@ -51,7 +51,7 @@ from maestro.strategies._extraction import (
 from maestro.strategies.base import BaseStrategy
 
 # ---------------------------------------------------------------------------
-# Graph state — every channel the nodes can read or write
+# Graph state: every channel the nodes can read or write
 # ---------------------------------------------------------------------------
 
 
@@ -73,7 +73,7 @@ class GraphState(TypedDict, total=False):
 
 
 # ---------------------------------------------------------------------------
-# Per-step execution — shared by all three nodes
+# Per-step execution: shared by all three nodes
 # ---------------------------------------------------------------------------
 
 
@@ -93,7 +93,7 @@ def _run_step(
 
     This helper is what each node delegates to. It is defined at module level
     rather than as a strategy method so the node functions can read like
-    plain pure functions of ``state`` — keeping the graph-shape of the file
+    plain pure functions of ``state``, keeping the graph-shape of the file
     unobstructed.
     """
     last_error: str | None = None
@@ -155,7 +155,7 @@ def _run_step(
 
 
 # ---------------------------------------------------------------------------
-# Node factory — closes over (provider, config) and returns the three nodes
+# Node factory: closes over (provider, config) and returns the three nodes
 # ---------------------------------------------------------------------------
 
 
@@ -165,7 +165,7 @@ def _make_nodes(provider: LLMProvider, config: RunConfig):
     run config so the function signature LangGraph sees is the canonical
     ``(state) -> partial_state``.
 
-    The nodes return *partial state updates* — only the keys they wrote.
+    The nodes return *partial state updates*: only the keys they wrote.
     LangGraph merges those into the running state for the next node.
     """
 
@@ -230,7 +230,7 @@ def _make_nodes(provider: LLMProvider, config: RunConfig):
 
 
 # ---------------------------------------------------------------------------
-# Conditional edge — short-circuit to END if a step set state["error"]
+# Conditional edge: short-circuit to END if a step set state["error"]
 # ---------------------------------------------------------------------------
 
 
@@ -282,7 +282,7 @@ class LangGraphStrategy(BaseStrategy):
         and validation so behaviour matches SOP and CrewAI exactly.
         """
 
-        # Load input JSON — same shape as SOP and CrewAI for parity
+        # Load input JSON: same shape as SOP and CrewAI for parity
         try:
             raw = input_file.file_path.read_text(encoding="utf-8")
             input_data = json.dumps(json.loads(raw), indent=2)
@@ -297,7 +297,7 @@ class LangGraphStrategy(BaseStrategy):
 
         total_start = time.monotonic()
 
-        # Build the graph — 3 nodes, linear pipeline with error short-circuits.
+        # Build the graph: 3 nodes, linear pipeline with error short-circuits.
         # Each `add_*` call below contributes one piece of the DAG; reading
         # them in order reconstructs the full graph in the reader's head.
         extract_entities, extract_relationships, generate_mermaid = _make_nodes(
@@ -343,7 +343,7 @@ class LangGraphStrategy(BaseStrategy):
         )
 
     # -----------------------------------------------------------------------
-    # Aggregation — same shape as SOP and CrewAI
+    # Aggregation: same shape as SOP and CrewAI
     # -----------------------------------------------------------------------
 
     def _aggregate(
@@ -354,7 +354,7 @@ class LangGraphStrategy(BaseStrategy):
         diagram_code: str | None = None,
         error: str | None = None,
     ) -> tuple[RunResult, list[SubResult]]:
-        """Sum sub-call stats into a parent RunResult — identical to SOP / CrewAI."""
+        """Sum sub-call stats into a parent RunResult: identical to SOP / CrewAI."""
         result = RunResult(
             run_id=config.run_id,
             output_diagram_code=diagram_code,
