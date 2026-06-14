@@ -24,7 +24,7 @@ _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 class AnthropicProvider(LLMProvider):
     """
-    Concrete provider for Anthropic models (claude-sonnet-4-5, etc.)
+    Concrete provider for Anthropic models (claude-opus-4-8, claude-haiku-4-5, etc.)
     Uses the official anthropic SDK — add 'anthropic>=0.25.0' to pyproject.toml.
     """
 
@@ -73,15 +73,17 @@ class AnthropicProvider(LLMProvider):
 
         def _do_call():
             """The SDK call ``call_with_retry`` re-runs on transient failures."""
-            return self._client.messages.create(
-                model=config.model,
-                max_tokens=self.MAX_TOKENS,
-                temperature=self.TEMPERATURE,
-                system=effective_system,
-                messages=[
-                    {"role": "user", "content": prompt},
-                ],
-            )
+            # Omit temperature for models that removed sampling params (Opus
+            # 4.7+/Fable return 400 if it is sent); see ModelPricing.
+            params = {
+                "model": config.model,
+                "max_tokens": self.MAX_TOKENS,
+                "system": effective_system,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+            if self.pricing.supports_temperature:
+                params["temperature"] = self.TEMPERATURE
+            return self._client.messages.create(**params)
 
         try:
             response, _ = call_with_retry(

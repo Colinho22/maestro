@@ -152,6 +152,11 @@ class ModelPricing(BaseModel):
     model: str
     input_price_per_1m: float  # USD per 1M prompt tokens
     output_price_per_1m: float  # USD per 1M completion tokens
+    # Whether the model's API accepts a temperature parameter. Newer frontier
+    # models (e.g. Claude Opus 4.7+/Fable) removed sampling parameters and 400
+    # if temperature is sent; providers omit it when this is False. Defaults to
+    # True since most models still accept it.
+    supports_temperature: bool = True
 
 
 # ---------------------------------------------------------------------------

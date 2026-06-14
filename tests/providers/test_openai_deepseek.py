@@ -65,6 +65,64 @@ def test_provider_constructs_and_stores_fields(provider_cls, pricing):
 
 
 # ---------------------------------------------------------------------------
+# Request params — token-param name + temperature omission per model/provider
+# ---------------------------------------------------------------------------
+
+
+def _capture_create_kwargs(provider, prompt="x"):
+    """Run complete() with a stubbed SDK client and return the create() kwargs."""
+    from types import SimpleNamespace
+
+    captured = {}
+
+    def fake_create(**kwargs):
+        captured.update(kwargs)
+        usage = SimpleNamespace(prompt_tokens=1, completion_tokens=1)
+        choice = SimpleNamespace(message=SimpleNamespace(content="graph TD\n a"))
+        return SimpleNamespace(usage=usage, choices=[choice])
+
+    provider._client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+    )
+    from maestro.schemas import RunConfig, Strategy, Tier
+
+    cfg = RunConfig(
+        strategy=Strategy.SINGLE_AGENT,
+        model=provider.pricing.model,
+        example_id="e",
+        tier=Tier.SIMPLE,
+        run_number=1,
+    )
+    provider.complete(prompt, cfg)
+    return captured
+
+
+def test_openai_uses_max_completion_tokens_and_omits_temperature():
+    """GPT-5 family: max_completion_tokens param, no temperature."""
+    pricing = ModelPricing(
+        model="gpt-5.5-2026-04-23",
+        input_price_per_1m=5.0,
+        output_price_per_1m=30.0,
+        supports_temperature=False,
+    )
+    kwargs = _capture_create_kwargs(OpenAIProvider(api_key="k", pricing=pricing))
+    assert "max_completion_tokens" in kwargs
+    assert "max_tokens" not in kwargs
+    assert "temperature" not in kwargs
+
+
+def test_deepseek_keeps_max_tokens_and_temperature():
+    """DeepSeek's OpenAI-compatible endpoint keeps max_tokens + temperature."""
+    kwargs = _capture_create_kwargs(
+        DeepSeekProvider(api_key="k", pricing=_DEEPSEEK_PRICING)
+    )
+    assert "max_tokens" in kwargs
+    assert "max_completion_tokens" not in kwargs
+    # _DEEPSEEK_PRICING leaves supports_temperature at its True default.
+    assert "temperature" in kwargs
+
+
+# ---------------------------------------------------------------------------
 # Inheritance contract — DeepSeek IS an OpenAIProvider, but points elsewhere
 # ---------------------------------------------------------------------------
 

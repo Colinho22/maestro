@@ -50,7 +50,7 @@ def test_split_csv_trims_and_drops_empties():
 def test_valid_list_filters_build_matrix():
     args = _args(
         example="bpmn_1_03,it_1_07",
-        model="gpt-4o-mini-2024-07-18,deepseek-v4-flash",
+        model="gpt-5.4-mini-2026-03-17,deepseek-v4-flash",
         strategy="single_agent,lang_graph",
         repeats=2,
     )
@@ -59,7 +59,7 @@ def test_valid_list_filters_build_matrix():
     assert len(matrix) == 16
     assert {c["input_file"].example_id for c in matrix} == {"bpmn_1_03", "it_1_07"}
     assert {c["model_pricing"].model for c in matrix} == {
-        "gpt-4o-mini-2024-07-18",
+        "gpt-5.4-mini-2026-03-17",
         "deepseek-v4-flash",
     }
 
@@ -85,7 +85,7 @@ def test_unknown_model_exits_2_with_real_strategy():
     with pytest.raises(SystemExit) as exc:
         build_matrix(
             _args(
-                model="gpt-4o-mini-2024-07-18,typo_model",
+                model="gpt-5.4-mini-2026-03-17,typo_model",
                 strategy="single_agent",
                 example="bpmn_1_03",
             )

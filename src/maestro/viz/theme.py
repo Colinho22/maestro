@@ -83,14 +83,18 @@ _STRATEGY_VALUE_TO_NAME: dict[str, str] = {
 }
 
 # Model id (run_configs.model) → (provider display name, slot) where slot is
-# 0 for the smaller/efficiency model and 1 for the flagship. All currently
-# configured models are the smaller (light) stop; flagships map to slot 1 when
-# added.
+# 0 for the efficiency model and 1 for the frontier model. Keep this in sync
+# with experiment_config.MODELS (two ids per provider).
 _MODEL_TO_PROVIDER_SLOT: dict[str, tuple[str, int]] = {
+    "claude-opus-4-8": ("Claude", 1),
     "claude-haiku-4-5-20251001": ("Claude", 0),
-    "gpt-4o-mini-2024-07-18": ("ChatGPT", 0),
+    "gpt-5.5-2026-04-23": ("ChatGPT", 1),
+    "gpt-5.4-mini-2026-03-17": ("ChatGPT", 0),
+    "mistral-medium-3-5": ("Mistral", 1),
     "mistral-small-2603": ("Mistral", 0),
-    "gemini-2.5-flash-lite": ("Gemini", 0),
+    "gemini-3.5-flash": ("Gemini", 1),
+    "gemini-3.1-flash-lite": ("Gemini", 0),
+    "deepseek-v4-pro": ("DeepSeek", 1),
     "deepseek-v4-flash": ("DeepSeek", 0),
 }
 

@@ -20,8 +20,8 @@ _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 class GeminiProvider(LLMProvider):
     """
-    Concrete provider for Google Gemini models (gemini-2.5-flash, gemini-3.x, etc.)
-    Uses the official google-genai SDK — add 'google-genai>=1.0' to pyproject.toml.
+    Concrete provider for Google Gemini models (gemini-3.5-flash, etc.)
+    Uses the official google-genai SDK; add 'google-genai>=1.0' to pyproject.toml.
     """
 
     # SYSTEM_PROMPT inherited from LLMProvider (maestro.prompts).

@@ -26,8 +26,8 @@ _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 class OpenAIProvider(LLMProvider):
     """
-    Concrete provider for OpenAI models (gpt-4o, gpt-4o-mini, etc.)
-    Uses the official openai SDK — add 'openai>=1.0.0' to pyproject.toml.
+    Concrete provider for OpenAI models (gpt-5.5, gpt-5.4-mini, etc.)
+    Uses the official openai SDK; add 'openai>=1.0.0' to pyproject.toml.
     """
 
     # Name used in retry log lines. Defined as a class attribute (rather than
@@ -40,6 +40,11 @@ class OpenAIProvider(LLMProvider):
 
     # Max tokens for the completion
     MAX_TOKENS = 4096
+
+    # The request parameter that caps output length. OpenAI's GPT-5 family
+    # renamed max_tokens -> max_completion_tokens; OpenAI-compatible endpoints
+    # that still expect the old name (e.g. DeepSeek) override this.
+    _MAX_TOKENS_PARAM = "max_completion_tokens"
 
     def __init__(self, api_key: str, pricing: ModelPricing) -> None:
         super().__init__(api_key, pricing)
@@ -88,15 +93,22 @@ class OpenAIProvider(LLMProvider):
 
         def _do_call():
             """The SDK call ``call_with_retry`` re-runs on transient failures."""
-            return self._client.chat.completions.create(
-                model=config.model,
-                max_tokens=self.MAX_TOKENS,
-                temperature=self.TEMPERATURE,
-                messages=[
+            # GPT-5 models renamed max_tokens -> max_completion_tokens and, like
+            # other reasoning models, reject a custom temperature. The token
+            # param name is _MAX_TOKENS_PARAM (subclasses on older endpoints
+            # override it); temperature is omitted for models that don't support
+            # it (see ModelPricing.supports_temperature).
+            params = {
+                "model": config.model,
+                self._MAX_TOKENS_PARAM: self.MAX_TOKENS,
+                "messages": [
                     {"role": "system", "content": effective_system},
                     {"role": "user", "content": prompt},
                 ],
-            )
+            }
+            if self.pricing.supports_temperature:
+                params["temperature"] = self.TEMPERATURE
+            return self._client.chat.completions.create(**params)
 
         try:
             response, _ = call_with_retry(

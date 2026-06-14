@@ -248,7 +248,7 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Run only these models (default: all registered). "
             "Comma-separated for several, e.g. "
-            "--model gpt-4o-mini-2024-07-18,deepseek-v4-flash"
+            "--model gpt-5.4-mini-2026-03-17,deepseek-v4-flash"
         ),
     )
     parser.add_argument(
@@ -357,8 +357,8 @@ def build_matrix(args: argparse.Namespace) -> list[dict]:
     if strategy_names:
         strategies = [s for s in strategies if s.value in strategy_names]
 
-    # Filter models — applies only to real (LLM) strategies. Control rows
-    # ignore --model because they don't use a model; --model gpt-4o-mini
+    # Filter models, applies only to real (LLM) strategies. Control rows
+    # ignore --model because they don't use a model; a --model filter
     # should narrow which LLM rows run but should not silently drop the
     # sanity floor/ceiling rows the experiment needs.
     models = MODELS
@@ -366,8 +366,8 @@ def build_matrix(args: argparse.Namespace) -> list[dict]:
         models = [m for m in models if m.model in model_names]
 
     # Partition by strategy kind. Controls are deterministic in (model,
-    # repeat) — collapsing both dimensions to a single row per
-    # (input, control) avoids 40× duplicate rows per input that would
+    # repeat), so collapsing both dimensions to a single row per
+    # (input, control) avoids 40x duplicate rows per input that would
     # need to be filtered out at analysis time anyway.
     real_strategies = [s for s in strategies if s not in CONTROL_STRATEGIES]
     control_strategies = [s for s in strategies if s in CONTROL_STRATEGIES]
@@ -376,8 +376,8 @@ def build_matrix(args: argparse.Namespace) -> list[dict]:
     # strategy is selected. `--strategy null_control --model typo` stays a
     # no-op on --model (controls don't use any model), so it must not abort.
     # When a real strategy IS selected, a misspelled model would otherwise
-    # silently shrink the matrix (e.g. `--model gpt-4o-mini-2024-07-18,typo`
-    # would quietly run only the valid one) — so reject the typo loudly.
+    # silently shrink the matrix (e.g. `--model gpt-5.4-mini-2026-03-17,typo`
+    # would quietly run only the valid one), so reject the typo loudly.
     if model_names and real_strategies:
         registered = {m.model for m in MODELS}
         unknown = [m for m in model_names if m not in registered]
