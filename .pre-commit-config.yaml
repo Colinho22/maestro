@@ -2,7 +2,7 @@
 #
 # Mirrors the CI workflow's ruff steps so formatting / lint issues are
 # caught locally before they show up as red CI runs. pytest is *not* run
-# here on purpose — it's slow enough (LangGraph import takes a couple of
+# here on purpose: it's slow enough (LangGraph import takes a couple of
 # seconds) to make every commit annoying. CI handles the test gate.
 #
 # Setup (one-time, per clone):

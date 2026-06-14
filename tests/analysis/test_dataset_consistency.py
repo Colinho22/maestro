@@ -1,20 +1,20 @@
 """
-MAESTRO — Dataset JSON <-> ground-truth MMD consistency (Phase 5).
+MAESTRO: Dataset JSON <-> ground-truth MMD consistency (Phase 5).
 
 For every registered input this asserts that the structured JSON (the model's
 INPUT) and the reference Mermaid (the expected OUTPUT) agree on:
 
-  * entities      — JSON leaf nodes/elements  == MMD inline nodes
-  * containers    — JSON-derived groupings     == MMD subgraphs
-  * flows         — JSON sequence/message/rels  == MMD flow edges (undirected)
-  * attachments   — JSON attached_to + compensation == MMD ``o--o`` edges
-  * metadata      — entity_count / container_count / attachment_count match
+  * entities      : JSON leaf nodes/elements  == MMD inline nodes
+  * containers    : JSON-derived groupings     == MMD subgraphs
+  * flows         : JSON sequence/message/rels  == MMD flow edges (undirected)
+  * attachments   : JSON attached_to + compensation == MMD ``o--o`` edges
+  * metadata      : entity_count / container_count / attachment_count match
 
 Why this matters beyond data hygiene: container-ness is *derived from the
 JSON's own containment fields* (``lane`` / ``pool`` / ``parent_subprocess`` for
 BPMN, ``boundary`` for IT) plus the rule "a grouping is drawn iff something
 nests inside it". If this test passes, every container in the expected output is
-inferable from the input — i.e. the benchmark never asks a model to produce
+inferable from the input, i.e. the benchmark never asks a model to produce
 structure the input didn't specify. A failure means either a ground-truth bug
 or an under-specified input, both of which would silently penalise models.
 
@@ -102,7 +102,7 @@ def _mmd_truth(code: str) -> tuple[set, set, set, set]:
     )
 
 
-# One parametrised case per registered input — failures name the diagram.
+# One parametrised case per registered input: failures name the diagram.
 @pytest.mark.parametrize("inp", INPUTS, ids=lambda i: i.example_id)
 def test_json_mmd_structurally_consistent(inp):
     d = json.loads(inp.file_path.read_text(encoding="utf-8"))
@@ -111,19 +111,19 @@ def test_json_mmd_structurally_consistent(inp):
     me, mc, mr, ma = _mmd_truth(code)
 
     assert je == me, (
-        f"{inp.example_id} ENTITIES differ — "
+        f"{inp.example_id} ENTITIES differ: "
         f"in JSON not MMD: {sorted(je - me)}; in MMD not JSON: {sorted(me - je)}"
     )
     assert jc == mc, (
-        f"{inp.example_id} CONTAINERS differ — "
+        f"{inp.example_id} CONTAINERS differ: "
         f"in JSON not MMD: {sorted(jc - mc)}; in MMD not JSON: {sorted(mc - jc)}"
     )
     assert jr == mr, (
-        f"{inp.example_id} FLOWS differ — "
+        f"{inp.example_id} FLOWS differ: "
         f"in JSON not MMD: {sorted(jr - mr)}; in MMD not JSON: {sorted(mr - jr)}"
     )
     assert ja == ma, (
-        f"{inp.example_id} ATTACHMENTS differ — "
+        f"{inp.example_id} ATTACHMENTS differ: "
         f"in JSON not MMD: {sorted(ja - ma)}; in MMD not JSON: {sorted(ma - ja)}"
     )
 

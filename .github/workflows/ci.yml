@@ -1,7 +1,7 @@
 name: ci
 
 # Runs ruff (lint + format check) and pytest on PRs targeting main and on
-# main pushes. Branch pushes don't trigger the workflow — saves GitHub
+# main pushes. Branch pushes don't trigger the workflow, saving GitHub
 # minutes while still gating every PR.
 
 on:
@@ -27,7 +27,7 @@ jobs:
       # ecosystem entry).
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
-          # Don't leave the GITHUB_TOKEN in .git/config after checkout —
+          # Don't leave the GITHUB_TOKEN in .git/config after checkout:
           # the CI job doesn't push, tag, or otherwise need git auth from
           # later steps. Removes needless attack surface if any subsequent
           # step (e.g. a third-party action) reads the workspace.

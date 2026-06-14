@@ -1,18 +1,20 @@
 """
-MAESTRO — SOP (Standard Operating Procedure) strategy.
+MAESTRO: SOP (Standard Operating Procedure) strategy.
 
 Orchestration shape: a *hand-coded sequential procedure*. The strategy walks
 a fixed list of steps in a Python `for` loop, threading each step's output
-into the next step's prompt by hand. There is no framework — the loop, the
+into the next step's prompt by hand. There is no framework: the loop, the
 state dict, the retry block and the abort logic are all written explicitly
 in this file so the procedure is fully visible to the reader.
 
 This is the procedural baseline that CrewAI and LangGraph are compared
-against: same task, same prompts, same retry budget — different orchestrator.
+against: same task, same prompts, same retry budget, different orchestrator.
 
 Prompts and validation rules live in `_extraction.py` so all multi-step
 strategies share them byte-for-byte.
 """
+
+from __future__ import annotations
 
 import json
 import time
@@ -30,12 +32,12 @@ from maestro.strategies._extraction import (
     STEP_2_PROMPT,
     STEP_3_PROMPT,
     strip_fences,
-    validate_step_payload,
+    validate_step_output,
 )
 from maestro.strategies.base import BaseStrategy
 
 # ---------------------------------------------------------------------------
-# Step table — the procedure as data
+# Step table: the procedure as data
 # ---------------------------------------------------------------------------
 # Steps 1 and 2 use the JSON system prompt; step 3 falls back to the
 # provider's default Mermaid system prompt by passing system_prompt=None.
@@ -139,7 +141,7 @@ class SOPStrategy(BaseStrategy):
             # Store output for the next step
             step_outputs[step_name] = output_text
 
-        # Success — step 3 output is the final Mermaid diagram
+        # Success: step 3 output is the final Mermaid diagram
         return self._aggregate(
             config,
             sub_results,
@@ -192,7 +194,7 @@ class SOPStrategy(BaseStrategy):
         actual_retries = 0
 
         for attempt in range(MAX_RETRIES + 1):
-            # provider.complete() returns a RunResult — we extract what we need
+            # provider.complete() returns a RunResult, we extract what we need
             result = self.provider.complete(prompt, config, system_prompt=system_prompt)
 
             # Accumulate metrics from every attempt
@@ -203,18 +205,16 @@ class SOPStrategy(BaseStrategy):
             actual_retries = attempt
 
             if result.success:
-                # For steps 1-2, validate JSON output
+                # Validate the fenced-stripped output: empty on any step (a
+                # silent empty-diagram failure), JSON shape on steps 1-2.
                 output = strip_fences(result.output_diagram_code)
-                if step_number < 3:
-                    is_valid, validation_error = validate_step_payload(
-                        output, step_number
+                is_valid, validation_error = validate_step_output(output, step_number)
+                if not is_valid:
+                    last_error = (
+                        f"Invalid {step_name} output on attempt {attempt + 1}: "
+                        f"{validation_error}"
                     )
-                    if not is_valid:
-                        last_error = (
-                            f"Invalid {step_name} payload on attempt {attempt + 1}: "
-                            f"{validation_error}"
-                        )
-                        continue
+                    continue
 
                 return (
                     SubResult(

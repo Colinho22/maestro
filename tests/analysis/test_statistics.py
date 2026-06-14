@@ -3,7 +3,7 @@ Tests for the statistical analysis pipeline (src/maestro/analysis/statistics.py)
 
 Strategy: build a synthetic SQLite DB through the *real* schema (db.client
 SCHEMA + db.queries inserts), so the three-way join the analysis depends on
-is exercised exactly as in production — no hand-mocked DataFrames. Each test
+is exercised exactly as in production: no hand-mocked DataFrames. Each test
 then asserts on the analysis output shape and the two behaviors that matter
 most and are easy to regress:
 
@@ -135,8 +135,8 @@ def _insert_cell(
 
 def _populate_two_levels(conn: sqlite3.Connection) -> None:
     """
-    Two models, three experimental strategies, several repeats, single tier
-    — mirrors the real dev DB (model varies, tier does not). F1 values are
+    Two models, three experimental strategies, several repeats, single tier:
+    mirrors the real dev DB (model varies, tier does not). F1 values are
     spread so the ANOVA has variance to find.
     """
     models = ["model_a", "model_b"]
@@ -158,7 +158,7 @@ def _populate_two_levels(conn: sqlite3.Connection) -> None:
                     f1=base + delta,
                     cost=0.001 if strategy is Strategy.SINGLE_AGENT else 0.005,
                 )
-    # A control cell — floor F1 = 0. Present for descriptives, must be
+    # A control cell: floor F1 = 0. Present for descriptives, must be
     # excluded from ANOVA / effect sizes.
     _insert_cell(
         conn,
@@ -193,7 +193,7 @@ def test_load_dataframe_empty_db():
 
 
 # ---------------------------------------------------------------------------
-# Descriptives — controls INCLUDED
+# Descriptives: controls INCLUDED
 # ---------------------------------------------------------------------------
 
 
@@ -221,7 +221,7 @@ def test_describe_empty():
 
 
 # ---------------------------------------------------------------------------
-# ANOVA — controls EXCLUDED, real stats when factors vary
+# ANOVA: controls EXCLUDED, real stats when factors vary
 # ---------------------------------------------------------------------------
 
 
@@ -255,13 +255,13 @@ def test_anova_strategy_by_model_interaction_present():
 
 
 # ---------------------------------------------------------------------------
-# Graceful degradation — single-level factor yields a skip-stub
+# Graceful degradation: single-level factor yields a skip-stub
 # ---------------------------------------------------------------------------
 
 
 def test_anova_strategy_by_tier_skips_on_single_tier():
     conn = _conn()
-    _populate_two_levels(conn)  # all COMPLEX → tier has one level
+    _populate_two_levels(conn)  # all COMPLEX -> tier has one level
     df = stats.load_dataframe(conn)
     out = stats.anova_strategy_by_tier(df)
 
@@ -292,7 +292,7 @@ def test_posthoc_strategy_pairs():
     df = stats.load_dataframe(conn)
     out = stats.posthoc_strategy(df)
     assert out["status"] == "ok"
-    # 3 experimental strategies → C(3,2) = 3 pairwise comparisons.
+    # 3 experimental strategies -> C(3,2) = 3 pairwise comparisons.
     assert len(out["comparisons"]) == 3
 
 
@@ -302,7 +302,7 @@ def test_effect_sizes_excludes_controls():
     df = stats.load_dataframe(conn)
     out = stats.effect_sizes(df)
     assert out["status"] == "ok"
-    # Pairs are over the 3 experimental strategies only — the control must
+    # Pairs are over the 3 experimental strategies only: the control must
     # never appear in a pair.
     seen = {p["group_a"] for p in out["pairs"]} | {p["group_b"] for p in out["pairs"]}
     assert _CONTROL.value not in seen
@@ -310,7 +310,7 @@ def test_effect_sizes_excludes_controls():
 
 
 # ---------------------------------------------------------------------------
-# Error taxonomy — descriptive, controls included
+# Error taxonomy: descriptive, controls included
 # ---------------------------------------------------------------------------
 
 
@@ -328,7 +328,7 @@ def test_error_taxonomy_includes_controls():
 
 
 # ---------------------------------------------------------------------------
-# Trade-off — controls excluded, ratio computed
+# Trade-off: controls excluded, ratio computed
 # ---------------------------------------------------------------------------
 
 
@@ -341,7 +341,7 @@ def test_tradeoff_excludes_controls_and_computes_ratio():
     strategies = {e["strategy"] for e in out["by_strategy"]}
     assert _CONTROL.value not in strategies
     for entry in out["by_strategy"]:
-        # Non-zero cost in the fixture → ratio is a finite number.
+        # Non-zero cost in the fixture -> ratio is a finite number.
         assert entry["correctness_per_usd"] is not None
 
 
@@ -375,7 +375,7 @@ def test_all_outputs_json_serializable():
 
 
 # ---------------------------------------------------------------------------
-# Cohen's d — zero-variance edge case
+# Cohen's d: zero-variance edge case
 # ---------------------------------------------------------------------------
 
 
@@ -389,7 +389,7 @@ def test_cohens_d_zero_variance_unequal_means_is_infinite():
 
     import pandas as pd
 
-    # Three strategies, every run identical within a strategy → zero pooled
+    # Three strategies, every run identical within a strategy -> zero pooled
     # variance for each pair, but the means differ.
     rows = []
     for strat, score in (
@@ -405,9 +405,9 @@ def test_cohens_d_zero_variance_unequal_means_is_infinite():
     assert out["status"] == "ok"
     ds = {(p["group_a"], p["group_b"]): p["cohens_d"] for p in out["pairs"]}
     # crew_ai (0.9) > single_agent (0.5): groups sorted alphabetically, so
-    # group_a=crew_ai, group_b=single_agent → positive infinity.
+    # group_a=crew_ai, group_b=single_agent -> positive infinity.
     assert ds[("crew_ai", "single_agent")] == "inf"
-    # lang_graph (0.1) < single_agent (0.5) → negative infinity.
+    # lang_graph (0.1) < single_agent (0.5) -> negative infinity.
     assert ds[("lang_graph", "single_agent")] == "-inf"
     # Still strict-JSON serializable (string, not float inf).
     json.dumps(out, allow_nan=False)
@@ -427,16 +427,16 @@ def test_cohens_d_zero_variance_equal_means_is_zero():
 
 
 # ---------------------------------------------------------------------------
-# CLI smoke test — public output contract
+# CLI smoke test: public output contract
 # ---------------------------------------------------------------------------
 
 
 def test_cli_writes_output_contract(tmp_path):
     """
     End-to-end: invoke the module entry point against an on-disk DB and a
-    temp output dir, and assert the public output contract — a timestamped
+    temp output dir, and assert the public output contract: a timestamped
     run directory containing report.md, the JSON files, and the deferred
-    figures/README.md — with a zero return code.
+    figures/README.md, with a zero return code.
     """
     import json
 
@@ -478,7 +478,7 @@ def test_cli_writes_output_contract(tmp_path):
 
         # Every emitted JSON must be strict-valid. json.loads has no
         # allow_nan kwarg (that's a dumps-only option); parse_constant is the
-        # loads-side hook — it fires on the non-standard NaN/Infinity/-Infinity
+        # loads-side hook: it fires on the non-standard NaN/Infinity/-Infinity
         # tokens, so raising there fails the test if a non-finite value leaked.
         def _reject(token):
             raise ValueError(f"non-finite token in {filename}: {token}")

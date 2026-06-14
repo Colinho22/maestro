@@ -1,5 +1,5 @@
 """
-MAESTRO viz — read-only SQLite access for the dashboard.
+MAESTRO viz: read-only SQLite access for the dashboard.
 
 The visualizer must never mutate the experiment database. This module opens
 connections in SQLite *read-only* mode (``file:...?mode=ro`` URI) so any
@@ -9,7 +9,7 @@ produced.
 Connections are short-lived: ``connect`` is a context manager that opens a
 fresh connection per operation and closes it on exit. A single sqlite3
 connection is not safe to share across threads, and Streamlit may run reruns
-on different threads — so rather than caching one shared handle, each query
+on different threads, so rather than caching one shared handle, each query
 gets its own. Opening a local SQLite file is cheap enough that this is a
 non-issue for an interactive dashboard, and it sidesteps cross-thread
 cursor-state hazards entirely.

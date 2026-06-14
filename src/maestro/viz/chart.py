@@ -1,11 +1,11 @@
 """
-MAESTRO viz — matplotlib figure helpers for the dashboard.
+MAESTRO viz: matplotlib figure helpers for the dashboard.
 
 Two pieces every view uses:
 
-- ``new_figure`` — create a ``(fig, ax)`` with the house style applied, so a
+- ``new_figure``: create a ``(fig, ax)`` with the house style applied, so a
   view never has to remember to call ``apply_thesis_style`` itself.
-- ``render_chart`` — display a figure in Streamlit and offer PNG + SVG
+- ``render_chart``: display a figure in Streamlit and offer PNG + SVG
   downloads (publication-quality vector for the thesis, raster for slides).
   It closes the figure afterwards: matplotlib keeps figures alive globally,
   so a long-running dashboard that forgot to close them would leak memory.
@@ -72,7 +72,7 @@ def render_chart(
     is shown under the figure if given.
 
     ``use_container_width=True`` makes the chart scale to its container rather
-    than render at the figure's native inches — so a wide-layout page does
+    than render at the figure's native inches, so a wide-layout page does
     not let the figure dictate the overall column width. Views can wrap this
     call in an ``st.columns`` block to bound the chart's region further.
     """
@@ -101,5 +101,5 @@ def render_chart(
             key=f"{key}-svg",
         )
 
-    # Release the figure — matplotlib holds a global reference otherwise.
+    # Release the figure: matplotlib holds a global reference otherwise.
     plt.close(fig)

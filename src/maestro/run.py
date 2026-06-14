@@ -1,5 +1,5 @@
 """
-MAESTRO — Experiment runner
+MAESTRO: Experiment runner
 Iterates over the full experiment matrix: inputs x strategies x models x repeats.
 Supports CLI filters to run subsets (e.g. only SOP, only tier 2).
 
@@ -25,7 +25,7 @@ Usage:
     # Combine filters
     python -m maestro.run --strategy sop_based --tier 2 --repeats 3
 
-    # Dry run — show matrix without executing
+    # Dry run: show matrix without executing
     python -m maestro.run --dry-run
 
     # Resume: default behaviour is to skip cells already successfully
@@ -38,6 +38,8 @@ Usage:
     # Re-run only previously-failed cells
     python -m maestro.run --rerun-failed
 """
+
+from __future__ import annotations
 
 import argparse
 import os
@@ -94,7 +96,7 @@ from maestro.strategies.single import SingleAgentStrategy
 from maestro.strategies.sop import SOPStrategy
 
 # ---------------------------------------------------------------------------
-# Strategy factory — maps enum to class
+# Strategy factory: maps enum to class
 # ---------------------------------------------------------------------------
 
 STRATEGY_MAP = {
@@ -102,7 +104,7 @@ STRATEGY_MAP = {
     Strategy.SOP_BASED: SOPStrategy,
     Strategy.CREW_AI: CrewAIStrategy,
     Strategy.LANG_GRAPH: LangGraphStrategy,
-    # Controls — see strategies/controls.py for rationale
+    # Controls: see strategies/controls.py for rationale
     Strategy.NULL_CONTROL: NullControlStrategy,
     Strategy.COPY_CONTROL: CopyInputControlStrategy,
     Strategy.GROUND_TRUTH_CONTROL: GroundTruthEchoControlStrategy,
@@ -126,7 +128,7 @@ _PROVIDER_DISPATCH = (
     #
     # Order matters: dispatch picks the first matching substring. The needles
     # are mutually exclusive across the current model names, so the order is
-    # not load-bearing today — but keep new needles specific enough not to
+    # not load-bearing today, but keep new needles specific enough not to
     # collide (e.g. "deepseek" must not be a prefix/suffix of another vendor's
     # model id).
     ("claude", AnthropicProvider, "ANTHROPIC_API_KEY"),
@@ -151,7 +153,7 @@ def _dispatch_for_model(model: str):
 def _create_provider(model_pricing):
     """
     Instantiate the correct LLM provider based on model name.
-    API keys come from environment variables — never hardcoded.
+    API keys come from environment variables, never hardcoded.
 
     Raises ``RuntimeError`` on either failure mode (unknown model name,
     missing env var). Both are caught by the cell-level try/except in
@@ -185,18 +187,18 @@ def preflight_check_env(models: list[ModelPricing]) -> None:
     is missing; otherwise returns silently.
 
     Skips models whose name doesn't dispatch to any provider (e.g. the
-    synthetic ``control`` ModelPricing used by control strategies) —
+    synthetic ``control`` ModelPricing used by control strategies):
     those don't make LLM calls and don't need keys.
     """
     # env_var -> set of distinct model names needing it. ``models`` is
-    # the post-filter matrix, which has one entry per *cell* — the same
+    # the post-filter matrix, which has one entry per *cell*; the same
     # model name appears many times for a typical matrix. A set
     # de-duplicates so the error message isn't padded with repetition.
     missing: dict[str, set[str]] = {}
     for mp in models:
         dispatch = _dispatch_for_model(mp.model)
         if dispatch is None:
-            # Unknown model or synthetic "control" — skip silently. The
+            # Unknown model or synthetic "control": skip silently. The
             # main loop handles unknown-model failures per-cell.
             continue
         _, _, env_var = dispatch
@@ -225,7 +227,7 @@ def preflight_check_env(models: list[ModelPricing]) -> None:
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments for filtering the experiment matrix."""
     parser = argparse.ArgumentParser(
-        description="MAESTRO experiment runner — iterate the full experiment matrix"
+        description="MAESTRO experiment runner: iterate the full experiment matrix"
     )
 
     parser.add_argument(
@@ -271,7 +273,7 @@ def parse_args() -> argparse.Namespace:
         help="Print the experiment matrix without executing any runs",
     )
 
-    # Resume semantics — mutually exclusive.
+    # Resume semantics: mutually exclusive.
     # Default (neither flag): skip cells whose RunResult is already
     # successful in the DB; re-run cells that previously failed
     # (transient errors usually deserve another attempt).
@@ -299,7 +301,7 @@ def parse_args() -> argparse.Namespace:
 
 
 # ---------------------------------------------------------------------------
-# Matrix builder — apply filters
+# Matrix builder: apply filters
 # ---------------------------------------------------------------------------
 
 
@@ -325,8 +327,8 @@ def build_matrix(args: argparse.Namespace) -> list[dict]:
     strategy_names = _split_csv(args.strategy)
 
     # Validate filter values up front (argparse no longer does, now that the
-    # flags accept lists). Catches a typo before any matrix work or API spend —
-    # a misspelled value in a list would otherwise silently shrink the matrix.
+    # flags accept lists). Catches a typo before any matrix work or API spend,
+    # since a misspelled value in a list would otherwise silently shrink the matrix.
     def _reject_unknown(flag: str, given: list[str], valid: set[str]) -> None:
         unknown = [v for v in given if v not in valid]
         if unknown:
@@ -438,12 +440,12 @@ def _apply_resume_filter(matrix: list[dict], args: argparse.Namespace) -> list[d
 
     Reads the DB once (lazy import of get_connection so unit tests that
     poke at the helpers don't need a real DB). Idempotent if the DB
-    doesn't exist yet — init_db is called by ``main`` before this.
+    doesn't exist yet: init_db is called by ``main`` before this.
     """
     if args.no_resume:
         return matrix
 
-    # Only fetch the set the active mode actually needs — on a big DB
+    # Only fetch the set the active mode actually needs: on a big DB
     # the unused query would scan thousands of rows for nothing.
     with get_connection(DB_PATH) as conn:
         if args.rerun_failed:
@@ -478,7 +480,7 @@ def main():
         )
         sys.exit(0)
 
-    # Initialize DB before applying the resume filter — the filter reads
+    # Initialize DB before applying the resume filter: the filter reads
     # existing rows, and init_db is idempotent + cheap (CREATE IF NOT EXISTS).
     init_db(DB_PATH)
 
@@ -492,9 +494,9 @@ def main():
 
     if not matrix:
         if args.rerun_failed:
-            print("No previously-failed cells to re-run — nothing to do.")
+            print("No previously-failed cells to re-run - nothing to do.")
         else:
-            print("All matrix cells already complete in the DB — nothing to do.")
+            print("All matrix cells already complete in the DB - nothing to do.")
         sys.exit(0)
 
     # Group summary for display
@@ -504,7 +506,7 @@ def main():
     total = len(matrix)
 
     print("=" * 60)
-    print("MAESTRO — Experiment Runner")
+    print("MAESTRO - Experiment Runner")
     print("=" * 60)
     print(f"  Inputs:     {n_inputs}")
     print(f"  Strategies: {n_strategies}")
@@ -513,7 +515,7 @@ def main():
     print(f"  Total runs: {total}")
     if skipped:
         # In --rerun-failed mode the skipped set includes both
-        # successful prior runs AND cells with no DB row yet — neither
+        # successful prior runs AND cells with no DB row yet, neither of which
         # is "already complete", so don't claim that.
         if args.rerun_failed:
             print(f"  Skipped:    {skipped} (no prior failure, rerun-failed mode)")
@@ -535,7 +537,7 @@ def main():
 
     # Pre-flight: verify env vars for every provider in the post-filter
     # matrix. Fails fast with a consolidated error message before any
-    # work starts — way better than discovering MISTRAL_API_KEY is
+    # work starts, way better than discovering MISTRAL_API_KEY is
     # missing 80% of the way through a multi-hour run.
     matrix_models = [c["model_pricing"] for c in matrix]
     preflight_check_env(matrix_models)
@@ -547,7 +549,7 @@ def main():
     environment = capture_environment()
     if environment.git_dirty:
         print(
-            "⚠  Git working tree is dirty — uncommitted changes will not be "
+            "⚠  Git working tree is dirty: uncommitted changes will not be "
             "reproducible from this commit hash."
         )
     with get_connection(DB_PATH) as conn:
@@ -587,10 +589,10 @@ def main():
         # config gap, not a failure. Don't burn a row on it.
         strategy_cls = STRATEGY_MAP.get(strategy_enum)
         if strategy_cls is None:
-            print(f"  SKIP — strategy {strategy_enum.value} not implemented")
+            print(f"  SKIP - strategy {strategy_enum.value} not implemented")
             continue
 
-        # Execute — cell-level error isolation. Any unhandled exception
+        # Execute: cell-level error isolation. Any unhandled exception
         # from provider/strategy construction or strategy.run() (provider
         # SDK bug, framework crash, a KeyError in a strategy's own
         # bookkeeping, an env-var rotated mid-run, etc.) is captured into
@@ -599,15 +601,15 @@ def main():
         # experiment would burn hours of API spend.
         #
         # Provider construction is *inside* the try because
-        # _create_provider can raise (unknown model, missing env var) —
+        # _create_provider can raise (unknown model, missing env var), and
         # those are real failure modes worth recording as a failed cell
         # rather than killing the process.
         #
-        # KeyboardInterrupt / SystemExit are deliberately NOT caught —
+        # KeyboardInterrupt / SystemExit are deliberately NOT caught:
         # the user pressing Ctrl+C or a sys.exit() from a helper should
         # still exit the runner.
         try:
-            # Controls don't need a provider — they bypass the LLM entirely;
+            # Controls don't need a provider: they bypass the LLM entirely;
             # passing one would just be unused state.
             if strategy_enum in CONTROL_STRATEGIES:
                 strategy = strategy_cls()
@@ -631,7 +633,7 @@ def main():
             )
             sub_results = []
 
-        # Persist to DB. Wrapped in try/except too — a DB failure here
+        # Persist to DB. Wrapped in try/except too: a DB failure here
         # would otherwise kill the loop after the (potentially expensive)
         # LLM call already happened. We at least want to log the in-memory
         # result so the user can recover manually.
@@ -657,14 +659,14 @@ def main():
                     except Exception as exc:
                         traceback.print_exc(file=sys.stderr)
                         print(
-                            f"  WARN — metric evaluation crashed: "
+                            f"  WARN - metric evaluation crashed: "
                             f"{type(exc).__name__}: {exc}",
                             file=sys.stderr,
                         )
         except Exception as exc:
             traceback.print_exc(file=sys.stderr)
             print(
-                f"  WARN — DB persist crashed: {type(exc).__name__}: {exc}; "
+                f"  WARN - DB persist crashed: {type(exc).__name__}: {exc}; "
                 "result lost",
                 file=sys.stderr,
             )
@@ -676,13 +678,13 @@ def main():
         if result.success:
             successes += 1
             print(
-                f"  OK — {result.duration_ms}ms, "
+                f"  OK - {result.duration_ms}ms, "
                 f"${result.cost_usd:.6f}, "
                 f"{result.total_tokens} tokens"
             )
         else:
             failures += 1
-            print(f"  FAIL — {result.error} (cost: ${result.cost_usd:.6f})")
+            print(f"  FAIL - {result.error} (cost: ${result.cost_usd:.6f})")
 
     # Final summary
     print("\n" + "=" * 60)

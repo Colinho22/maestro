@@ -1,5 +1,5 @@
 """
-MAESTRO viz — matplotlib theme and color palettes.
+MAESTRO viz: matplotlib theme and color palettes.
 
 Implements the project Visualization Design Guide
 (docs/visualization_design_guide.md). The palette dictionaries below are
@@ -8,9 +8,9 @@ specifies); the mapping helpers bridge from the values the database stores
 (enum strings like ``single_agent``, model ids like
 ``claude-haiku-4-5-20251001``) to those display-keyed palettes.
 
-Three categorical dimensions each get their own visual signature — strategy
-(pink→magenta gradient), provider (one hue per provider, two lightness stops
-for smaller-model vs flagship), tier (amber gradient) — plus a shared
+Three categorical dimensions each get their own visual signature: strategy
+(pink to magenta gradient), provider (one hue per provider, two lightness stops
+for smaller-model vs flagship), tier (amber gradient), plus a shared
 sequential colormap for continuous metrics. The style itself (Arial, L-shaped
 dark-gray axes, light grid, white background) is applied via
 ``apply_thesis_style``.
@@ -22,7 +22,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 # ---------------------------------------------------------------------------
-# Palettes — verbatim from the design guide (display-name keys).
+# Palettes: verbatim from the design guide (display-name keys).
 # ---------------------------------------------------------------------------
 
 # Provider gradients. Each list is [smaller model, flagship].
@@ -36,7 +36,7 @@ PROVIDER_TIERS: dict[str, list[str]] = {
 
 # Strategy gradient. Ordered light = least explicit orchestration (the
 # single-LLM-call baseline), dark = most explicit (the graph workflow). This
-# assignment is frozen — never reassign a strategy's color across charts.
+# assignment is frozen: never reassign a strategy's color across charts.
 STRATEGY_COLORS: dict[str, str] = {
     "Single Agent": "#ED93B1",
     "SOP": "#D4537E",
@@ -67,14 +67,14 @@ CONTROL_COLOR: str = "#9CA3AF"
 DEFAULT_CYCLE: list[str] = list(STRATEGY_COLORS.values())
 
 # ---------------------------------------------------------------------------
-# DB-value → guide-display mappings.
+# DB-value -> guide-display mappings.
 #
 # The database stores enum values and full model ids; the guide keys palettes
 # by display name. These dicts are the bridge. Keep them in sync with
 # maestro.schemas.Strategy and maestro.experiment_config.MODELS.
 # ---------------------------------------------------------------------------
 
-# Strategy enum value (run_configs.strategy) → guide display name.
+# Strategy enum value (run_configs.strategy) -> guide display name.
 _STRATEGY_VALUE_TO_NAME: dict[str, str] = {
     "single_agent": "Single Agent",
     "sop_based": "SOP",
@@ -92,7 +92,7 @@ _CONTROL_VALUE_TO_NAME: dict[str, str] = {
     "ground_truth_control": "Ground Truth Control",
 }
 
-# Model id (run_configs.model) → (provider display name, slot) where slot is
+# Model id (run_configs.model) -> (provider display name, slot) where slot is
 # 0 for the efficiency model and 1 for the frontier model. Keep this in sync
 # with experiment_config.MODELS (two ids per provider).
 _MODEL_TO_PROVIDER_SLOT: dict[str, tuple[str, int]] = {
@@ -127,7 +127,7 @@ def apply_thesis_style(*, force: bool = False) -> None:
 
     plt.rcParams.update(
         {
-            # Typography — Arial with cross-platform fallbacks.
+            # Typography: Arial with cross-platform fallbacks.
             "font.family": "sans-serif",
             "font.sans-serif": ["Arial", "Liberation Sans", "DejaVu Sans"],
             "font.size": 11,
@@ -136,12 +136,12 @@ def apply_thesis_style(*, force: bool = False) -> None:
             "xtick.labelsize": 9,
             "ytick.labelsize": 9,
             "legend.fontsize": 9,
-            # Axes — L-shape, dark-gray spines.
+            # Axes: L-shape, dark-gray spines.
             "axes.edgecolor": "#333333",
             "axes.linewidth": 0.75,
             "axes.spines.top": False,
             "axes.spines.right": False,
-            # Ticks — outside, major only.
+            # Ticks: outside, major only.
             "xtick.color": "#333333",
             "ytick.color": "#333333",
             "xtick.major.size": 3,
@@ -150,13 +150,13 @@ def apply_thesis_style(*, force: bool = False) -> None:
             "ytick.major.width": 0.75,
             "xtick.direction": "out",
             "ytick.direction": "out",
-            # Gridlines — light, solid, behind the data.
+            # Gridlines: light, solid, behind the data.
             "axes.grid": True,
             "axes.axisbelow": True,
             "grid.color": "#D0D0D0",
             "grid.linewidth": 0.5,
             "grid.linestyle": "-",
-            # Background — white everywhere (screen and saved files).
+            # Background: white everywhere (screen and saved files).
             "figure.facecolor": "white",
             "axes.facecolor": "white",
             "savefig.facecolor": "white",
@@ -168,7 +168,7 @@ def apply_thesis_style(*, force: bool = False) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Color lookups — accept the values stored in the database.
+# Color lookups: accept the values stored in the database.
 # ---------------------------------------------------------------------------
 
 
@@ -183,13 +183,16 @@ def strategy_color(strategy_value: str) -> str:
     name = _STRATEGY_VALUE_TO_NAME.get(strategy_value)
     if name is None:
         return CONTROL_COLOR
-    return STRATEGY_COLORS[name]
+    # Fall back to the control gray if the two dicts ever drift (a value
+    # mapped to a name with no color), so the chart degrades instead of
+    # raising, matching the promise above.
+    return STRATEGY_COLORS.get(name, CONTROL_COLOR)
 
 
 def strategy_display_name(strategy_value: str) -> str:
     """
-    Human display name for a DB strategy value (e.g. ``"single_agent"`` →
-    ``"Single Agent"``, ``"null_control"`` → ``"Null Control"``), per the design
+    Human display name for a DB strategy value (e.g. ``"single_agent"`` ->
+    ``"Single Agent"``, ``"null_control"`` -> ``"Null Control"``), per the design
     guide. Falls back to the raw value for anything unmapped, so a label is
     always available.
     """

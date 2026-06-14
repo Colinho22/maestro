@@ -1,21 +1,21 @@
 """
-MAESTRO viz — view settings (the "gear" panel at the bottom of the sidebar).
+MAESTRO viz: view settings (the "gear" panel at the bottom of the sidebar).
 
 This is the foundation for *view-configuration* settings, kept distinct from
 *navigation* (the view list). Today it holds the two knobs whose backends
 already exist:
 
-- **Database path** — which experiment DB to read (env ``MAESTRO_DB_PATH``,
+- **Database path**: which experiment DB to read (env ``MAESTRO_DB_PATH``,
   falling back to the project-default ``maestro.db``), overridable in the UI.
-- **Display timezone** — reuses ``maestro.analysis.timestamps`` (storage stays
+- **Display timezone**: reuses ``maestro.analysis.timestamps`` (storage stays
   UTC; only display converts), env ``MAESTRO_DISPLAY_TZ``.
 
 Future knobs (primary correctness metric, include/exclude controls, table
 precision) slot in as additional fields on ``ViewSettings`` plus a widget in
-``render_settings_panel`` — no structural change needed.
+``render_settings_panel`` (no structural change needed).
 
 Resolution precedence for each setting: explicit UI value (held in
-``st.session_state``) → environment variable → built-in default. The UI value
+``st.session_state``) to environment variable to built-in default. The UI value
 is seeded from the env/default on first load, so a user who never opens the
 gear panel still gets sensible behavior.
 """
@@ -36,7 +36,7 @@ from maestro.experiment_config import DB_PATH as DEFAULT_DB_PATH
 # CLI's --db default of experiment_config.DB_PATH).
 DB_PATH_ENV_VAR = "MAESTRO_DB_PATH"
 
-# st.session_state keys — namespaced so they can't collide with widget keys
+# st.session_state keys: namespaced so they can't collide with widget keys
 # a view might register.
 _SS_DB_PATH = "settings.db_path"
 _SS_DISPLAY_TZ = "settings.display_tz"
@@ -117,7 +117,7 @@ def format_timestamp(ts: str | None) -> str:
 def render_settings_panel() -> None:
     """
     Render the gear/settings controls. Call inside the sidebar (the caller
-    decides placement — e.g. inside an ``st.expander`` pinned at the bottom).
+    decides placement, e.g. inside an ``st.expander`` pinned at the bottom).
 
     Widgets write straight into the namespaced session_state keys via their
     ``key=`` argument, so the next ``current_settings`` call reflects edits
@@ -153,6 +153,6 @@ def render_settings_panel() -> None:
         resolved = resolve_display_tz(tz_raw)
         if str(resolved) == "UTC" and tz_raw.upper() != "UTC":
             st.warning(
-                f"Unknown timezone {tz_raw!r} — falling back to UTC.",
+                f"Unknown timezone {tz_raw!r}: falling back to UTC.",
                 icon="⚠️",
             )

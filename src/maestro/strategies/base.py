@@ -1,11 +1,12 @@
 """
-MAESTRO — Abstract strategy interface
+MAESTRO: Abstract strategy interface
 All orchestration strategies (single agent, SOP, CrewAI, LangGraph) implement this.
 """
 
+from __future__ import annotations
+
 import time
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from maestro.providers.base import LLMProvider
 from maestro.schemas import InputFile, RunConfig, RunResult, SubResult
@@ -22,11 +23,11 @@ class BaseStrategy(ABC):
     ``provider`` is Optional because control strategies (NullControlStrategy,
     CopyInputControlStrategy, GroundTruthEchoControlStrategy) bypass the LLM
     entirely and have no use for one. Real strategies must still supply a
-    provider — calling ``self.provider.complete(...)`` on None will error
+    provider: calling ``self.provider.complete(...)`` on None will error
     loudly, which is the right failure mode for a misconfigured run.
     """
 
-    def __init__(self, provider: Optional[LLMProvider] = None) -> None:
+    def __init__(self, provider: LLMProvider | None = None) -> None:
         self.provider = provider
 
     @abstractmethod
@@ -44,7 +45,7 @@ class BaseStrategy(ABC):
         """
         Human-readable name of the strategy, used in log lines and progress
         output. Returns the concrete class name (e.g. ``SOPStrategy``); this
-        is *not* the persisted ``Strategy`` enum value — that lives on
+        is *not* the persisted ``Strategy`` enum value, which lives on
         ``RunConfig.strategy`` instead.
         """
         return self.__class__.__name__
@@ -54,11 +55,11 @@ class BaseStrategy(ABC):
         config: RunConfig,
         message: str,
         *,
-        start: Optional[float] = None,
+        start: float | None = None,
     ) -> tuple[RunResult, list[SubResult]]:
         """
         Build a failed ``(RunResult, [])`` for errors that prevent normal
-        execution — file not found, JSON parse failure, control-strategy
+        execution: file not found, JSON parse failure, control-strategy
         I/O failure, etc.
 
         Token counts and ``cost_usd`` are zero. ``duration_ms`` is the

@@ -1,14 +1,16 @@
 """
-MAESTRO — DB client
+MAESTRO DB client
 Handles SQLite connection and schema initialization.
 """
+
+from __future__ import annotations
 
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# Schema — creates tables if they don't exist
+# Schema: creates tables if they don't exist
 # ---------------------------------------------------------------------------
 
 SCHEMA = """
@@ -121,7 +123,7 @@ CREATE TABLE IF NOT EXISTS metric_results (
 def init_db(db_path: Path) -> None:
     """
     Create the SQLite file and tables if they don't exist.
-    Safe to call on every run — no data is overwritten.
+    Safe to call on every run: no data is overwritten.
 
     Also runs the small set of additive migrations needed to bring a
     pre-existing database up to the current schema. Old rows keep their
@@ -211,5 +213,22 @@ def get_connection(db_path: Path):
     except Exception:
         conn.rollback()
         raise
+    finally:
+        conn.close()
+
+
+@contextmanager
+def get_readonly_connection(db_path: Path):
+    """
+    Read-only connection for the analysis read path, so the one-writer rule
+    holds at the boundary: opened with ``mode=ro``, any write raises and a
+    missing file raises rather than being created. There is no commit, since
+    a reader has nothing to commit.
+    """
+    uri = f"file:{db_path}?mode=ro"
+    conn = sqlite3.connect(uri, uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
     finally:
         conn.close()

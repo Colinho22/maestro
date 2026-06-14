@@ -1,9 +1,9 @@
 """
-MAESTRO — Single Agent strategy (comparison baseline)
+MAESTRO: Single Agent strategy (comparison baseline)
 
 One prompt, one LLM call, one diagram output. This is the *comparison
 baseline*: the simplest LLM-using approach that CrewAI / SOP / LangGraph
-are measured against. It is NOT a control — controls (NullControl,
+are measured against. It is NOT a control: controls (NullControl,
 CopyInputControl, GroundTruthEchoControl in ``controls.py``) bypass the
 LLM entirely and serve a different role (metric-pipeline sanity checks).
 
@@ -16,6 +16,8 @@ Vocabulary cheat sheet for this codebase:
 These two roles got conflated in earlier iterations of the codebase
 (and in the original issue language). They are distinct.
 """
+
+from __future__ import annotations
 
 import json
 
@@ -41,7 +43,7 @@ Input data:
 
 class SingleAgentStrategy(BaseStrategy):
     """
-    Comparison baseline: one prompt → one LLM call → diagram code.
+    Comparison baseline: one prompt -> one LLM call -> diagram code.
 
     No decomposition, no multi-step reasoning, no tool use. Establishes
     the *no-orchestration* reference point that CrewAI, SOP and LangGraph
@@ -54,7 +56,7 @@ class SingleAgentStrategy(BaseStrategy):
     ) -> tuple[RunResult, list[SubResult]]:
         """
         Load the input JSON, build a single prompt, call the provider.
-        Returns (RunResult, []) — empty sub_results for single-agent.
+        Returns (RunResult, []): empty sub_results for single-agent.
         """
 
         try:
@@ -73,6 +75,6 @@ class SingleAgentStrategy(BaseStrategy):
         formatted_input = json.dumps(input_data, indent=2)
         prompt = PROMPT_TEMPLATE.format(input_data=formatted_input)
 
-        # Single call — wrap result in tuple with empty sub_results
+        # Single call: wrap result in tuple with empty sub_results
         result = self.provider.complete(prompt, config)
         return (result, [])

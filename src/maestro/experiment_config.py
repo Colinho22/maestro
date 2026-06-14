@@ -1,5 +1,5 @@
 """
-MAESTRO — Experiment configuration
+MAESTRO - Experiment configuration
 Central registry of inputs, model pricing, and available strategies.
 Single source of truth for the experiment matrix.
 
@@ -7,6 +7,8 @@ To add a new input:   append to INPUTS
 To add a new model:   append to MODELS
 To enable a strategy: add to STRATEGIES (once implemented)
 """
+
+from __future__ import annotations
 
 import os
 from pathlib import Path
@@ -21,11 +23,11 @@ DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 
 
 # ---------------------------------------------------------------------------
-# Input registry — each entry is one benchmark case + ground truth
+# Input registry - each entry is one benchmark case + ground truth
 # ---------------------------------------------------------------------------
 
 INPUTS: list[InputFile] = [
-    # ── Tier 1 — BPMN (IDs 01–05, source: MIWG Category A / C) ─────────────
+    # ---- Tier 1 - BPMN (IDs 01-05, source: MIWG Category A / C) ----
     InputFile(
         example_id="bpmn_1_01",
         tier=Tier.SIMPLE,
@@ -66,7 +68,7 @@ INPUTS: list[InputFile] = [
         ground_truth_path=DATA_DIR / "05_bpmn_1_ground_truth.MMD",
         description="Process with intermediate events and branching flows (MIWG C.8.0)",
     ),
-    # ── Tier 2 — BPMN (IDs 11–15, source: MIWG A.4.0 / C) ──────────────────
+    # ---- Tier 2 - BPMN (IDs 11-15, source: MIWG A.4.0 / C) ----
     InputFile(
         example_id="bpmn_2_11",
         tier=Tier.COMPLEX,
@@ -107,7 +109,7 @@ INPUTS: list[InputFile] = [
         ground_truth_path=DATA_DIR / "15_bpmn_2_ground_truth.MMD",
         description="Single-pool process with parallel gateways and multiple end events (MIWG C.9.0)",
     ),
-    # ── Tier 1 — IT Architecture (IDs 06–10) ────────────────────────────────
+    # ---- Tier 1 - IT Architecture (IDs 06-10) ----
     InputFile(
         example_id="it_1_06",
         tier=Tier.SIMPLE,
@@ -148,7 +150,7 @@ INPUTS: list[InputFile] = [
         ground_truth_path=DATA_DIR / "10_it_1_ground_truth.MMD",
         description="Small office network: router → firewall → switch → NAS, printer, VoIP phones (wired) + AP → laptops (WiFi)",
     ),
-    # ── Tier 2 — IT Architecture (IDs 16–20) ────────────────────────────────
+    # ---- Tier 2 - IT Architecture (IDs 16-20) ----
     InputFile(
         example_id="it_2_16",
         tier=Tier.COMPLEX,
@@ -189,7 +191,7 @@ INPUTS: list[InputFile] = [
         ground_truth_path=DATA_DIR / "20_it_2_ground_truth.MMD",
         description="Hybrid cloud / on-premises: external users via cloud CDN/LB + VPN to on-prem app server (PostgreSQL, NFS, Active Directory); cloud layer provides VPN gateway, object storage, and monitoring",
     ),
-    # ── Tier 3 — BPMN (IDs 21–25, source: MIWG B / C) ──────────────────────
+    # ---- Tier 3 - BPMN (IDs 21-25, source: MIWG B / C) ----
     InputFile(
         example_id="bpmn_3_21",
         tier=Tier.CROSS_LAYER,
@@ -230,7 +232,7 @@ INPUTS: list[InputFile] = [
         ground_truth_path=DATA_DIR / "25_bpmn_3_ground_truth.MMD",
         description="Vacation Request process (expanded C.8.1): balance check + gateway before business-rule engine, HR Committee Review branch with intermediate message catch, new Insufficient Balance terminal",
     ),
-    # ── Tier 3 — IT Architecture (IDs 26–30) ────────────────────────────────
+    # ---- Tier 3 - IT Architecture (IDs 26-30) ----
     InputFile(
         example_id="it_3_26",
         tier=Tier.CROSS_LAYER,
@@ -275,7 +277,7 @@ INPUTS: list[InputFile] = [
 
 
 # ---------------------------------------------------------------------------
-# Model registry — pricing per model for cost calculation
+# Model registry - pricing per model for cost calculation
 # ---------------------------------------------------------------------------
 
 # Synthetic "model" used only for control-strategy rows. Controls bypass the
@@ -367,7 +369,7 @@ MODELS: list[ModelPricing] = [
 
 
 # ---------------------------------------------------------------------------
-# Strategy registry — only strategies with working implementations
+# Strategy registry - only strategies with working implementations
 # ---------------------------------------------------------------------------
 
 STRATEGIES: list[Strategy] = [

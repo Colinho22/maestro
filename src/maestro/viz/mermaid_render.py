@@ -1,8 +1,8 @@
 """
-MAESTRO viz — render Mermaid source to SVG via the mmdc CLI.
+MAESTRO viz: render Mermaid source to SVG via the mmdc CLI.
 
 The dashboard renders diagrams with the *same* engine the metric pipeline
-uses to compute ``parses_valid`` (mmdc — see analysis/metrics.py), so the
+uses to compute ``parses_valid`` (mmdc, see analysis/metrics.py), so the
 picture a viewer sees is consistent with the validity the data records. This
 matters for a thesis artifact: a second, in-browser renderer could disagree
 with mmdc and produce a diagram that looks fine but was scored invalid (or
@@ -10,7 +10,7 @@ vice versa). mmdc is also deterministic and version-pinnable, so a rendered
 figure is reproducible.
 
 When mmdc is not installed the renderer returns ``None`` and the caller falls
-back to showing the source — the honest behavior is to not fabricate a render
+back to showing the source: the honest behavior is to not fabricate a render
 we cannot produce. Requires: ``npm install -g @mermaid-js/mermaid-cli``.
 """
 

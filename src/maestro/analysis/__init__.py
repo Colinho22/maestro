@@ -1,4 +1,4 @@
-"""MAESTRO — analysis package (metrics + display helpers)."""
+"""MAESTRO analysis package (metrics + display helpers)."""
 
 # Statistical analysis pipeline. Re-exported so callers can do
 # ``from maestro.analysis import describe, anova_strategy`` without reaching

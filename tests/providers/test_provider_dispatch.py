@@ -3,24 +3,24 @@ Cross-provider tests: dispatch-table wiring and ``_is_retryable`` classification
 
 Two things break *silently* in this layer and are cheap to pin:
 
-1. **Dispatch drift** — adding a model to ``experiment_config.MODELS`` but
+1. **Dispatch drift**: adding a model to ``experiment_config.MODELS`` but
    forgetting its ``_PROVIDER_DISPATCH`` entry in ``run.py`` passes preflight
    (unknown models are skipped) yet fails the cell at run time. The dispatch
    tests assert every non-control model resolves to a provider + env var.
 
-2. **Retry misclassification** — each provider supplies its own
+2. **Retry misclassification**: each provider supplies its own
    ``_is_retryable`` predicate because SDK exception hierarchies differ
    (anthropic/openai ``APIStatusError.status_code``, mistralai
    ``SDKError.raw_response.status_code``, gemini ``APIError.code``). A wrong
    verdict means either no retry on a transient blip or pointless retries on a
-   hard 4xx — across thousands of calls. These are pure logic, tested here by
+   hard 4xx, across thousands of calls. These are pure logic, tested here by
    constructing the *real* SDK exceptions (no mocking of response shapes), so
    the production ``isinstance`` branch is genuinely exercised. If a future
    SDK bump changes an exception constructor, the relevant test fails loudly
    at the construction site rather than silently passing against a fake.
 
 The full ``complete()`` path (usage parsing, cost, error capture) is
-deliberately *not* covered here — that would require mocking four different
+deliberately *not* covered here: that would require mocking four different
 SDK client/response shapes, which is brittle and mostly re-tests the SDKs.
 """
 
@@ -91,7 +91,7 @@ def test_known_models_dispatch_to_expected_provider(
 
 
 # ---------------------------------------------------------------------------
-# _is_retryable — transport-error classification
+# _is_retryable: transport-error classification
 #
 # Providers differ here BY DESIGN, and the difference is worth pinning:
 #   - OpenAI / Anthropic wrap transport failures in their OWN SDK types
@@ -100,7 +100,7 @@ def test_known_models_dispatch_to_expected_provider(
 #   - Mistral / Gemini explicitly also catch raw httpx.ConnectError /
 #     TimeoutException because those "leak through unwrapped on some failure
 #     modes" (see each provider's _is_retryable docstring).
-# A test asserting "all providers retry bare httpx errors" would be wrong —
+# A test asserting "all providers retry bare httpx errors" would be wrong:
 # it would contradict the intended, SDK-specific design.
 # ---------------------------------------------------------------------------
 
@@ -139,7 +139,7 @@ def test_plain_value_error_not_retryable(provider_cls):
 
 
 # ---------------------------------------------------------------------------
-# _is_retryable — per-SDK status-code classification (retryable + not)
+# _is_retryable: per-SDK status-code classification (retryable + not)
 # ---------------------------------------------------------------------------
 
 

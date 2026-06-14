@@ -1,5 +1,5 @@
 """
-MAESTRO — db package
+MAESTRO db package
 """
 
 from maestro.db.client import get_connection, init_db

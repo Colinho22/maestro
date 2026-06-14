@@ -1,5 +1,5 @@
 """
-MAESTRO viz — view registry.
+MAESTRO viz: view registry.
 
 A *view* is a module exposing a no-argument ``render()`` that draws one
 dashboard page (reading the DB via ``viz.db`` / ``viz.queries``). The sidebar
@@ -35,7 +35,7 @@ def _render_home() -> None:
     The Home landing view: orients the user and shows the design-system
     reference chart against the configured database.
     """
-    st.title("MAESTRO — Results Dashboard")
+    st.title("MAESTRO: Results Dashboard")
     st.write(
         "Read-only dashboard over the experiment database. Use the sidebar to "
         "open a view; configure the database path and display timezone under "

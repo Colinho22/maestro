@@ -1,5 +1,5 @@
 """
-MAESTRO — Runtime environment capture for reproducibility.
+MAESTRO Runtime environment capture for reproducibility.
 
 Captures a snapshot of OS, hardware, Python runtime, git state, key library
 versions and (optionally) the Docker image digest once per CLI invocation.
@@ -11,7 +11,7 @@ diverging numbers against the exact stack that produced the original data.
 Failure modes are intentionally soft: if git is unavailable, the working
 tree is detached, ``MAESTRO_IMAGE_DIGEST`` is unset, or a library is not
 installed, the field is recorded as ``None`` and the experiment continues.
-The whole point of this module is observability — it must never abort the
+The whole point of this module is observability: it must never abort the
 run it is supposed to describe.
 """
 
@@ -27,13 +27,13 @@ from importlib.metadata import PackageNotFoundError, version
 from maestro.schemas import RunEnvironment
 
 # Libraries whose installed version materially changes experiment behavior.
-# Mirrors the runtime dependencies in pyproject.toml — pure dev tooling
+# Mirrors the runtime dependencies in pyproject.toml. Pure dev tooling
 # (pytest, ruff) is intentionally excluded since it has no effect on the
 # numbers produced by a run.
 #
 # KEEP IN SYNC WITH pyproject.toml [project].dependencies. Adding a runtime
 # dep there and forgetting to add it here means its version silently stops
-# being recorded in run_environments.lib_versions — and the omission only
+# being recorded in run_environments.lib_versions, and the omission only
 # surfaces when a future replication attempt diverges and you wonder why
 # the env snapshot looks "complete" but is missing the smoking gun.
 _LIB_WHITELIST: tuple[str, ...] = (
@@ -45,7 +45,11 @@ _LIB_WHITELIST: tuple[str, ...] = (
     "langgraph",
     "pydantic",
     "python-dotenv",
-    # Analysis pipeline deps — their version changes the statistics output
+    # Drives the retry policy (MAX_ATTEMPTS, backoff). Its version changes
+    # retry timing and the retry_count recorded on a run, so it is part of
+    # the stack that produced a number and must be captured.
+    "tenacity",
+    # Analysis pipeline deps: their version changes the statistics output
     # (ANOVA implementation details, default ddof, etc.), so capture them.
     # scipy is transitive (via statsmodels) rather than a declared dep, but
     # it supplies the statistical distributions behind the F-test / Tukey
@@ -54,10 +58,16 @@ _LIB_WHITELIST: tuple[str, ...] = (
     "pandas",
     "scipy",
     # Windows-only via env marker in pyproject.toml. On Linux/macOS this
-    # will record as None (not installed), which is correct — the system
+    # will record as None (not installed), which is correct: the system
     # zoneinfo DB is in use there. On Windows, recording the tzdata wheel
     # version closes the reproducibility loop for timestamp display.
     "tzdata",
+    # Deliberately NOT whitelisted: streamlit and matplotlib. They ship in
+    # core deps (the dashboard and runner share one image, see CONTRIBUTING
+    # section 2), but the dashboard only reads the DB and renders; its version
+    # never changes a recorded number, so it is not part of a result's
+    # provenance. The whitelist tracks what produced a number, not every
+    # installed package.
 )
 
 
@@ -75,7 +85,7 @@ def _git_head() -> str | None:
         # OSError covers FileNotFoundError (git not on PATH), PermissionError
         # (git present but not executable) and other low-level subprocess
         # spawn failures. The probe must never crash the experiment runner
-        # it is supposed to describe — fall back to None.
+        # it is supposed to describe: fall back to None.
         return None
     if out.returncode != 0:
         return None
@@ -101,7 +111,7 @@ def _git_dirty() -> bool | None:
         # OSError covers FileNotFoundError (git not on PATH), PermissionError
         # (git present but not executable) and other low-level subprocess
         # spawn failures. The probe must never crash the experiment runner
-        # it is supposed to describe — fall back to None.
+        # it is supposed to describe: fall back to None.
         return None
     if out.returncode != 0:
         return None

@@ -1,7 +1,7 @@
 """
 Shared pytest fixtures for the MAESTRO test suite.
 
-The cornerstone is ``RecordingProvider`` — a hand-rolled ``LLMProvider`` that
+The cornerstone is ``RecordingProvider``: a hand-rolled ``LLMProvider`` that
 captures every ``complete()`` call into a list so tests can assert on the
 arguments a strategy passed in (system_prompt, prompt, config). Using a real
 subclass instead of ``unittest.mock.Mock`` keeps the contract honest: if
@@ -33,7 +33,7 @@ class RecordingProvider(LLMProvider):
     Test double for ``LLMProvider`` that records every ``complete()`` call and
     returns canned outputs.
 
-    Construct with ``outputs`` — a list of strings to return on successive
+    Construct with ``outputs``: a list of strings to return on successive
     calls. Each output becomes the ``output_diagram_code`` of a successful
     ``RunResult``. If the list is exhausted, the next call returns a failing
     ``RunResult`` so tests fail loudly rather than hang or loop.

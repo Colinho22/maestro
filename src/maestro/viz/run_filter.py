@@ -1,5 +1,5 @@
 """
-MAESTRO viz — faceted filtering of runs (pure logic, no Streamlit).
+MAESTRO viz: faceted filtering of runs (pure logic, no Streamlit).
 
 The dashboard's run selectors used to be flat dropdowns over every run, which
 breaks down at scale (a ~1000-row matrix is unusable, and repeats of one cell
@@ -72,8 +72,8 @@ def exclude_controls(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     Controls are kept in the DB (they prove the scoring floor/ceiling and feed
     reference lines in aggregate views), so list_runs returns them. Views that
-    have no use for them — the per-run selectors, where a control produces no
-    model-generated diagram to inspect — call this to drop them. Keeping the
+    have no use for them (the per-run selectors, where a control produces no
+    model-generated diagram to inspect) call this to drop them. Keeping the
     exclusion here (not in the query) lets each view/chart decide for itself.
     """
     return [r for r in runs if r.get("strategy") not in _CONTROL_STRATEGY_VALUES]

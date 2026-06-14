@@ -4,8 +4,8 @@ Tests for the OpenAI provider and its DeepSeek subclass.
 DeepSeekProvider is a deliberately thin subclass of OpenAIProvider: DeepSeek
 exposes an OpenAI-compatible API, so the two share complete() / _is_retryable
 / _error_result / cost logic and differ only in the SDK client's base_url and
-the API key source. These tests assert exactly that contract — that the two
-providers stay in sync where they should and diverge only where intended —
+the API key source. These tests assert exactly that contract: that the two
+providers stay in sync where they should and diverge only where intended,
 so a future change to OpenAIProvider.__init__ that breaks the subclass is
 caught here rather than at experiment time.
 
@@ -41,7 +41,7 @@ _DEEPSEEK_PRICING = ModelPricing(
 
 
 # ---------------------------------------------------------------------------
-# Construction — both providers, parametrized
+# Construction: both providers, parametrized
 # ---------------------------------------------------------------------------
 
 
@@ -65,7 +65,7 @@ def test_provider_constructs_and_stores_fields(provider_cls, pricing):
 
 
 # ---------------------------------------------------------------------------
-# Request params — token-param name + temperature omission per model/provider
+# Request params: token-param name + temperature omission per model/provider
 # ---------------------------------------------------------------------------
 
 
@@ -122,8 +122,41 @@ def test_deepseek_keeps_max_tokens_and_temperature():
     assert "temperature" in kwargs
 
 
+def test_none_content_is_recorded_failure():
+    """A None message.content (length/content-filter finish) is EmptyResponse.
+
+    Without the guard this lands as a failed row with error=None, which is a
+    silent failure: success is False but nothing explains why.
+    """
+    from types import SimpleNamespace
+
+    from maestro.schemas import RunConfig, Strategy, Tier
+
+    provider = OpenAIProvider(api_key="k", pricing=_OPENAI_PRICING)
+
+    def fake_create(**kwargs):
+        usage = SimpleNamespace(prompt_tokens=4, completion_tokens=0)
+        choice = SimpleNamespace(message=SimpleNamespace(content=None))
+        return SimpleNamespace(usage=usage, choices=[choice])
+
+    provider._client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+    )
+    cfg = RunConfig(
+        strategy=Strategy.SINGLE_AGENT,
+        model=_OPENAI_PRICING.model,
+        example_id="e",
+        tier=Tier.SIMPLE,
+        run_number=1,
+    )
+    result = provider.complete("x", cfg)
+    assert result.success is False
+    assert result.error is not None and "EmptyResponse" in result.error
+    assert result.prompt_tokens == 4  # usage preserved
+
+
 # ---------------------------------------------------------------------------
-# Inheritance contract — DeepSeek IS an OpenAIProvider, but points elsewhere
+# Inheritance contract: DeepSeek IS an OpenAIProvider, but points elsewhere
 # ---------------------------------------------------------------------------
 
 
@@ -150,7 +183,7 @@ def test_deepseek_is_openai_subclass():
 def test_provider_name_overridden_for_retry_logs():
     """
     DeepSeek overrides _PROVIDER_NAME so retry log lines read 'deepseek',
-    not the inherited 'openai' — otherwise multi-provider run logs would
+    not the inherited 'openai', otherwise multi-provider run logs would
     misattribute DeepSeek failures to OpenAI.
     """
     assert OpenAIProvider._PROVIDER_NAME == "openai"
@@ -189,7 +222,7 @@ def test_base_url_diverges_between_providers():
 
 
 # ---------------------------------------------------------------------------
-# run.py wiring — dispatch + preflight resolve both providers
+# run.py wiring: dispatch + preflight resolve both providers
 # ---------------------------------------------------------------------------
 
 

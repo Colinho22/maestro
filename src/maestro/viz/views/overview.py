@@ -1,5 +1,5 @@
 """
-MAESTRO viz — Overview view.
+MAESTRO viz: Overview view.
 
 Operational summary (no RQ mapping): headline metric cards plus per-strategy
 run-count and cost bars. Reads run_configs / run_results (and run_environments
@@ -46,7 +46,7 @@ def render() -> None:
     c1.metric("Total runs", f"{summary['total_runs']:,}")
     c2.metric("Success rate", f"{summary['success_rate'] * 100:.0f}%")
     c3.metric("Total cost", f"${summary['total_cost_usd']:,.2f}")
-    # Environment count is optional context — omit silently if none recorded.
+    # Environment count is optional context: omit silently if none recorded.
     if summary["distinct_environments"]:
         c4.metric("Environments", f"{summary['distinct_environments']:,}")
 
@@ -72,7 +72,7 @@ def _render_runs_chart(runs_split: list[tuple[str, int, int]]) -> None:
     ax.bar(names, failures, bottom=successes, color="#E74C3C", label="Failure")
     ax.set_ylabel("Runs")
     ax.set_xlabel("Strategy")
-    ax.grid(axis="y")  # vertical bars → horizontal grid only
+    ax.grid(axis="y")  # vertical bars -> horizontal grid only
     ax.legend()
     fig.tight_layout()
     render_chart(

@@ -1,5 +1,5 @@
 """
-MAESTRO — Timezone-aware timestamp display helpers.
+MAESTRO Timezone-aware timestamp display helpers.
 
 The DB stores every timestamp in UTC ISO-8601 (see schemas.py:
 ``RunConfig.timestamp`` and ``RunEnvironment.captured_at`` both default to
@@ -18,10 +18,10 @@ output, CSV columns) call into here.
 ## Configuration precedence
 
 1. ``display_tz`` kwarg passed to ``format_for_display`` / ``resolve_display_tz``
-   — for analysis CLIs that want to expose a ``--display-tz`` flag.
-2. ``MAESTRO_DISPLAY_TZ`` environment variable — for persistent dev-machine
+   for analysis CLIs that want to expose a ``--display-tz`` flag.
+2. ``MAESTRO_DISPLAY_TZ`` environment variable, for persistent dev-machine
    config via ``.env`` (e.g. ``MAESTRO_DISPLAY_TZ=Europe/Zurich``).
-3. System local timezone (``datetime.now().astimezone().tzinfo``) — the
+3. System local timezone (``datetime.now().astimezone().tzinfo``), the
    sensible default when neither override is set.
 
 If an explicit value is provided but malformed (typo, unknown zone), we
@@ -70,12 +70,12 @@ def resolve_display_tz(display_tz: str | None = None) -> ZoneInfo | timezone:
             return timezone.utc
 
     # 3. System local. ``datetime.now().astimezone()`` is the standard
-    #    idiom for "use the current process's local timezone" — it
+    #    idiom for "use the current process's local timezone": it
     #    yields a tzinfo whose ``tzname()`` resolves the local
     #    abbreviation (CEST, PST, etc.) which we want in the output.
     local_tz = datetime.now().astimezone().tzinfo
     if local_tz is None:
-        # Vanishingly rare — only on systems where Python can't
+        # Vanishingly rare: only on systems where Python can't
         # determine local TZ at all. Be explicit instead of returning
         # None and letting astimezone() fail later.
         return timezone.utc
@@ -92,7 +92,7 @@ def format_for_display(
     Convert a UTC datetime (as stored in the DB) into a human-readable
     string in the resolved display timezone.
 
-    ``utc_dt`` may be timezone-aware (UTC) or naive — naive inputs are
+    ``utc_dt`` may be timezone-aware (UTC) or naive; naive inputs are
     treated as UTC, matching the storage assumption. This is permissive
     on purpose: ISO-8601 strings from the DB round-trip through pydantic
     as aware datetimes, but downstream code that parses them with
@@ -100,7 +100,7 @@ def format_for_display(
     on edge cases.
 
     Default ``fmt`` includes ``%Z`` so the output carries the zone
-    abbreviation (e.g. ``2026-05-08 23:43 CEST``) — explicit timezones
+    abbreviation (e.g. ``2026-05-08 23:43 CEST``): explicit timezones
     in shared results matter more than character count.
     """
     if utc_dt.tzinfo is None:

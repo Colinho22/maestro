@@ -1,5 +1,5 @@
 """
-MAESTRO — Metrics module
+MAESTRO Metrics module
 Compares generated Mermaid output against ground truth.
 Evaluation dimensions:
   1. Structural validity (mmdc parse check)
@@ -7,6 +7,8 @@ Evaluation dimensions:
   3. Relationship precision/recall (relaxed + strict)
   4. Error taxonomy counts
 """
+
+from __future__ import annotations
 
 import os
 import re
@@ -36,9 +38,9 @@ def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
     and requires the path to end with a known extension (.md, .svg,
     .png, .pdf). Passing ``-o /dev/null`` worked-around the rendering
     only on systems where mmdc happened not to validate the suffix; the
-    current SDK rejects it with "Output file must end with…". We hand
+    current SDK rejects it with "Output file must end with...". We hand
     it a real temp PNG path, throw the file away, and only inspect the
-    return code — the validity signal we actually want.
+    return code, the validity signal we actually want.
 
     Both the input and output use explicit temp files from ``mkstemp`` so the
     function is cross-platform: ``/dev/stdin`` does not exist on Windows, and
@@ -49,7 +51,7 @@ def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
     """
     mmdc = shutil.which("mmdc")
     if mmdc is None:
-        return (None, "mmdc not found — validation skipped")
+        return (None, "mmdc not found: validation skipped")
 
     # mmdc renders via Puppeteer/Chromium. In a container running as root,
     # Chromium refuses to start without --no-sandbox, which mmdc only picks up
@@ -67,8 +69,8 @@ def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
     out_path: str | None = None
     try:
         # mkstemp creates each file and returns (fd, path). Close the fds at
-        # once — we write the input via Path.write_text and mmdc opens both
-        # paths itself — which sidesteps Windows' exclusive-lock behaviour.
+        # once: we write the input via Path.write_text and mmdc opens both
+        # paths itself, which sidesteps Windows' exclusive-lock behaviour.
         in_fd, in_path = tempfile.mkstemp(suffix=".mmd")
         out_fd, out_path = tempfile.mkstemp(suffix=".png")
         os.close(in_fd)
@@ -107,7 +109,7 @@ def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
 def _normalize_label(label: str) -> str:
     """
     Basic normalization: lowercase, strip whitespace.
-    Used for raw fuzzy matching — no linguistic processing.
+    Used for raw fuzzy matching: no linguistic processing.
     """
     return label.strip().lower()
 
@@ -115,13 +117,13 @@ def _normalize_label(label: str) -> str:
 def _lemmatize_label(label: str) -> str:
     """
     Normalize + lemmatize: lowercase, strip plurals, collapse separators.
-    Catches 'Tasks' → 'task', 'start_event_1' → 'start event 1'.
+    Catches 'Tasks' -> 'task', 'start_event_1' -> 'start event 1'.
     """
     text = label.strip().lower()
     # Replace underscores and hyphens with spaces
     text = re.sub(r"[_\-]", " ", text)
     # Strip trailing 's' for basic plural handling
-    # (avoids nltk dependency for now — can upgrade later)
+    # (avoids nltk dependency for now: can upgrade later)
     words = text.split()
     lemmatized = []
     for w in words:
@@ -132,7 +134,7 @@ def _lemmatize_label(label: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Mermaid text extraction — regex-based
+# Mermaid text extraction: regex-based
 # ---------------------------------------------------------------------------
 
 
@@ -151,7 +153,7 @@ _SKIP = {
 }
 
 # A node definition: an id, an opening shape bracket, a label that is EITHER a
-# quoted string (consumed whole — so brackets/newlines INSIDE a label such as
+# quoted string (consumed whole, so brackets/newlines INSIDE a label such as
 # "Web App\n[Device]\nLaptops (WiFi)" cannot spawn phantom nodes) or unquoted
 # text up to the closing bracket, then the closing bracket(s). An empty label
 # ("" or '') is allowed, so nodes like gw{""} are still captured.
@@ -177,7 +179,7 @@ def _strip_inline_labels(line: str) -> str:
     return _NODE_DEF.sub(lambda m: m.group(1), line)
 
 
-# Edge label between pipes, e.g. -->|"Green (no risk)"| — stripped before node
+# Edge label between pipes, e.g. -->|"Green (no risk)"|: stripped before node
 # scanning so its text is never mistaken for a node definition.
 _PIPE_LABEL = re.compile(r"\|[^|]*\|")
 
@@ -264,9 +266,9 @@ def extract_relationships(mermaid_code: str) -> list[dict]:
     Rules:
       - ``-->``   directed sequence_flow.
       - ``-.->``  directed message_flow (dotted), also ``-. label .->``.
-      - ``<-->`` / ``<-.->``  one UNDIRECTED relationship — endpoints are
+      - ``<-->`` / ``<-.->``  one UNDIRECTED relationship: endpoints are
         canonicalised (sorted) so orientation does not matter when matching.
-      - ``o--o`` / ``--o`` / ``--x``  attachment / association edges — NOT
+      - ``o--o`` / ``--o`` / ``--x``  attachment / association edges: NOT
         relationships; excluded here and scored via ``extract_attachments``.
     """
     relationships = []
@@ -442,7 +444,7 @@ def compute_relationship_metrics_relaxed(
 def compute_relationship_metrics_strict(
     output_relationships: list[dict], truth_relationships: list[dict]
 ) -> tuple[float, float, float]:
-    """Strict: match by (source, target, type) — all three must match."""
+    """Strict: match by (source, target, type), all three must match."""
     output_tuples = {
         (e["source"], e["target"], e["type"]) for e in output_relationships
     }
@@ -657,12 +659,12 @@ def evaluate_run(
     output_attachments = extract_attachments(output_diagram_code)
     truth_attachments = extract_attachments(truth_code)
 
-    # 3. Entity metrics — three levels
+    # 3. Entity metrics: three levels
     id_p, id_r, id_f1 = compute_entity_metrics_exact(output_nodes, truth_nodes)
     name_p, name_r, name_f1 = compute_entity_metrics_fuzzy(output_nodes, truth_nodes)
     lemma_p, lemma_r, lemma_f1 = compute_entity_metrics_lemma(output_nodes, truth_nodes)
 
-    # 4. Relationship metrics — two levels
+    # 4. Relationship metrics: two levels
     rel_p, rel_r, rel_f1 = compute_relationship_metrics_relaxed(
         output_relationships, truth_relationships
     )

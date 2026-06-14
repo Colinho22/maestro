@@ -1,7 +1,9 @@
 """
-MAESTRO — OpenAI provider implementation
+MAESTRO: OpenAI provider implementation
 Wraps the OpenAI chat completions API into the LLMProvider interface.
 """
+
+from __future__ import annotations
 
 import time
 
@@ -32,7 +34,7 @@ class OpenAIProvider(LLMProvider):
 
     # Name used in retry log lines. Defined as a class attribute (rather than
     # the literal "openai") so OpenAI-compatible subclasses like
-    # DeepSeekProvider can override it — otherwise their retries would be
+    # DeepSeekProvider can override it; otherwise their retries would be
     # logged as "openai", misattributing failures in multi-provider runs.
     _PROVIDER_NAME = "openai"
 
@@ -48,15 +50,15 @@ class OpenAIProvider(LLMProvider):
 
     def __init__(self, api_key: str, pricing: ModelPricing) -> None:
         super().__init__(api_key, pricing)
-        # Initialise the SDK client once — reused for all calls
+        # Initialise the SDK client once, reused for all calls
         self._client = openai.OpenAI(api_key=api_key)
 
     @staticmethod
     def _is_retryable(exc: BaseException) -> bool:
         """
         OpenAI's exception hierarchy:
-          APIError → APIStatusError → RateLimitError (+ others with .status_code)
-          APIError → APIConnectionError → APITimeoutError
+          APIError -> APIStatusError -> RateLimitError (+ others with .status_code)
+          APIError -> APIConnectionError -> APITimeoutError
         Connection / timeout errors are always retryable. APIStatusError is
         retryable only for 429 + 5xx; 4xx other than 429 are programmer
         or auth errors and will not heal themselves.
@@ -75,7 +77,7 @@ class OpenAIProvider(LLMProvider):
     ) -> RunResult:
         """
         Call the OpenAI chat completions endpoint and return a RunResult.
-        Never raises — all exceptions are captured into RunResult.error.
+        Never raises: all exceptions are captured into RunResult.error.
         Transient failures (429, 5xx, timeouts, connection errors) are
         retried with exponential backoff via ``call_with_retry``; the final
         attempt's exception falls through to the handlers below.
@@ -87,7 +89,7 @@ class OpenAIProvider(LLMProvider):
         )
 
         # Owned by the caller so retry_count survives an exhausted-retries
-        # exception — the except blocks below read stats.retry_count to
+        # exception: the except blocks below read stats.retry_count to
         # record it on the failed RunResult.
         stats = RetryStats()
 
@@ -124,8 +126,25 @@ class OpenAIProvider(LLMProvider):
             prompt_tokens = response.usage.prompt_tokens
             completion_tokens = response.usage.completion_tokens
 
-            # Response content from the first choice
-            output = response.choices[0].message.content
+            # choices can be empty and message.content can be None (a length or
+            # content-filter finish_reason). Record that as a structured empty
+            # response instead of letting an IndexError land as UnexpectedError
+            # or a None diagram land as a failed row with no error.
+            choices = response.choices or []
+            output = choices[0].message.content if choices else None
+            if output is None:
+                return RunResult(
+                    run_id=config.run_id,
+                    output_diagram_code=None,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    duration_ms=duration_ms,
+                    cost_usd=compute_cost(
+                        prompt_tokens, completion_tokens, self.pricing
+                    ),
+                    error=f"EmptyResponse: {self._PROVIDER_NAME} returned no content",
+                    retry_count=stats.retry_count,
+                )
 
             return RunResult(
                 run_id=config.run_id,
@@ -153,7 +172,7 @@ class OpenAIProvider(LLMProvider):
             )
 
         except Exception as e:
-            # Catch-all — unexpected failures should not crash the experiment
+            # Catch-all: unexpected failures should not crash the experiment
             return self._error_result(
                 config, start_ms, f"UnexpectedError: {e}", stats.retry_count
             )

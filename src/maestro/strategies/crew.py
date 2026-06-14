@@ -1,9 +1,9 @@
 """
-MAESTRO — CrewAI strategy.
+MAESTRO: CrewAI strategy.
 
 Orchestration shape: *role-based agents executing a sequential crew*. The
-same three steps as SOP — extract entities, extract relationships, render
-Mermaid — but each step is reified as a CrewAI ``Agent`` + ``Task`` and
+same three steps as SOP (extract entities, extract relationships, render
+Mermaid) but each step is reified as a CrewAI ``Agent`` + ``Task`` and
 executed inside a ``Crew(process=Process.sequential)``.
 
 Reader's-eye view:
@@ -14,7 +14,7 @@ Reader's-eye view:
   content to be byte-identical to SOP, so harvested outputs from step N are
   passed into step N+1 via the same ``{entities_json}`` / ``{relationships_json}``
   template variables that SOP uses. The CrewAI machinery (agent personas,
-  task framing, kickoff lifecycle) is what differs from SOP — not the prompt
+  task framing, kickoff lifecycle) is what differs from SOP, not the prompt
   content.
 - LLM traffic is routed through ``MaestroBackedLLM``, a thin ``BaseLLM``
   subclass that delegates every call to our ``LLMProvider``. This keeps
@@ -24,6 +24,8 @@ Reader's-eye view:
 Prompts, retry budget and JSON validation come from ``_extraction.py`` so
 SOP, CrewAI and LangGraph share the experimental control variable.
 """
+
+from __future__ import annotations
 
 import json
 import time
@@ -46,12 +48,12 @@ from maestro.strategies._extraction import (
     STEP_2_PROMPT,
     STEP_3_PROMPT,
     strip_fences,
-    validate_step_payload,
+    validate_step_output,
 )
 from maestro.strategies.base import BaseStrategy
 
 # ---------------------------------------------------------------------------
-# Per-call telemetry — captured by the LLM adapter, harvested by the strategy
+# Per-call telemetry: captured by the LLM adapter, harvested by the strategy
 # ---------------------------------------------------------------------------
 
 
@@ -75,7 +77,7 @@ class _Recorder:
 
 
 # ---------------------------------------------------------------------------
-# LLM adapter — bridges CrewAI's BaseLLM contract to our LLMProvider
+# LLM adapter: bridges CrewAI's BaseLLM contract to our LLMProvider
 # ---------------------------------------------------------------------------
 
 
@@ -102,7 +104,7 @@ class MaestroBackedLLM(BaseLLM):
         system_prompt_override: str | None,
         recorder: _Recorder,
     ) -> None:
-        # BaseLLM expects model + a few optionals — we pass through pricing.model
+        # BaseLLM expects model + a few optionals, we pass through pricing.model
         super().__init__(model=provider.model_name, temperature=provider.TEMPERATURE)
         self._provider = provider
         self._config = config
@@ -123,7 +125,7 @@ class MaestroBackedLLM(BaseLLM):
         ``provider.complete()``.
 
         ``**kwargs`` swallows ``from_task`` / ``from_agent`` / ``response_model``
-        and any future CrewAI additions to the BaseLLM contract — we don't
+        and any future CrewAI additions to the BaseLLM contract: we don't
         need them, and accepting them keeps the adapter forward-compatible
         without a signature change.
         """
@@ -156,8 +158,8 @@ class MaestroBackedLLM(BaseLLM):
         """
         CrewAI's ``Agent`` + ``Task`` machinery composes a list of messages
         with role 'system' (agent persona) and 'user' (task description). We
-        ignore CrewAI's system message — our system prompt is set explicitly
-        per step via ``system_prompt_override`` — and concatenate the user
+        ignore CrewAI's system message (our system prompt is set explicitly
+        per step via ``system_prompt_override``) and concatenate the user
         portion as the prompt.
         """
         if isinstance(messages, str):
@@ -167,7 +169,7 @@ class MaestroBackedLLM(BaseLLM):
 
 
 # ---------------------------------------------------------------------------
-# Step definition — three role/goal/prompt triples, one per step
+# Step definition: three role/goal/prompt triples, one per step
 # ---------------------------------------------------------------------------
 #
 # The agent personas (role/goal/backstory) are deliberately minimal: we are
@@ -236,11 +238,11 @@ class CrewAIStrategy(BaseStrategy):
         unsafe), runs ``crew.kickoff()``, and harvests exactly one call from
         the recorder. Outputs are threaded forward via the same prompt
         templates SOP uses, so prompt content is byte-identical across the
-        two strategies — the difference the experiment captures is purely
+        two strategies: the difference the experiment captures is purely
         the orchestration overhead CrewAI's machinery adds.
         """
 
-        # Load input JSON — same shape as SOP for parity
+        # Load input JSON: same shape as SOP for parity
         try:
             raw = input_file.file_path.read_text(encoding="utf-8")
             input_data = json.dumps(json.loads(raw), indent=2)
@@ -292,7 +294,7 @@ class CrewAIStrategy(BaseStrategy):
         )
 
     # -----------------------------------------------------------------------
-    # Step execution — one step = one Crew kickoff (with retry)
+    # Step execution: one step = one Crew kickoff (with retry)
     # -----------------------------------------------------------------------
 
     def _execute_step(
@@ -309,13 +311,13 @@ class CrewAIStrategy(BaseStrategy):
         """
         Build a single-task Crew for this step and run it. Same retry budget
         as SOP. Token / duration / cost are accumulated across attempts, so a
-        retried step is *more* expensive than a one-shot step — exactly as in
+        retried step is *more* expensive than a one-shot step, exactly as in
         SOP.
         """
         last_error: str | None = None
         recorder = _Recorder()
 
-        # Accumulators across retry attempts — match SOP's metric model
+        # Accumulators across retry attempts: match SOP's metric model
         total_prompt_tokens = 0
         total_completion_tokens = 0
         total_duration_ms = 0
@@ -325,7 +327,7 @@ class CrewAIStrategy(BaseStrategy):
         for attempt in range(MAX_RETRIES + 1):
             actual_retries = attempt
 
-            # Fresh adapter + crew per attempt — CrewAI mutates state on kickoff.
+            # Fresh adapter + crew per attempt: CrewAI mutates state on kickoff.
             llm = MaestroBackedLLM(
                 provider=self.provider,
                 config=config,
@@ -360,7 +362,7 @@ class CrewAIStrategy(BaseStrategy):
             start_calls = len(recorder.calls)
 
             # Kickoff. CrewAI's BaseLLM contract says return a string on error,
-            # so kickoff itself shouldn't raise from a provider error — but
+            # so kickoff itself shouldn't raise from a provider error, but
             # other CrewAI-internal failures could, so wrap it.
             try:
                 crew.kickoff()
@@ -370,8 +372,8 @@ class CrewAIStrategy(BaseStrategy):
 
             # Single-task crew + sequential process => exactly one LLM call
             # per kickoff. Assert the per-attempt delta (not a cumulative count)
-            # so a raise on a previous attempt — with or without a provider call
-            # — does not skew the check for this attempt.
+            # so a raise on a previous attempt, with or without a provider call,
+            # does not skew the check for this attempt.
             new_call_count = len(recorder.calls) - start_calls
             if new_call_count == 0:
                 last_error = f"No LLM call recorded on attempt {attempt + 1}"
@@ -394,14 +396,13 @@ class CrewAIStrategy(BaseStrategy):
                 continue
 
             output = strip_fences(call.output_text)
-            if step_number < 3:
-                is_valid, validation_error = validate_step_payload(output, step_number)
-                if not is_valid:
-                    last_error = (
-                        f"Invalid {step_name} payload on attempt {attempt + 1}: "
-                        f"{validation_error}"
-                    )
-                    continue
+            is_valid, validation_error = validate_step_output(output, step_number)
+            if not is_valid:
+                last_error = (
+                    f"Invalid {step_name} output on attempt {attempt + 1}: "
+                    f"{validation_error}"
+                )
+                continue
 
             return (
                 SubResult(
@@ -446,7 +447,7 @@ class CrewAIStrategy(BaseStrategy):
         input_data: str,
         step_outputs: dict[str, str],
     ) -> str:
-        """Like SOP._build_prompt — fill template vars from prior outputs."""
+        """Like SOP._build_prompt: fill template vars from prior outputs."""
         template = step["task_prompt"]
         fmt = {"input_data": input_data}
         if "extract_entities" in step_outputs:
@@ -463,7 +464,7 @@ class CrewAIStrategy(BaseStrategy):
         diagram_code: str | None = None,
         error: str | None = None,
     ) -> tuple[RunResult, list[SubResult]]:
-        """Sum sub-call stats into a parent RunResult — same shape as SOP."""
+        """Sum sub-call stats into a parent RunResult: same shape as SOP."""
         result = RunResult(
             run_id=config.run_id,
             output_diagram_code=diagram_code,

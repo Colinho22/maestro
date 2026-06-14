@@ -1,5 +1,5 @@
 """
-MAESTRO viz — Streamlit entry point.
+MAESTRO viz: Streamlit entry point.
 
 Run with:
 
@@ -7,8 +7,8 @@ Run with:
 
 Responsibilities:
 - Page config + sidebar navigation driven by the ``views.VIEWS`` registry.
-- A "gear" settings expander below the nav (DB path, display timezone) —
-  see ``viz.settings`` — followed by a footer.
+- A "gear" settings expander below the nav (DB path, display timezone),
+  see ``viz.settings``, followed by a footer.
 - Resolve the configured DB and, if it is missing, show an empty-state for
   the whole app rather than letting every view raise.
 """
@@ -80,7 +80,7 @@ def main() -> None:
     cfg = viz_settings.current_settings()
 
     # App-wide DB guard: if the configured database is absent, no view can
-    # show anything useful — surface one clear empty-state instead of letting
+    # show anything useful: surface one clear empty-state instead of letting
     # each view fail its own way.
     if not viz_db.database_exists(cfg.db_path):
         empty_state(
@@ -95,6 +95,6 @@ def main() -> None:
 
 # Streamlit executes this module top-to-bottom on every rerun, so call main()
 # at import time (the conventional Streamlit entry-point pattern) rather than
-# guarding behind __main__ — `streamlit run` imports the module, it doesn't
+# guarding behind __main__: `streamlit run` imports the module, it doesn't
 # exec it as __main__.
 main()

@@ -5,9 +5,9 @@ database with multiple strategies, models, tiers, and control rows.
 The view modules themselves are thin Streamlit wrappers (selectboxes, columns,
 st.pyplot) that need a script context to exercise; their *logic* lives in the
 queries here and in the design-system chart/theme code already covered by
-test_theme.py. These tests pin the query behavior every view depends on —
+test_theme.py. These tests pin the query behavior every view depends on,
 especially control exclusion, filtering, and graceful degradation on missing
-tables — using the real schema and the production insert helpers.
+tables, using the real schema and the production insert helpers.
 """
 
 from __future__ import annotations
@@ -171,7 +171,7 @@ def test_overview_summary_empty_db():
 
 
 def test_runs_by_strategy_includes_controls():
-    """Overview is operational — controls ARE included here."""
+    """Overview is operational: controls ARE included here."""
     conn = _conn()
     _populate(conn)
     rows = dict((r[0], (r[1], r[2])) for r in q.runs_by_strategy_success(conn))
@@ -288,12 +288,12 @@ def test_sub_results_empty_when_none():
 
 def test_has_any_taxonomy_data():
     conn = _conn()
-    # All-zero taxonomy → False.
+    # All-zero taxonomy -> False.
     _insert_run(
         conn, strategy="single_agent", model="gpt-4o-mini-2024-07-18", tier=1, f1=0.6
     )
     assert q.has_any_taxonomy_data(conn) is False
-    # A row with a non-zero count → True.
+    # A row with a non-zero count -> True.
     _insert_run(
         conn,
         strategy="crew_ai",
@@ -344,7 +344,7 @@ def test_mermaid_render_handles_missing_mmdc(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Graceful degradation — every query no-ops on an empty (schemaless) DB
+# Graceful degradation: every query no-ops on an empty (schemaless) DB
 # ---------------------------------------------------------------------------
 
 

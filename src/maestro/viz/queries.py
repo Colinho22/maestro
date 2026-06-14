@@ -1,10 +1,10 @@
 """
-MAESTRO viz — read-only queries specific to the dashboard.
+MAESTRO viz: read-only queries specific to the dashboard.
 
 This module *extends* ``maestro.db.queries`` rather than rewriting it: the
 experiment-side query layer there is the source of truth for the joins the
 analysis pipeline relies on. Here we add only the lightweight reads the
-dashboard needs — primarily "is there any data to show?" checks that drive
+dashboard needs, primarily "is there any data to show?" checks that drive
 empty-state handling. Per-view queries live alongside their respective view
 modules.
 
@@ -88,7 +88,7 @@ def mean_entity_id_f1_by_strategy(
     Mean ``entity_id_f1`` per orchestration strategy across all scored runs,
     as ``(strategy, mean_f1)`` pairs ordered by strategy name.
 
-    Control strategies are excluded — they are reference floors/ceiling, not
+    Control strategies are excluded: they are reference floors/ceiling, not
     orchestration strategies under test, and would otherwise show as gray bars
     alongside the real strategies. Returns an empty list when there are no
     metric rows (callers show an empty-state). Joins run_configs to
@@ -157,7 +157,7 @@ def runs_by_strategy_success(
 ) -> list[tuple[str, int, int]]:
     """
     Per strategy: ``(strategy, n_success, n_failure)`` across all runs.
-    Includes every strategy present (controls included — this is an
+    Includes every strategy present (controls included, this is an
     operational summary, not a strategy comparison). Empty list if no runs.
     """
     if not (table_exists(conn, "run_configs") and table_exists(conn, "run_results")):
@@ -286,12 +286,23 @@ def pareto_points(
     One row per scored run with the fields the Pareto view plots and tabulates:
     run_id, strategy, model, tier, cost_usd, duration_ms, entity_id_f1.
     Controls excluded. Optional strategy/tier filters. Empty list if none.
+
+    Defensive: rows where any plotted axis is NULL are excluded, since a
+    point needs all three coordinates to be rounded and scattered. The
+    schema currently makes these columns NOT NULL and the metric JOIN drops
+    unscored runs, so this filter is a guard against a future nullable
+    schema, not a live case.
     """
     needed = ("run_configs", "run_results", "metric_results")
     if not all(table_exists(conn, t) for t in needed):
         return []
 
-    where = [f"c.strategy NOT IN ({','.join('?' * len(_CONTROL_VALUES))})"]
+    where = [
+        f"c.strategy NOT IN ({','.join('?' * len(_CONTROL_VALUES))})",
+        "r.cost_usd IS NOT NULL",
+        "r.duration_ms IS NOT NULL",
+        "m.entity_id_f1 IS NOT NULL",
+    ]
     params: list[Any] = list(_CONTROL_VALUES)
     if strategies:
         where.append(f"c.strategy IN ({','.join('?' * len(strategies))})")
@@ -462,7 +473,7 @@ def taxonomy_counts_by_strategy(
     """
     Summed taxonomy counts per strategy for the given taxonomy ``columns``
     (entity or relationship set), optionally filtered to a tier. Controls
-    included — their error profile is itself informative. Returns
+    included: their error profile is itself informative. Returns
     ``{strategy: {column: total}}``.
     """
     for col in columns:

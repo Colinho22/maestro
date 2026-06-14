@@ -1,5 +1,5 @@
 """
-MAESTRO — Metric pipeline sanity tests.
+MAESTRO: Metric pipeline sanity tests.
 
 These mirror the runtime control strategies (NullControl, CopyInputControl,
 GroundTruthEchoControl) and a handful of explicit edge cases. They run in
@@ -46,7 +46,7 @@ def test_null_output_scores_zero_floor():
 def test_raw_json_input_as_diagram_scores_low():
     """
     CopyInputControl analogue: dropping the raw input JSON into the
-    diagram slot must not score meaningfully — the extractor should not
+    diagram slot must not score meaningfully: the extractor should not
     find valid Mermaid in JSON. Catches parser leniency (e.g. a regex that
     happens to match strings inside JSON keys/values).
 
@@ -64,15 +64,15 @@ def test_raw_json_input_as_diagram_scores_low():
     # relationship regex is permissive and a future input file containing
     # `-->` in a string value would push F1 fractionally above 0 without
     # the parser actually being broken. 0.1 is well below anything a real
-    # strategy would ever produce — if this fires, the parser is genuinely
+    # strategy would ever produce: if this fires, the parser is genuinely
     # over-matching JSON content.
     assert metric.entity_id_f1 < 0.1, (
-        f"JSON-as-diagram scored entity_id_f1={metric.entity_id_f1} — "
+        f"JSON-as-diagram scored entity_id_f1={metric.entity_id_f1}: "
         "parser may be matching content inside JSON strings"
     )
     assert metric.relationship_relaxed_f1 < 0.1, (
         f"JSON-as-diagram scored relationship_relaxed_f1="
-        f"{metric.relationship_relaxed_f1} — the relationship regex may be "
+        f"{metric.relationship_relaxed_f1}: the relationship regex may be "
         "matching `-->` inside JSON string values"
     )
 
@@ -82,10 +82,10 @@ def test_ground_truth_echo_scores_perfect_ceiling():
     GroundTruthEchoControl analogue: feeding the ground truth back as the
     diagram must score F1=1.0 on every metric. A failure here means the
     metric pipeline is over-strict in a way that would penalise even a
-    perfect answer — a louder bug than the floor cases catch.
+    perfect answer: a louder bug than the floor cases catch.
 
     ``parses_valid`` may be True (mmdc installed) or None (mmdc not
-    installed locally — see check_mermaid_valid). Either is acceptable;
+    installed locally, see check_mermaid_valid). Either is acceptable;
     False would indicate the validator rejects the ground truth itself.
     """
     truth = INPUT.ground_truth_path.read_text(encoding="utf-8")
@@ -109,7 +109,7 @@ def test_ground_truth_echo_scores_perfect_ceiling():
 def test_check_mermaid_valid_accepts_valid_diagram():
     """
     A syntactically valid diagram must validate (True). Skipped when mmdc is
-    not installed — the validator returns (None, skip_message) and there is
+    not installed: the validator returns (None, skip_message) and there is
     nothing to assert about validity.
     """
     is_valid, error = check_mermaid_valid('flowchart LR\n    a["A"] --> b["B"]')
@@ -125,7 +125,7 @@ def test_check_mermaid_valid_rejects_invalid_diagram():
     must score parses_valid=False with a non-empty parse error (mmdc's stderr).
     Skipped when mmdc is not installed (validity is unknowable without it).
 
-    Exercises the cross-platform temp-file path end to end — the input is
+    Exercises the cross-platform temp-file path end to end: the input is
     written to a real temp file and mmdc renders to another, with no
     ``/dev/stdin`` / ``/dev/null`` involved.
     """
@@ -169,7 +169,7 @@ def test_sparse_output_scores_below_ground_truth():
     truth = INPUT.ground_truth_path.read_text(encoding="utf-8")
     # Find the first node line: a token followed by '[' or '(' (Mermaid syntax).
     match = re.search(r"^\s*([A-Za-z_][\w]*)[\[\(]", truth, re.MULTILINE)
-    assert match, "Could not find any node id in ground truth — input format changed?"
+    assert match, "Could not find any node id in ground truth: input format changed?"
     real_id = match.group(1)
 
     sparse_diagram = f'flowchart LR\n    {real_id}["Some Label"]\n'
@@ -220,7 +220,7 @@ def test_container_and_attachment_echo_perfect():
 def test_container_attachment_metrics_none_when_absent():
     """
     A ground truth with NO containers and NO attachments must report those
-    dimensions as None (metric not applicable), not 0.0 — so aggregation can
+    dimensions as None (metric not applicable), not 0.0, so aggregation can
     exclude the run rather than averaging in a spurious zero. Uses bpmn_1_01
     (a plain single-pool process).
     """

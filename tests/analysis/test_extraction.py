@@ -1,5 +1,5 @@
 """
-MAESTRO — Mermaid extraction unit tests (Phase 3a).
+MAESTRO: Mermaid extraction unit tests (Phase 3a).
 
 Pure-function tests for the rewritten extractors in ``metrics.py``. They pin the
 four bug-fixes from the scoring-pipeline audit and the entity/container/
@@ -13,7 +13,7 @@ relationship/attachment split defined by the scoring contract:
       ``extract_attachments`` instead.
 
 Entities = inline nodes; containers = ``subgraph`` headers. These are unit tests
-on the extractors only — no DB, no pydantic, no mmdc.
+on the extractors only: no DB, no pydantic, no mmdc.
 """
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ def test_collapsed_subprocess_inline_is_entity():
 
 
 # ---------------------------------------------------------------------------
-# A2 — empty / whitespace labels
+# A2: empty / whitespace labels
 # ---------------------------------------------------------------------------
 
 
@@ -76,7 +76,7 @@ def test_whitespace_label_node_extracted():
 
 
 # ---------------------------------------------------------------------------
-# A3 — phantom suppression
+# A3: phantom suppression
 # ---------------------------------------------------------------------------
 
 
@@ -123,14 +123,14 @@ def test_inline_on_edge_node_is_extracted():
 
 
 # ---------------------------------------------------------------------------
-# A1 — bidirectional edges
+# A1: bidirectional edges
 # ---------------------------------------------------------------------------
 
 
 def test_bidirectional_edge_is_one_undirected_pair():
     code = 'flowchart LR\n    a["A"]\n    b["B"]\n    a <-->|"IPsec"| b\n'
     pairs = _pairs(extract_relationships(code))
-    # canonicalised (sorted) — exactly one pair, orientation-independent
+    # canonicalised (sorted): exactly one pair, orientation-independent
     assert pairs == {("a", "b")}
 
 
@@ -143,7 +143,7 @@ def test_bidirectional_dotted_edge_is_message_flow():
 
 
 # ---------------------------------------------------------------------------
-# A4 — o--o excluded from relationships, surfaced as attachments
+# A4: o--o excluded from relationships, surfaced as attachments
 # ---------------------------------------------------------------------------
 
 
@@ -206,7 +206,7 @@ def test_attachment_with_inline_labels_on_both_endpoints():
 
 
 # ---------------------------------------------------------------------------
-# 3b — container metrics (reuse entity matchers)
+# 3b: container metrics (reuse entity matchers)
 # ---------------------------------------------------------------------------
 
 
@@ -231,7 +231,7 @@ def test_container_metrics_partial_recall():
 
 
 # ---------------------------------------------------------------------------
-# 3b — attachment metrics (undirected pairs)
+# 3b: attachment metrics (undirected pairs)
 # ---------------------------------------------------------------------------
 
 

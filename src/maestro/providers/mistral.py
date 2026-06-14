@@ -1,7 +1,9 @@
 """
-MAESTRO — Mistral provider implementation
+MAESTRO: Mistral provider implementation
 Wraps the Mistral chat completions API into the LLMProvider interface.
 """
+
+from __future__ import annotations
 
 import time
 
@@ -27,6 +29,7 @@ class MistralProvider(LLMProvider):
 
     # SYSTEM_PROMPT inherited from LLMProvider (maestro.prompts).
 
+    _PROVIDER_NAME = "mistral"
     MAX_TOKENS = 4096
 
     def __init__(self, api_key: str, pricing: ModelPricing) -> None:
@@ -38,7 +41,7 @@ class MistralProvider(LLMProvider):
         """
         mistralai exposes ``SDKError`` carrying ``raw_response: httpx.Response``;
         we read ``status_code`` from there. ``NoResponseError`` means the SDK
-        got nothing back at all — always transient. Low-level httpx network
+        got nothing back at all, always transient. Low-level httpx network
         errors (connect / timeout) also surface unwrapped on some failure
         modes and are equally transient.
         """
@@ -59,7 +62,7 @@ class MistralProvider(LLMProvider):
     ) -> RunResult:
         """
         Call the Mistral chat completions endpoint and return a RunResult.
-        Never raises — all exceptions are captured into RunResult.error.
+        Never raises: all exceptions are captured into RunResult.error.
         Transient failures are retried with exponential backoff via
         ``call_with_retry``.
         """
@@ -70,7 +73,7 @@ class MistralProvider(LLMProvider):
         )
 
         # Owned by the caller so retry_count survives an exhausted-retries
-        # exception — the except blocks below read stats.retry_count to
+        # exception: the except blocks below read stats.retry_count to
         # record it on the failed RunResult.
         stats = RetryStats()
 
@@ -90,14 +93,14 @@ class MistralProvider(LLMProvider):
             response, _ = call_with_retry(
                 _do_call,
                 is_retryable=self._is_retryable,
-                provider_name="mistral",
+                provider_name=self._PROVIDER_NAME,
                 stats=stats,
             )
 
             duration_ms = int((time.monotonic() - start_ms) * 1000)
 
             # usage / choices / message.content can be missing on truncated or
-            # malformed responses — guard each access so token usage is still
+            # malformed responses; guard each access so token usage is still
             # recorded when content is absent.
             usage = response.usage
             prompt_tokens = getattr(usage, "prompt_tokens", 0) or 0
@@ -115,7 +118,7 @@ class MistralProvider(LLMProvider):
                     cost_usd=compute_cost(
                         prompt_tokens, completion_tokens, self.pricing
                     ),
-                    error="EmptyResponse: Mistral returned no content",
+                    error=f"EmptyResponse: {self._PROVIDER_NAME} returned no content",
                     retry_count=stats.retry_count,
                 )
 

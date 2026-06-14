@@ -1,5 +1,5 @@
 """
-MAESTRO viz — faceted run-filter panel (Streamlit shell).
+MAESTRO viz: faceted run-filter panel (Streamlit shell).
 
 Renders one multi-select per facet (type / tier / strategy / model / run
 number), populated from the runs actually present, and returns the filtered

@@ -3,7 +3,7 @@ Tests for the viz scaffold: read-only DB access, the queries layer, the
 view registry, and settings resolution.
 
 What's covered here is everything verifiable WITHOUT a running Streamlit
-server — module structure, the read-only connection guarantee, and the
+server: module structure, the read-only connection guarantee, and the
 empty-state-driving queries against a real in-memory schema. The live UI
 (nav rendering, the settings panel widgets) is verified by launching the app
 (`streamlit run`), not pytest, since Streamlit widgets need a script context.
@@ -62,7 +62,7 @@ def test_planned_views_present():
 
 def test_connection_is_read_only(tmp_path):
     """
-    The viz connection must reject writes — a dashboard must never mutate the
+    The viz connection must reject writes: a dashboard must never mutate the
     experiment data. Build a real on-disk DB, open it via the viz layer, and
     assert an INSERT raises.
     """
@@ -91,7 +91,7 @@ def test_database_exists(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Queries — empty-state drivers, graceful on absent tables
+# Queries: empty-state drivers, graceful on absent tables
 # ---------------------------------------------------------------------------
 
 
@@ -115,7 +115,7 @@ def test_queries_on_empty_schema():
 def test_queries_on_missing_tables_do_not_raise():
     """
     Pointed at a DB without the expected schema, the count/has_* helpers
-    return 0/False rather than raising OperationalError — so the dashboard
+    return 0/False rather than raising OperationalError, so the dashboard
     degrades to an empty-state instead of crashing.
     """
     conn = _mem_db(with_schema=False)
@@ -206,7 +206,7 @@ def test_mean_f1_by_strategy_excludes_controls():
 
 
 # ---------------------------------------------------------------------------
-# Settings — env → default resolution (the precedence that runs without a
+# Settings: env -> default resolution (the precedence that runs without a
 # Streamlit script context; the session_state/UI layer is verified live)
 # ---------------------------------------------------------------------------
 
