@@ -41,8 +41,8 @@ dependencies = [
     # layer (and statsmodels pulls it in regardless) so we depend on it
     # explicitly rather than relying on the transitive pin. scipy arrives
     # transitively via statsmodels and is not declared here directly.
-    "statsmodels>=0.14",
-    "pandas>=2.2",
+    "statsmodels>=0.14.6",
+    "pandas>=3.0.3",
     # scipy is a transitive dependency of statsmodels (it supplies the
     # underlying distributions for the F-test, Tukey HSD, etc.), so its
     # version materially affects the statistics output. Not declared as a
@@ -59,8 +59,8 @@ dependencies = [
     # publication-quality figures, and matplotlib gives one style system for
     # both the dashboard and the embedded thesis figures with no
     # browser-component fragility.
-    "streamlit>=1.35,<2.0",
-    "matplotlib>=3.8,<4",
+    "streamlit>=1.58.0,<2.0",
+    "matplotlib>=3.11.0,<4",
     # Windows-only: provides the IANA timezone database that zoneinfo
     # (used by analysis/timestamps.py) needs at runtime. macOS and most
     # Linux distros ship the DB with the OS, so this is a no-op there:
@@ -74,8 +74,8 @@ dependencies = [
 [project.optional-dependencies]
 # Dev tooling - install with: pip install -e ".[dev]"
 dev = [
-    "pytest>=9.0.3",
-    "ruff>=0.15.15",
+    "pytest>=9.1.0",
+    "ruff>=0.15.17",
 ]
 
 [build-system]
