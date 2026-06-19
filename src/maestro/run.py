@@ -57,8 +57,19 @@ load_dotenv()
 # Silence CrewAI's interactive tracing prompt and telemetry so batch runs
 # stay non-interactive on fresh checkouts (the user's preference file is
 # machine-local and won't exist in CI / on a fresh clone).
+#
+# CREWAI_TRACING_ENABLED=false only governs the *enabled* path; it does NOT
+# stop the first-execution "view your traces? [y/N]" prompt, which blocks on
+# stdin for a 20s timeout per crew. In a headless container that file-based
+# "declined" preference is wiped every `--rm`, so the prompt fires on every
+# cell: ~1500 crew_ai cells x 20s is hours of dead waiting, and it corrupts
+# the measured duration_ms. CREWAI_TESTING=true is the only flag that short
+# circuits the prompt before any stdin read (crewai .../tracing/utils.py:
+# _is_test_environment guards both the auto-collect check and the prompt). It
+# disables trace prompts/telemetry only; it does not alter agent execution.
 os.environ.setdefault("CREWAI_TRACING_ENABLED", "false")
 os.environ.setdefault("CREWAI_DISABLE_TELEMETRY", "true")
+os.environ.setdefault("CREWAI_TESTING", "true")
 
 from maestro.analysis.metrics import evaluate_run
 from maestro.db.client import get_connection, init_db
