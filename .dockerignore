@@ -1,0 +1,46 @@
+# Keep the build context small: Docker tars the whole context and ships it to
+# the daemon before the build runs, even though the Dockerfile only COPYs
+# pyproject.toml, README.md, and src/. Excluding .venv alone drops ~1.1 GB.
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Python build / cache artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Tooling caches
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# VCS and IDE
+.git/
+.github/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local secrets and run output (DB is mounted from ./out at run time, not baked)
+.env
+out/
+
+# Claude Code local working files
+.claude/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
