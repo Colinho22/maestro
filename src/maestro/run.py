@@ -44,7 +44,9 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import threading
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from itertools import product
 
 from dotenv import load_dotenv
@@ -148,6 +150,49 @@ def _dispatch_for_model(model: str):
         if needle in model_lower:
             return (needle, cls, env_var)
     return None
+
+
+# ---------------------------------------------------------------------------
+# Concurrency
+# ---------------------------------------------------------------------------
+#
+# Cells are independent network-bound work, so the matrix runs on a thread
+# pool. Two invariants shape the design and must not be broken:
+#
+#   1. SQLite is single-writer. db/ is the only writer, and a lost write
+#      violates "a failure is recorded, never silent." So workers do only the
+#      LLM call + scoring; every insert_* runs on the main thread, which drains
+#      finished cells one at a time. No worker ever touches the DB.
+#
+#   2. A request's measured duration_ms must stay a true latency, not a
+#      server-side queue wait. Oversubscribing one provider would inflate it.
+#      So concurrency is capped PER PROVIDER, not just globally: a semaphore per
+#      provider needle (claude / gpt / mistral / gemini / deepseek) bounds how
+#      many of its calls are in flight. The cap also keeps us clear of 429s.
+#
+# Controls make no LLM call (their model dispatches to None), so they acquire
+# no semaphore and never contend.
+#
+# Default in-flight requests per provider. 4 is a conservative ceiling that
+# stays under typical paid rate limits while still parallelising the network
+# wait. Overridable with --provider-concurrency: a free-tier key sets 1, a
+# high-limit account can raise it.
+DEFAULT_PROVIDER_CONCURRENCY = 4
+
+
+def _build_provider_semaphores(concurrency: int) -> dict[str, threading.Semaphore]:
+    """
+    One Semaphore per provider needle, each permitting ``concurrency`` calls.
+
+    Keyed by the needle ``_dispatch_for_model`` returns ("claude", "gpt", ...),
+    the same stable id the provider factory uses. Built once up-front from the
+    CLI value and passed explicitly into the worker, so the concurrency limit
+    is a run parameter rather than hidden global state.
+    """
+    return {
+        needle: threading.Semaphore(concurrency)
+        for needle, _cls, _env in _PROVIDER_DISPATCH
+    }
 
 
 def _create_provider(model_pricing):
@@ -268,6 +313,17 @@ def parse_args() -> argparse.Namespace:
         help=f"Number of repeated runs per cell (default: {DEFAULT_REPEATS})",
     )
     parser.add_argument(
+        "--provider-concurrency",
+        type=int,
+        default=DEFAULT_PROVIDER_CONCURRENCY,
+        help=(
+            "Max concurrent requests per provider "
+            f"(default: {DEFAULT_PROVIDER_CONCURRENCY}). Set 1 for free-tier "
+            "rate limits; raise it if your account allows. Does not change "
+            "results, only how fast the matrix runs."
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print the experiment matrix without executing any runs",
@@ -297,7 +353,13 @@ def parse_args() -> argparse.Namespace:
         ),
     )
 
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    # A concurrency below 1 would deadlock the pool (no permits ever granted).
+    if args.provider_concurrency < 1:
+        parser.error("--provider-concurrency must be >= 1")
+
+    return args
 
 
 # ---------------------------------------------------------------------------
@@ -468,6 +530,91 @@ def _apply_resume_filter(matrix: list[dict], args: argparse.Namespace) -> list[d
     return [c for c in matrix if cell_key(c) not in completed]
 
 
+def _execute_cell(
+    cell: dict,
+    environment_id: str,
+    semaphores: dict[str, threading.Semaphore],
+) -> tuple[RunConfig, RunResult, list, object | None]:
+    """
+    Run one matrix cell off the main thread: build the provider, run the
+    strategy, score the output. Returns everything the main thread needs to
+    persist; this function never touches the DB, so SQLite keeps a single
+    writer (see the Concurrency section above).
+
+    The per-provider semaphore is held only around the strategy's network work,
+    so at most ``--provider-concurrency`` of one provider's calls are in flight
+    and a cell's measured ``duration_ms`` is a true latency, not queue time.
+
+    Returns ``(config, result, sub_results, metric_or_None)``. ``metric`` is
+    None for failed cells and for a metric pipeline that crashes on a cell's
+    output; neither is fatal, both still record their RunResult row. Mirrors the
+    old in-loop error isolation: any strategy/provider exception becomes a failed
+    RunResult, never a crash, so one bad cell can't take down the pool.
+    """
+    input_file = cell["input_file"]
+    strategy_enum = cell["strategy"]
+    model_pricing = cell["model_pricing"]
+    run_number = cell["run_number"]
+
+    config = RunConfig(
+        strategy=strategy_enum,
+        model=model_pricing.model,
+        example_id=input_file.example_id,
+        tier=input_file.tier,
+        run_number=run_number,
+        environment_id=environment_id,
+    )
+
+    # KeyboardInterrupt / SystemExit deliberately propagate (not caught by the
+    # bare Exception below), so Ctrl+C still tears the pool down.
+    try:
+        if strategy_enum in CONTROL_STRATEGIES:
+            # Controls bypass the LLM, so no provider and no semaphore.
+            strategy = STRATEGY_MAP[strategy_enum]()
+            result, sub_results = strategy.run(input_file=input_file, config=config)
+        else:
+            provider = _create_provider(model_pricing)
+            strategy = STRATEGY_MAP[strategy_enum](provider=provider)
+            sem = semaphores.get(_dispatch_for_model(model_pricing.model)[0])
+            with sem:
+                result, sub_results = strategy.run(input_file=input_file, config=config)
+    except Exception as exc:
+        traceback.print_exc(file=sys.stderr)
+        return (
+            config,
+            RunResult(
+                run_id=config.run_id,
+                output_diagram_code=None,
+                prompt_tokens=0,
+                completion_tokens=0,
+                duration_ms=0,
+                cost_usd=0.0,
+                error=f"unhandled: {type(exc).__name__}: {exc}",
+            ),
+            [],
+            None,
+        )
+
+    # Score successful cells here (mmdc subprocess + comparison is CPU/IO work
+    # with no DB dependency), so the main thread only inserts the result.
+    metric = None
+    if result.success:
+        try:
+            metric = evaluate_run(
+                run_id=config.run_id,
+                output_diagram_code=result.output_diagram_code,
+                ground_truth_path=input_file.ground_truth_path,
+            )
+        except Exception as exc:
+            traceback.print_exc(file=sys.stderr)
+            print(
+                f"  WARN - metric evaluation crashed: {type(exc).__name__}: {exc}",
+                file=sys.stderr,
+            )
+
+    return config, result, sub_results, metric
+
+
 def main():
     """Run the full experiment matrix with CLI filters applied."""
     args = parse_args()
@@ -555,143 +702,107 @@ def main():
     with get_connection(DB_PATH) as conn:
         insert_run_environment(conn, environment)
 
+    # Skip-not-an-error: an enum value with no class registered is a config
+    # gap, not a failure. Filter these before the pool so a skipped strategy
+    # never burns a worker or a row, and the printed totals match what runs.
+    runnable = []
+    for cell in matrix:
+        if STRATEGY_MAP.get(cell["strategy"]) is None:
+            print(f"  SKIP - strategy {cell['strategy'].value} not implemented")
+        else:
+            runnable.append(cell)
+
+    # Cells are independent network-bound work, so they run on a thread pool
+    # capped per provider (see the Concurrency section). Each worker does the
+    # LLM call + scoring; the main thread is the ONLY DB writer, draining
+    # finished cells as they complete. Pool size = providers x per-provider cap
+    # is the natural ceiling on in-flight work; the semaphores enforce the real
+    # per-provider limit underneath.
+    semaphores = _build_provider_semaphores(args.provider_concurrency)
+    max_workers = max(1, len(_PROVIDER_DISPATCH) * args.provider_concurrency)
+    print(
+        f"\nRunning {len(runnable)} cells, up to "
+        f"{args.provider_concurrency} concurrent per provider.\n"
+    )
+
     # Track totals for summary
     successes = 0
     failures = 0
     total_cost = 0.0
+    done = 0
+    total_runnable = len(runnable)
 
-    for i, cell in enumerate(matrix, 1):
-        input_file = cell["input_file"]
-        strategy_enum = cell["strategy"]
-        model_pricing = cell["model_pricing"]
-        run_number = cell["run_number"]
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {
+            pool.submit(
+                _execute_cell, cell, environment.environment_id, semaphores
+            ): cell
+            for cell in runnable
+        }
 
-        # Progress header
-        print(
-            f"\n[{i}/{total}] "
-            f"{input_file.example_id} | "
-            f"{strategy_enum.value} | "
-            f"{model_pricing.model} | "
-            f"run {run_number}"
-        )
+        # as_completed yields cells in finish order, not submit order. Every
+        # insert_* below runs here on the main thread: one writer, no SQLite
+        # lock contention, the "db/ is the only writer" invariant preserved.
+        for future in as_completed(futures):
+            done += 1
+            # _execute_cell catches strategy/provider errors itself, so a
+            # future result is the normal path. A truly unexpected raise (a
+            # bug in the worker harness) still shouldn't kill the run, so it
+            # is caught and logged as a lost cell.
+            try:
+                config, result, sub_results, metric = future.result()
+            except Exception as exc:
+                traceback.print_exc(file=sys.stderr)
+                print(
+                    f"  WARN - worker crashed: {type(exc).__name__}: {exc}; cell lost",
+                    file=sys.stderr,
+                )
+                continue
 
-        # Build RunConfig
-        config = RunConfig(
-            strategy=strategy_enum,
-            model=model_pricing.model,
-            example_id=input_file.example_id,
-            tier=input_file.tier,
-            run_number=run_number,
-            environment_id=environment.environment_id,
-        )
-
-        # Skip-not-an-error: an enum value with no class registered is a
-        # config gap, not a failure. Don't burn a row on it.
-        strategy_cls = STRATEGY_MAP.get(strategy_enum)
-        if strategy_cls is None:
-            print(f"  SKIP - strategy {strategy_enum.value} not implemented")
-            continue
-
-        # Execute: cell-level error isolation. Any unhandled exception
-        # from provider/strategy construction or strategy.run() (provider
-        # SDK bug, framework crash, a KeyError in a strategy's own
-        # bookkeeping, an env-var rotated mid-run, etc.) is captured into
-        # a failed RunResult and the matrix loop continues. For a
-        # ~5000-cell run, having one buggy cell take down the whole
-        # experiment would burn hours of API spend.
-        #
-        # Provider construction is *inside* the try because
-        # _create_provider can raise (unknown model, missing env var), and
-        # those are real failure modes worth recording as a failed cell
-        # rather than killing the process.
-        #
-        # KeyboardInterrupt / SystemExit are deliberately NOT caught:
-        # the user pressing Ctrl+C or a sys.exit() from a helper should
-        # still exit the runner.
-        try:
-            # Controls don't need a provider: they bypass the LLM entirely;
-            # passing one would just be unused state.
-            if strategy_enum in CONTROL_STRATEGIES:
-                strategy = strategy_cls()
-            else:
-                provider = _create_provider(model_pricing)
-                strategy = strategy_cls(provider=provider)
-            result, sub_results = strategy.run(
-                input_file=input_file,
-                config=config,
+            print(
+                f"\n[{done}/{total_runnable}] "
+                f"{config.example_id} | {config.strategy.value} | "
+                f"{config.model} | run {config.run_number}"
             )
-        except Exception as exc:
-            traceback.print_exc(file=sys.stderr)
-            result = RunResult(
-                run_id=config.run_id,
-                output_diagram_code=None,
-                prompt_tokens=0,
-                completion_tokens=0,
-                duration_ms=0,
-                cost_usd=0.0,
-                error=f"unhandled: {type(exc).__name__}: {exc}",
-            )
-            sub_results = []
 
-        # Persist to DB. Wrapped in try/except too: a DB failure here
-        # would otherwise kill the loop after the (potentially expensive)
-        # LLM call already happened. We at least want to log the in-memory
-        # result so the user can recover manually.
-        try:
-            with get_connection(DB_PATH) as conn:
-                insert_run_config(conn, config)
-                insert_run_result(conn, result)
-                for sub in sub_results:
-                    insert_sub_result(conn, sub)
-
-                # Evaluate metrics if run succeeded. Wrapped separately
-                # because a metric-pipeline crash (e.g. malformed Mermaid
-                # confusing the extractor) shouldn't roll back the
-                # RunResult / SubResult rows we just inserted.
-                if result.success:
-                    try:
-                        metric = evaluate_run(
-                            run_id=config.run_id,
-                            output_diagram_code=result.output_diagram_code,
-                            ground_truth_path=input_file.ground_truth_path,
-                        )
+            # Persist. Wrapped because a DB failure here would otherwise lose
+            # an already-paid-for LLM result; we at least log it for recovery.
+            try:
+                with get_connection(DB_PATH) as conn:
+                    insert_run_config(conn, config)
+                    insert_run_result(conn, result)
+                    for sub in sub_results:
+                        insert_sub_result(conn, sub)
+                    if metric is not None:
                         insert_metric_result(conn, metric)
-                    except Exception as exc:
-                        traceback.print_exc(file=sys.stderr)
-                        print(
-                            f"  WARN - metric evaluation crashed: "
-                            f"{type(exc).__name__}: {exc}",
-                            file=sys.stderr,
-                        )
-        except Exception as exc:
-            traceback.print_exc(file=sys.stderr)
-            print(
-                f"  WARN - DB persist crashed: {type(exc).__name__}: {exc}; "
-                "result lost",
-                file=sys.stderr,
-            )
+            except Exception as exc:
+                traceback.print_exc(file=sys.stderr)
+                print(
+                    f"  WARN - DB persist crashed: {type(exc).__name__}: "
+                    f"{exc}; result lost",
+                    file=sys.stderr,
+                )
 
-        # Always track cost (partial responses may still consume tokens)
-        total_cost += result.cost_usd
+            # Always track cost (partial responses may still consume tokens)
+            total_cost += result.cost_usd
 
-        # Log result
-        if result.success:
-            successes += 1
-            print(
-                f"  OK - {result.duration_ms}ms, "
-                f"${result.cost_usd:.6f}, "
-                f"{result.total_tokens} tokens"
-            )
-        else:
-            failures += 1
-            print(f"  FAIL - {result.error} (cost: ${result.cost_usd:.6f})")
+            if result.success:
+                successes += 1
+                print(
+                    f"  OK - {result.duration_ms}ms, "
+                    f"${result.cost_usd:.6f}, "
+                    f"{result.total_tokens} tokens"
+                )
+            else:
+                failures += 1
+                print(f"  FAIL - {result.error} (cost: ${result.cost_usd:.6f})")
 
     # Final summary
     print("\n" + "=" * 60)
     print("EXPERIMENT COMPLETE")
     print("=" * 60)
-    print(f"  Successes:  {successes}/{total}")
-    print(f"  Failures:   {failures}/{total}")
+    print(f"  Successes:  {successes}/{total_runnable}")
+    print(f"  Failures:   {failures}/{total_runnable}")
     print(f"  Total cost: ${total_cost:.6f}")
     print(f"  Database:   {DB_PATH}")
     print("=" * 60)
