@@ -27,11 +27,16 @@ from maestro.strategies.base import BaseStrategy
 
 # Rules come from the canonical contract (maestro.prompts) so single-agent and
 # the multi-step strategies are given a byte-identical output contract. The
-# runtime placeholder is escaped as ``{{input_data}}`` so it survives this
-# f-string and is filled later by ``.format(input_data=...)``.
+# runtime placeholders are escaped (``{{...}}``) so they survive this f-string
+# and are filled later by ``.format(diagram_type=..., input_data=...)``. The
+# diagram type is task context, stated explicitly to every strategy so the
+# notation-dependent label rules are applied uniformly (the baseline would
+# otherwise have to infer it from the input metadata on its own).
 PROMPT_TEMPLATE = f"""\
 You are given a dataset describing entities and their relationships.
 Your task is to generate a Mermaid diagram that accurately represents this data.
+
+The diagram notation is: {{diagram_type}}
 
 Rules:
 {render_rules()}
@@ -73,7 +78,10 @@ class SingleAgentStrategy(BaseStrategy):
             return self._error_result(config, f"Failed to read input file: {e}")
 
         formatted_input = json.dumps(input_data, indent=2)
-        prompt = PROMPT_TEMPLATE.format(input_data=formatted_input)
+        diagram_type = input_data.get("metadata", {}).get("diagram_type", "unspecified")
+        prompt = PROMPT_TEMPLATE.format(
+            diagram_type=diagram_type, input_data=formatted_input
+        )
 
         # Single call: wrap result in tuple with empty sub_results
         result = self.provider.complete(prompt, config)

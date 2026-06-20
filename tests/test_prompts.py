@@ -64,11 +64,26 @@ def test_rules_snapshot():
         "parseable\n"
         "- If a node has no label, write just its id (e.g. gw_result): "
         'never an empty bracket like node_id[""]\n'
+        "- Build each node label according to the diagram notation. For "
+        "architecture and infrastructure diagrams (C4 container, network "
+        "topology), put the entity name on the first line, the type on a "
+        "second line wrapped in square brackets and title-cased "
+        "(external_system becomes [External System], device becomes [Device]), "
+        "and a short technology or kind label on a third line only when the "
+        "input gives one, joined with a literal \\n inside the quotes, e.g. "
+        'node_id["SomeApp\\n[Container]\\nWeb Application"]. Keep the third '
+        "line to a few words; never put a full sentence or description in a "
+        "label. For process diagrams (BPMN process, BPMN collaboration), use "
+        'the entity name alone with no type line, e.g. task_1["Task 1"]\n'
         "- Quote edge labels the same way, with no spaces inside the pipes, "
         'e.g. a -->|"My edge"| b; for an unlabelled edge use a plain arrow '
         "a --> b and never an empty label like -->|| or -->| |\n"
         "- Include every entity and relationship from the input\n"
-        "- Preserve hierarchy using subgraphs for pools, lanes, and subprocesses\n"
+        "- Preserve hierarchy using subgraphs for any grouping the input "
+        "gives, such as pools, lanes, subprocesses, system boundaries, or "
+        "deployment environments. Always give a subgraph a quoted label from "
+        "the group's name, e.g. subgraph infomaniak[\"Infomaniak Public "
+        'Cloud"]; never write an empty subgraph label like subgraph id[""]\n'
         "- Do not invent entities or relationships not present in the input\n"
         "- Do not include explanations or markdown code fences\n"
         "- Do not use internal or relationship IDs as edge labels"
@@ -133,13 +148,17 @@ def test_single_and_step3_inject_identical_rules():
 def test_templates_keep_runtime_placeholders():
     """The .format() placeholders must survive the f-string composition."""
     assert "{input_data}" in PROMPT_TEMPLATE
+    assert "{diagram_type}" in PROMPT_TEMPLATE
     assert "{entities_json}" in STEP_3_PROMPT
     assert "{relationships_json}" in STEP_3_PROMPT
+    assert "{diagram_type}" in STEP_3_PROMPT
 
 
 def test_templates_format_without_stray_braces():
-    PROMPT_TEMPLATE.format(input_data="{}")
-    STEP_3_PROMPT.format(entities_json="[]", relationships_json="[]")
+    PROMPT_TEMPLATE.format(diagram_type="c4_container", input_data="{}")
+    STEP_3_PROMPT.format(
+        diagram_type="bpmn_process", entities_json="[]", relationships_json="[]"
+    )
 
 
 # ---------------------------------------------------------------------------

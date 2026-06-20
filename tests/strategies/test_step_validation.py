@@ -30,10 +30,39 @@ def test_empty_output_rejected_on_every_step():
         assert ok is False and err == "empty output"
 
 
-def test_step3_accepts_any_nonempty_text():
-    """Step 3 is free-form Mermaid: non-empty is the only rule."""
+def test_step3_accepts_wellformed_mermaid():
+    """Step 3 passes any non-empty, structurally sound Mermaid."""
     ok, err = validate_step_output("flowchart LR\n  a --> b", 3)
     assert ok is True and err is None
+    # Multi-line labels, cylinders, and subgraphs must not trip the shape check.
+    diagram = (
+        "flowchart LR\n"
+        '  user["User\\n[Person]"]\n'
+        '  store[("Object Storage\\n[Container]")]\n'
+        '  subgraph infomaniak["Infomaniak"]\n'
+        '    web["SomeApp"]\n'
+        "  end\n"
+        "  user --> web"
+    )
+    ok, err = validate_step_output(diagram, 3)
+    assert ok is True and err is None
+
+
+def test_step3_rejects_empty_label_bracket():
+    """The empty-label malformation a weak model emitted must consume a retry,
+    not pass as non-empty and land as a scored parse failure."""
+    for bad in ('a[""]', "a['']", 'gw{""}', 'n(("")) '):
+        ok, err = validate_step_output(f"flowchart LR\n  {bad}", 3)
+        assert ok is False and "empty node label" in err
+
+
+def test_step3_rejects_concatenated_nodes():
+    """Two node defs concatenated without a separator (the other observed
+    failure, e.g. ``a[""]b["B"]``) is rejected."""
+    ok, err = validate_step_output('flowchart LR\n  pool[""]web["W"]', 3)
+    assert ok is False
+    # Either malformation may match first; both are real defects in this line.
+    assert "empty node label" in err or "concatenated" in err
 
 
 def test_steps_1_2_still_apply_json_shape():

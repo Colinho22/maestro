@@ -31,6 +31,7 @@ from maestro.strategies._extraction import (
     STEP_1_PROMPT,
     STEP_2_PROMPT,
     STEP_3_PROMPT,
+    extract_diagram_type,
     strip_fences,
     validate_step_output,
 )
@@ -97,6 +98,7 @@ class SOPStrategy(BaseStrategy):
         try:
             raw = input_file.file_path.read_text(encoding="utf-8")
             input_data = json.dumps(json.loads(raw), indent=2)
+            diagram_type = extract_diagram_type(raw)
         except FileNotFoundError:
             return self._error_result(
                 config, f"Input file not found: {input_file.file_path}"
@@ -117,7 +119,7 @@ class SOPStrategy(BaseStrategy):
             step_system_prompt = step["system_prompt"]
 
             # Build prompt with outputs from previous steps
-            prompt = self._build_prompt(step, input_data, step_outputs)
+            prompt = self._build_prompt(step, input_data, diagram_type, step_outputs)
 
             # Execute with retry
             sub, output_text = self._execute_step(
@@ -153,6 +155,7 @@ class SOPStrategy(BaseStrategy):
         self,
         step: dict,
         input_data: str,
+        diagram_type: str,
         step_outputs: dict[str, str],
     ) -> str:
         """
@@ -160,7 +163,7 @@ class SOPStrategy(BaseStrategy):
         Each step gets different variables depending on what's available.
         """
         template = step["prompt"]
-        fmt = {"input_data": input_data}
+        fmt = {"input_data": input_data, "diagram_type": diagram_type}
 
         if "extract_entities" in step_outputs:
             fmt["entities_json"] = step_outputs["extract_entities"]
