@@ -71,14 +71,15 @@ def insert_run_result(conn: sqlite3.Connection, result: RunResult) -> None:
     conn.execute(
         """
         INSERT INTO run_results
-            (run_id, output_diagram_code, prompt_tokens, completion_tokens,
-             duration_ms, cost_usd, error, retry_count)
+            (run_id, output_diagram_code, raw_response, prompt_tokens,
+             completion_tokens, duration_ms, cost_usd, error, retry_count)
         VALUES
-            (?, ?, ?, ?, ?, ?, ?, ?)
+            (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             str(result.run_id),
             result.output_diagram_code,
+            result.raw_response,
             result.prompt_tokens,
             result.completion_tokens,
             result.duration_ms,
@@ -94,11 +95,11 @@ def insert_sub_result(conn: sqlite3.Connection, sub: SubResult) -> None:
     conn.execute(
         """
         INSERT INTO sub_results
-            (sub_id, run_id, step_number, step_name, output_text,
+            (sub_id, run_id, step_number, step_name, output_text, raw_response,
              prompt_tokens, completion_tokens, duration_ms, cost_usd,
              error, retry_count)
         VALUES
-            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             str(sub.sub_id),
@@ -106,6 +107,7 @@ def insert_sub_result(conn: sqlite3.Connection, sub: SubResult) -> None:
             sub.step_number,
             sub.step_name,
             sub.output_text,
+            sub.raw_response,
             sub.prompt_tokens,
             sub.completion_tokens,
             sub.duration_ms,

@@ -176,6 +176,12 @@ class RunResult(BaseModel):
     # Output
     output_diagram_code: str | None = None  # Generated Mermaid / PlantUML / etc.
 
+    # Unprocessed model output as the provider returned it, retained even on a
+    # failure (when output_diagram_code is None). Lets a failed cell be diagnosed
+    # after the run from the text the model actually produced. None when the
+    # provider returned no text at all (safety block, no candidate).
+    raw_response: str | None = None
+
     # Token usage
     prompt_tokens: int
     completion_tokens: int
@@ -221,6 +227,9 @@ class SubResult(BaseModel):
     step_number: int  # 1, 2, 3...
     step_name: str  # "extract_entities", "extract_relationships", etc.
     output_text: str | None = None
+    # Raw model output for this step, kept even when the step fails validation
+    # (output_text is None then), so a rejected JSON/diagram stays diagnosable.
+    raw_response: str | None = None
     prompt_tokens: int
     completion_tokens: int
     duration_ms: int

@@ -149,6 +149,7 @@ class OpenAIProvider(LLMProvider):
             return RunResult(
                 run_id=config.run_id,
                 output_diagram_code=output,
+                raw_response=output,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 duration_ms=duration_ms,

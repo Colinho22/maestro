@@ -187,6 +187,7 @@ class SOPStrategy(BaseStrategy):
         output_text is None if the step failed.
         """
         last_error = None
+        last_raw = None
         result = None
 
         # Accumulate metrics across all attempts (including failed ones)
@@ -206,6 +207,9 @@ class SOPStrategy(BaseStrategy):
             total_duration_ms += result.duration_ms
             total_cost_usd += result.cost_usd
             actual_retries = attempt
+            # Keep the last raw output so a failed step stays diagnosable (e.g.
+            # the malformed JSON a weak model emitted, which validation rejects).
+            last_raw = result.raw_response
 
             if result.success:
                 # Validate the fenced-stripped output: empty on any step (a
@@ -225,6 +229,7 @@ class SOPStrategy(BaseStrategy):
                         step_number=step_number,
                         step_name=step_name,
                         output_text=output,
+                        raw_response=result.raw_response,
                         prompt_tokens=total_prompt_tokens,
                         completion_tokens=total_completion_tokens,
                         duration_ms=total_duration_ms,
@@ -235,7 +240,10 @@ class SOPStrategy(BaseStrategy):
                     output,
                 )
             else:
-                last_error = result.error
+                # success is False with no error string means the provider
+                # returned an empty/blank diagram (not an SDK error). Name that
+                # so the failed row does not read "No attempts executed".
+                last_error = result.error or "empty output from provider"
 
         # All attempts failed
         return (
@@ -244,6 +252,7 @@ class SOPStrategy(BaseStrategy):
                 step_number=step_number,
                 step_name=step_name,
                 output_text=None,
+                raw_response=last_raw,
                 prompt_tokens=total_prompt_tokens,
                 completion_tokens=total_completion_tokens,
                 duration_ms=total_duration_ms,

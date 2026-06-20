@@ -341,6 +341,7 @@ class CrewAIStrategy(BaseStrategy):
         SOP.
         """
         last_error: str | None = None
+        last_raw: str | None = None
         recorder = _Recorder()
 
         # Accumulators across retry attempts: match SOP's metric model
@@ -416,6 +417,8 @@ class CrewAIStrategy(BaseStrategy):
             total_completion_tokens += call.completion_tokens
             total_duration_ms += call.duration_ms
             total_cost_usd += call.cost_usd
+            # Keep the last raw output so a failed step stays diagnosable.
+            last_raw = call.output_text
 
             if call.error is not None:
                 last_error = call.error
@@ -436,6 +439,7 @@ class CrewAIStrategy(BaseStrategy):
                     step_number=step_number,
                     step_name=step_name,
                     output_text=output,
+                    raw_response=call.output_text,
                     prompt_tokens=total_prompt_tokens,
                     completion_tokens=total_completion_tokens,
                     duration_ms=total_duration_ms,
@@ -453,6 +457,7 @@ class CrewAIStrategy(BaseStrategy):
                 step_number=step_number,
                 step_name=step_name,
                 output_text=None,
+                raw_response=last_raw,
                 prompt_tokens=total_prompt_tokens,
                 completion_tokens=total_completion_tokens,
                 duration_ms=total_duration_ms,
