@@ -255,13 +255,25 @@ _QUOTED_SPAN = re.compile(r"\"[^\"]*\"|'[^']*'")
 
 
 def _validate_mermaid_shape(text: str) -> tuple[bool, str | None]:
-    """Reject the two step-3 malformations we have actually observed."""
+    """Reject the structural malformations we have actually observed."""
     if _EMPTY_LABEL.search(text):
         return False, 'empty node label bracket (e.g. node_id[""])'
+    # Subgraph nesting must balance: an unclosed subgraph (a dropped `end`) is
+    # invalid Mermaid that mmdc rejects, so flag it here to consume the retry
+    # rather than scoring as a parse failure. Deeply nested diagrams (pools >
+    # lanes > subprocesses, network zones) are where a model drops one. `end`
+    # is counted only as a standalone closer line so node ids and labels that
+    # merely contain "end" (end_event_1, "End Event") never match.
+    opens = closes = 0
     for raw in text.splitlines():
-        # Blank quoted labels first: only structural brackets (not bracket
-        # characters inside a label) should count toward concatenation.
         line = _QUOTED_SPAN.sub('""', raw.strip())
         if _CONCATENATED_NODES.search(line):
             return False, "node definitions concatenated without a separator"
+        stripped = raw.strip()
+        if stripped.startswith("subgraph "):
+            opens += 1
+        elif stripped == "end":
+            closes += 1
+    if opens != closes:
+        return False, f"unbalanced subgraph/end ({opens} subgraph, {closes} end)"
     return True, None

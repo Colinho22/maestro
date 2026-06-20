@@ -24,6 +24,9 @@ def test_extract_diagram_type_normalizes_malformed_values():
     assert extract_diagram_type('{"metadata": {"diagram_type": null}}') == "unspecified"
     assert extract_diagram_type('{"metadata": {"diagram_type": 123}}') == "unspecified"
     assert extract_diagram_type('{"metadata": {"diagram_type": ""}}') == "unspecified"
+    assert extract_diagram_type('{"metadata": {"diagram_type": "   "}}') == (
+        "unspecified"
+    )
     assert extract_diagram_type('{"metadata": null}') == "unspecified"
     assert extract_diagram_type("not json") == "unspecified"
 
@@ -34,6 +37,27 @@ def test_step3_allows_brackets_inside_quoted_labels():
     ok, err = validate_step_output(
         'flowchart LR\n  a["Service [v1] Gateway [public]"]', 3
     )
+    assert ok is True and err is None
+
+
+def test_step3_rejects_unbalanced_subgraph():
+    """A dropped `end` is invalid Mermaid mmdc would reject; flag it so the
+    retry budget applies instead of scoring a parse failure."""
+    missing_end = (
+        'flowchart LR\nsubgraph p1["Pool"]\n  a["A"]\nsubgraph p2["P2"]\n  b["B"]\nend'
+    )
+    ok, err = validate_step_output(missing_end, 3)
+    assert ok is False and "unbalanced subgraph" in err
+
+
+def test_step3_balance_ignores_end_in_ids_and_labels():
+    """`end` counts only as a standalone closer line: node ids like end_event_1
+    and labels like "End Event" must not be read as closers."""
+    diagram = (
+        'flowchart LR\nsubgraph p["Pool"]\n'
+        '  end_event_1(["End Event 1"])\n  task_1["Task end here"]\nend'
+    )
+    ok, err = validate_step_output(diagram, 3)
     assert ok is True and err is None
 
 
