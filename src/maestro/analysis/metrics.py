@@ -120,7 +120,7 @@ def extract_input_unnamed_ids(input_path: Path | None) -> set[str]:
     if input_path is None:
         return set()
     try:
-        data = json.loads(Path(input_path).read_text(encoding="utf-8"))
+        data = json.loads(input_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return set()
     elements = data.get("elements") or data.get("nodes") or []
