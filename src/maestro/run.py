@@ -615,6 +615,7 @@ def _execute_cell(
                 run_id=config.run_id,
                 output_diagram_code=result.output_diagram_code,
                 ground_truth_path=input_file.ground_truth_path,
+                input_path=input_file.file_path,
             )
         except Exception as exc:
             traceback.print_exc(file=sys.stderr)
