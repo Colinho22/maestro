@@ -7,8 +7,10 @@ every multi-step strategy (SOP, CrewAI, LangGraph). Only the *orchestration*
 differs between strategies: what each strategy file expresses in its own
 shape.
 
-Single-agent does not import from here: its baseline prompt is intentionally
-distinct (one shot -> diagram, no decomposition) and lives in `single.py`.
+Single-agent does not reuse the multi-step *contract* from here: its baseline
+prompt is intentionally distinct (one shot -> diagram, no decomposition) and
+lives in `single.py`. It does share the small ``extract_diagram_type`` utility
+so the notation context is read identically for every strategy.
 
 Adding a new multi-step strategy?
 - Reuse the prompts, schemas and validators from this module unchanged.
@@ -158,16 +160,19 @@ def extract_diagram_type(raw_input: str) -> str:
     Read ``metadata.diagram_type`` from a raw input JSON string.
 
     Shared by every strategy so the render step's notation context is derived
-    identically. Falls back to "unspecified" if the field is missing or the
-    input is unparseable, so a malformed input still renders rather than
-    crashing the strategy (the diagram simply gets no notation hint).
+    identically. Falls back to "unspecified" if the field is missing, blank, not
+    a string, or the input is unparseable, so a malformed input still renders
+    rather than crashing the strategy (the diagram simply gets no notation hint).
+    The get() default only guards a missing key, so a present-but-malformed value
+    (null, a number, "") is normalised here before it reaches a prompt.
     """
     try:
-        return (
-            json.loads(raw_input).get("metadata", {}).get("diagram_type", "unspecified")
-        )
+        value = json.loads(raw_input).get("metadata", {}).get("diagram_type")
     except (json.JSONDecodeError, TypeError, AttributeError):
         return "unspecified"
+    if not isinstance(value, str) or not value.strip():
+        return "unspecified"
+    return value
 
 
 def strip_fences(text: str | None) -> str | None:
@@ -244,6 +249,9 @@ def validate_step_output(text: str | None, step_number: int) -> tuple[bool, str 
 # via mmdc); it must never reject a well-formed diagram.
 _EMPTY_LABEL = re.compile(r"""[\[\(\{]+\s*(["'])\1\s*[\]\)\}]+""")
 _CONCATENATED_NODES = re.compile(r"[\]\)\}]\s*\w+\s*[\[\(\{]")
+# Quoted label spans, blanked before the concatenation scan so brackets INSIDE
+# a label (e.g. a["Service [v1] Gateway"]) cannot be misread as two node defs.
+_QUOTED_SPAN = re.compile(r"\"[^\"]*\"|'[^']*'")
 
 
 def _validate_mermaid_shape(text: str) -> tuple[bool, str | None]:
@@ -251,7 +259,9 @@ def _validate_mermaid_shape(text: str) -> tuple[bool, str | None]:
     if _EMPTY_LABEL.search(text):
         return False, 'empty node label bracket (e.g. node_id[""])'
     for raw in text.splitlines():
-        line = raw.strip()
+        # Blank quoted labels first: only structural brackets (not bracket
+        # characters inside a label) should count toward concatenation.
+        line = _QUOTED_SPAN.sub('""', raw.strip())
         if _CONCATENATED_NODES.search(line):
             return False, "node definitions concatenated without a separator"
     return True, None

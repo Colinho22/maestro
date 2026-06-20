@@ -9,9 +9,32 @@ that decide "is this step a pass or a recorded failure" live in one place.
 from __future__ import annotations
 
 from maestro.strategies._extraction import (
+    extract_diagram_type,
     validate_step_output,
     validate_step_payload,
 )
+
+
+def test_extract_diagram_type_normalizes_malformed_values():
+    """get()'s default only guards a missing key; a present-but-malformed value
+    (null, a number, blank) must still fall back to the string "unspecified"."""
+    assert extract_diagram_type('{"metadata": {"diagram_type": "c4_container"}}') == (
+        "c4_container"
+    )
+    assert extract_diagram_type('{"metadata": {"diagram_type": null}}') == "unspecified"
+    assert extract_diagram_type('{"metadata": {"diagram_type": 123}}') == "unspecified"
+    assert extract_diagram_type('{"metadata": {"diagram_type": ""}}') == "unspecified"
+    assert extract_diagram_type('{"metadata": null}') == "unspecified"
+    assert extract_diagram_type("not json") == "unspecified"
+
+
+def test_step3_allows_brackets_inside_quoted_labels():
+    """Bracket characters inside a quoted label (e.g. a version tag) must not be
+    misread as concatenated node definitions."""
+    ok, err = validate_step_output(
+        'flowchart LR\n  a["Service [v1] Gateway [public]"]', 3
+    )
+    assert ok is True and err is None
 
 
 def test_empty_output_rejected_on_every_step():

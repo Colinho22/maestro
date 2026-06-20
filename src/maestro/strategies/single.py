@@ -23,6 +23,7 @@ import json
 
 from maestro.prompts import render_rules
 from maestro.schemas import InputFile, RunConfig, RunResult, SubResult
+from maestro.strategies._extraction import extract_diagram_type
 from maestro.strategies.base import BaseStrategy
 
 # Rules come from the canonical contract (maestro.prompts) so single-agent and
@@ -78,7 +79,7 @@ class SingleAgentStrategy(BaseStrategy):
             return self._error_result(config, f"Failed to read input file: {e}")
 
         formatted_input = json.dumps(input_data, indent=2)
-        diagram_type = input_data.get("metadata", {}).get("diagram_type", "unspecified")
+        diagram_type = extract_diagram_type(raw)
         prompt = PROMPT_TEMPLATE.format(
             diagram_type=diagram_type, input_data=formatted_input
         )

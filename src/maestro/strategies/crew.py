@@ -184,8 +184,10 @@ class MaestroBackedLLM(BaseLLM):
             ]
             text = "\n\n".join(p for p in user_parts if p)
         # Drop CrewAI's expected-output block (and anything after it) so only
-        # our task prompt reaches the provider.
-        marker = text.find(cls._CREW_EXPECTED_OUTPUT_MARKER)
+        # our task prompt reaches the provider. rfind, not find: the scaffold is
+        # appended after the task description, so the last occurrence is the one
+        # to cut at even if the marker phrase ever appears in the prompt itself.
+        marker = text.rfind(cls._CREW_EXPECTED_OUTPUT_MARKER)
         if marker != -1:
             text = text[:marker]
         return text.rstrip()
