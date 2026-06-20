@@ -270,7 +270,10 @@ def _validate_mermaid_shape(text: str) -> tuple[bool, str | None]:
         if _CONCATENATED_NODES.search(line):
             return False, "node definitions concatenated without a separator"
         stripped = raw.strip()
-        if stripped.startswith("subgraph "):
+        # An anonymous subgraph (bare "subgraph", no id) is valid Mermaid and
+        # still opens a block, so count it too: missing it would falsely reject
+        # a balanced diagram as unbalanced.
+        if stripped.startswith("subgraph ") or stripped == "subgraph":
             opens += 1
         elif stripped == "end":
             closes += 1

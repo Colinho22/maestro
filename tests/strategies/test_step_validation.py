@@ -61,6 +61,14 @@ def test_step3_balance_ignores_end_in_ids_and_labels():
     assert ok is True and err is None
 
 
+def test_step3_balance_counts_anonymous_subgraph():
+    """A bare `subgraph` (no id) is a valid opener; its `end` must balance it,
+    not be read as an extra closer."""
+    diagram = 'flowchart LR\nsubgraph\n  a["A"]\nend'
+    ok, err = validate_step_output(diagram, 3)
+    assert ok is True and err is None
+
+
 def test_empty_output_rejected_on_every_step():
     """Empty or whitespace output is a failure on all three steps.
 
