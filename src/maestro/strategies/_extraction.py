@@ -7,8 +7,10 @@ every multi-step strategy (SOP, CrewAI, LangGraph). Only the *orchestration*
 differs between strategies: what each strategy file expresses in its own
 shape.
 
-Single-agent does not import from here: its baseline prompt is intentionally
-distinct (one shot -> diagram, no decomposition) and lives in `single.py`.
+Single-agent does not reuse the multi-step *contract* from here: its baseline
+prompt is intentionally distinct (one shot -> diagram, no decomposition) and
+lives in `single.py`. It does share the small ``extract_diagram_type`` utility
+so the notation context is read identically for every strategy.
 
 Adding a new multi-step strategy?
 - Reuse the prompts, schemas and validators from this module unchanged.
@@ -19,6 +21,7 @@ Adding a new multi-step strategy?
 from __future__ import annotations
 
 import json
+import re
 
 from maestro.prompts import render_rules
 
@@ -32,8 +35,18 @@ Your task is to extract all entities (nodes) and their hierarchy.
 
 Rules:
 - Output valid JSON only, no explanations, no markdown fencing
+- Extract only the actual elements or nodes; never turn a metadata or summary
+  field into an entity
 - Include every entity from the input
-- Capture parent-child relationships (pools, lanes, subprocesses)
+- Capture parent-child relationships (pools, lanes, subprocesses, system
+  boundaries, deployment environments). When an element names a parent group
+  (a lane, pool, boundary, or environment), include that group itself as an
+  entity with its own id and name, so the group can be drawn as a labeled
+  subgraph; never leave a referenced parent without a name.
+- Copy name and type from the input verbatim. For tech, copy a short technology
+  or kind label if the input gives one (a "technology" field or similar), not a
+  long sentence; leave it null when the input has none. This is the third label
+  line, so keep it short.
 - Use this exact schema:
 {{
   "entities": [
@@ -41,6 +54,7 @@ Rules:
       "id": "string",
       "name": "string",
       "type": "string",
+      "tech": "string or null",
       "parent_id": "string or null"
     }}
   ]
@@ -91,10 +105,16 @@ Original input data:
 # Rules come from the canonical contract (maestro.prompts) so step 3 and the
 # single-agent baseline are given a byte-identical output contract. The runtime
 # placeholders are escaped (``{{...}}``) so they survive this f-string and are
-# filled later by ``.format(entities_json=..., relationships_json=...)``.
+# filled later by ``.format(diagram_type=..., entities_json=...,
+# relationships_json=...)``. The diagram type is task context (it is in the
+# input metadata, which the single-agent baseline already sees): the label
+# rules differ by notation, so the render step must know which notation it is
+# producing, the same way a person would be told "draw this as a C4 diagram".
 STEP_3_PROMPT = f"""\
 You are given a set of entities and relationships extracted from a dataset.
 Your task is to generate a Mermaid diagram that accurately represents them.
+
+The diagram notation is: {{diagram_type}}
 
 Rules:
 {render_rules()}
@@ -133,6 +153,26 @@ MAX_RETRIES = 1
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def extract_diagram_type(raw_input: str) -> str:
+    """
+    Read ``metadata.diagram_type`` from a raw input JSON string.
+
+    Shared by every strategy so the render step's notation context is derived
+    identically. Falls back to "unspecified" if the field is missing, blank, not
+    a string, or the input is unparseable, so a malformed input still renders
+    rather than crashing the strategy (the diagram simply gets no notation hint).
+    The get() default only guards a missing key, so a present-but-malformed value
+    (null, a number, "") is normalised here before it reaches a prompt.
+    """
+    try:
+        value = json.loads(raw_input).get("metadata", {}).get("diagram_type")
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        return "unspecified"
+    if not isinstance(value, str) or not value.strip():
+        return "unspecified"
+    return value
 
 
 def strip_fences(text: str | None) -> str | None:
@@ -187,8 +227,9 @@ def validate_step_output(text: str | None, step_number: int) -> tuple[bool, str 
     Rejects empty output on every step (strip_fences can empty an otherwise
     non-empty response, e.g. bare ``` fences, which would otherwise pass the
     provider success check and leave step 3 with no diagram), then applies the
-    step-1/step-2 JSON shape check via validate_step_payload. Step 3 has no
-    further shape rule once it is non-empty.
+    step-1/step-2 JSON shape check via validate_step_payload. Step 3 gets a
+    light structural check so a malformed diagram consumes the retry budget
+    instead of passing as "non-empty" and landing as a scored parse failure.
 
     Returns (is_valid, error_message); error_message is None on success.
     """
@@ -196,4 +237,46 @@ def validate_step_output(text: str | None, step_number: int) -> tuple[bool, str 
         return False, "empty output"
     if step_number < 3:
         return validate_step_payload(text, step_number)
+    return _validate_mermaid_shape(text)
+
+
+# Empty-label bracket (node_id[""]) and two node defs concatenated with no
+# separator (][ as in `a[""]b["B"]`) are the exact malformations a weak model
+# emitted at step 3. They are cheap to detect with a regex and forbidden by the
+# output contract, so catching them here lets the existing MAX_RETRIES retry
+# rather than scoring a guaranteed mmdc parse failure. This is a narrow
+# structural smoke check, not full Mermaid validation (that lives in the metric
+# via mmdc); it must never reject a well-formed diagram.
+_EMPTY_LABEL = re.compile(r"""[\[\(\{]+\s*(["'])\1\s*[\]\)\}]+""")
+_CONCATENATED_NODES = re.compile(r"[\]\)\}]\s*\w+\s*[\[\(\{]")
+# Quoted label spans, blanked before the concatenation scan so brackets INSIDE
+# a label (e.g. a["Service [v1] Gateway"]) cannot be misread as two node defs.
+_QUOTED_SPAN = re.compile(r"\"[^\"]*\"|'[^']*'")
+
+
+def _validate_mermaid_shape(text: str) -> tuple[bool, str | None]:
+    """Reject the structural malformations we have actually observed."""
+    if _EMPTY_LABEL.search(text):
+        return False, 'empty node label bracket (e.g. node_id[""])'
+    # Subgraph nesting must balance: an unclosed subgraph (a dropped `end`) is
+    # invalid Mermaid that mmdc rejects, so flag it here to consume the retry
+    # rather than scoring as a parse failure. Deeply nested diagrams (pools >
+    # lanes > subprocesses, network zones) are where a model drops one. `end`
+    # is counted only as a standalone closer line so node ids and labels that
+    # merely contain "end" (end_event_1, "End Event") never match.
+    opens = closes = 0
+    for raw in text.splitlines():
+        line = _QUOTED_SPAN.sub('""', raw.strip())
+        if _CONCATENATED_NODES.search(line):
+            return False, "node definitions concatenated without a separator"
+        stripped = raw.strip()
+        # An anonymous subgraph (bare "subgraph", no id) is valid Mermaid and
+        # still opens a block, so count it too: missing it would falsely reject
+        # a balanced diagram as unbalanced.
+        if stripped.startswith("subgraph ") or stripped == "subgraph":
+            opens += 1
+        elif stripped == "end":
+            closes += 1
+    if opens != closes:
+        return False, f"unbalanced subgraph/end ({opens} subgraph, {closes} end)"
     return True, None

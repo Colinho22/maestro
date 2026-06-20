@@ -10,6 +10,7 @@ Evaluation dimensions:
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -106,20 +107,70 @@ def check_mermaid_valid(diagram_code: str) -> tuple[bool | None, str | None]:
 # ---------------------------------------------------------------------------
 
 
+def extract_input_unnamed_ids(input_path: Path | None) -> set[str]:
+    """
+    Ids of input elements with an empty ``name`` (e.g. BPMN gateways/events the
+    source leaves unnamed). Their ground-truth label is authoring convention the
+    input does not provide, so the entity-name metric scores them by id only.
+
+    Returns an empty set when no input path is given or the input cannot be read
+    or parsed, so scoring degrades to the strict label comparison rather than
+    crashing (observability fails soft).
+    """
+    if input_path is None:
+        return set()
+    try:
+        data = json.loads(input_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return set()
+    elements = data.get("elements") or data.get("nodes") or []
+    if not isinstance(elements, list):
+        return set()
+    return {
+        e["id"]
+        for e in elements
+        if isinstance(e, dict) and e.get("id") and not (e.get("name") or "").strip()
+    }
+
+
+def _label_core(label: str) -> str:
+    r"""
+    Keep the scored part of a multi-line node label: the name and the bracketed
+    ``[Type]`` line, dropping any trailing descriptor line.
+
+    Labels are ``name`` (BPMN), ``name\n[Type]`` or ``name\n[Type]\ndescriptor``
+    (C4 / network), with ``\n`` as a literal two-character separator. The third
+    descriptor line is authored inconsistently in the ground truth (network
+    topology includes it for some nodes and not others, though the input always
+    carries the field), so no model can predict it. Scoring it would penalise a
+    correct name and type for an unpredictable authoring choice, so the entity
+    name metric compares on name + type only. The descriptor is out of the
+    scored contract by design; this is applied to output and truth identically.
+    """
+    parts = label.split("\\n")
+    kept = [parts[0]]
+    for p in parts[1:]:
+        if p.strip().startswith("["):  # the [Type] line; descriptor follows
+            kept.append(p)
+            break
+    return "\\n".join(kept)
+
+
 def _normalize_label(label: str) -> str:
     """
-    Basic normalization: lowercase, strip whitespace.
+    Basic normalization: drop the descriptor line, lowercase, strip whitespace.
     Used for raw fuzzy matching: no linguistic processing.
     """
-    return label.strip().lower()
+    return _label_core(label).strip().lower()
 
 
 def _lemmatize_label(label: str) -> str:
     """
-    Normalize + lemmatize: lowercase, strip plurals, collapse separators.
-    Catches 'Tasks' -> 'task', 'start_event_1' -> 'start event 1'.
+    Normalize + lemmatize: drop the descriptor line, lowercase, strip plurals,
+    collapse separators. Catches 'Tasks' -> 'task', 'start_event_1' -> 'start
+    event 1'.
     """
-    text = label.strip().lower()
+    text = _label_core(label).strip().lower()
     # Replace underscores and hyphens with spaces
     text = re.sub(r"[_\-]", " ", text)
     # Strip trailing 's' for basic plural handling
@@ -372,18 +423,37 @@ def _fuzzy_match(
     output_nodes: list[dict],
     truth_nodes: list[dict],
     normalizer,
+    input_unnamed_ids: set[str] | None = None,
 ) -> tuple[float, float, float]:
     """
     Fuzzy name matching with a configurable normalizer function.
     Used for both raw and lemmatized matching.
+
+    ``input_unnamed_ids`` are node ids the *input* left without a name (e.g. a
+    BPMN gateway with name ""). The ground truth labels these from convention
+    (type name, unicode symbols, split/join) that the input does not provide, so
+    the model cannot derive the label. For such a node, an id match counts as a
+    name match regardless of the produced label, including a blank one. This is
+    conditional on the input: a node the input *did* name is still scored on its
+    label, so a model that blanks a nameable node is still penalised.
     """
     if not output_nodes or not truth_nodes:
         return (0.0, 0.0, 0.0)
 
+    unnamed = input_unnamed_ids or set()
+    truth_ids = {t["id"]: i for i, t in enumerate(truth_nodes)}
     matched_truth = set()
     correct = 0
 
     for out_node in output_nodes:
+        # Input-unnamed node: an id match is a name match, label not scored.
+        if out_node["id"] in unnamed and out_node["id"] in truth_ids:
+            idx = truth_ids[out_node["id"]]
+            if idx not in matched_truth:
+                correct += 1
+                matched_truth.add(idx)
+                continue
+
         out_label = normalizer(out_node["label"])
         best_score = 0.0
         best_idx = None
@@ -407,17 +477,21 @@ def _fuzzy_match(
 
 
 def compute_entity_metrics_fuzzy(
-    output_nodes: list[dict], truth_nodes: list[dict]
+    output_nodes: list[dict],
+    truth_nodes: list[dict],
+    input_unnamed_ids: set[str] | None = None,
 ) -> tuple[float, float, float]:
     """Fuzzy name match with basic normalization (lowercase only)."""
-    return _fuzzy_match(output_nodes, truth_nodes, _normalize_label)
+    return _fuzzy_match(output_nodes, truth_nodes, _normalize_label, input_unnamed_ids)
 
 
 def compute_entity_metrics_lemma(
-    output_nodes: list[dict], truth_nodes: list[dict]
+    output_nodes: list[dict],
+    truth_nodes: list[dict],
+    input_unnamed_ids: set[str] | None = None,
 ) -> tuple[float, float, float]:
     """Fuzzy name match with lemmatization (lowercase + strip plurals)."""
-    return _fuzzy_match(output_nodes, truth_nodes, _lemmatize_label)
+    return _fuzzy_match(output_nodes, truth_nodes, _lemmatize_label, input_unnamed_ids)
 
 
 # ---------------------------------------------------------------------------
@@ -513,11 +587,21 @@ def compute_attachment_metrics(
 # ---------------------------------------------------------------------------
 
 
-def compute_entity_taxonomy(output_nodes: list[dict], truth_nodes: list[dict]) -> dict:
+def compute_entity_taxonomy(
+    output_nodes: list[dict],
+    truth_nodes: list[dict],
+    input_unnamed_ids: set[str] | None = None,
+) -> dict:
     """
     Count entity-level errors by taxonomy category.
     Returns: {"missing": int, "extra": int, "false": int, "duplicate": int}
+
+    A "false" entity is an id match with a mismatched label. Nodes the input
+    left unnamed (``input_unnamed_ids``) are exempt: their ground-truth label is
+    convention the input does not provide, so a label mismatch there is not a
+    model error (see ``_fuzzy_match``).
     """
+    unnamed = input_unnamed_ids or set()
     output_ids = [n["id"] for n in output_nodes]
     truth_ids = {n["id"] for n in truth_nodes}
 
@@ -540,6 +624,8 @@ def compute_entity_taxonomy(output_nodes: list[dict], truth_nodes: list[dict]) -
 
     false_count = 0
     for nid in shared_ids:
+        if nid in unnamed:
+            continue  # input gave no name; label is not the model's to get right
         similarity = _fuzzy_score(
             _normalize_label(output_labels[nid]),
             _normalize_label(truth_labels[nid]),
@@ -604,10 +690,16 @@ def evaluate_run(
     run_id: UUID,
     output_diagram_code: str,
     ground_truth_path: Path,
+    input_path: Path | None = None,
 ) -> MetricResult:
     """
     Full evaluation pipeline for one run.
     Compares generated diagram against ground truth file.
+
+    ``input_path`` is the source JSON. When given, elements it leaves unnamed
+    are scored by id only for the entity-name metric, since their ground-truth
+    label is convention the input does not supply. Optional and backward
+    compatible: omitted means strict label scoring for every node.
     """
     try:
         truth_code = ground_truth_path.read_text(encoding="utf-8")
@@ -659,10 +751,18 @@ def evaluate_run(
     output_attachments = extract_attachments(output_diagram_code)
     truth_attachments = extract_attachments(truth_code)
 
+    # Ids the input left unnamed: their label is GT convention, not derivable,
+    # so the name/lemma metrics and the false-entity count score them by id.
+    unnamed_ids = extract_input_unnamed_ids(input_path)
+
     # 3. Entity metrics: three levels
     id_p, id_r, id_f1 = compute_entity_metrics_exact(output_nodes, truth_nodes)
-    name_p, name_r, name_f1 = compute_entity_metrics_fuzzy(output_nodes, truth_nodes)
-    lemma_p, lemma_r, lemma_f1 = compute_entity_metrics_lemma(output_nodes, truth_nodes)
+    name_p, name_r, name_f1 = compute_entity_metrics_fuzzy(
+        output_nodes, truth_nodes, unnamed_ids
+    )
+    lemma_p, lemma_r, lemma_f1 = compute_entity_metrics_lemma(
+        output_nodes, truth_nodes, unnamed_ids
+    )
 
     # 4. Relationship metrics: two levels
     rel_p, rel_r, rel_f1 = compute_relationship_metrics_relaxed(
@@ -673,7 +773,7 @@ def evaluate_run(
     )
 
     # 5. Error taxonomy
-    entity_tax = compute_entity_taxonomy(output_nodes, truth_nodes)
+    entity_tax = compute_entity_taxonomy(output_nodes, truth_nodes, unnamed_ids)
     relationship_tax = compute_relationship_taxonomy(
         output_relationships, truth_relationships
     )

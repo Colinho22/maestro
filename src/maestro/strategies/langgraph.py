@@ -47,6 +47,7 @@ from maestro.strategies._extraction import (
     STEP_1_PROMPT,
     STEP_2_PROMPT,
     STEP_3_PROMPT,
+    extract_diagram_type,
     strip_fences,
     validate_step_output,
 )
@@ -67,6 +68,7 @@ class GraphState(TypedDict, total=False):
     """
 
     input_data: str
+    diagram_type: str
     entities_json: str
     relationships_json: str
     diagram_code: str
@@ -209,6 +211,7 @@ def _make_nodes(provider: LLMProvider, config: RunConfig):
 
     def generate_mermaid_node(state: GraphState) -> GraphState:
         prompt = STEP_3_PROMPT.format(
+            diagram_type=state["diagram_type"],
             entities_json=state["entities_json"],
             relationships_json=state["relationships_json"],
         )
@@ -287,6 +290,7 @@ class LangGraphStrategy(BaseStrategy):
         try:
             raw = input_file.file_path.read_text(encoding="utf-8")
             input_data = json.dumps(json.loads(raw), indent=2)
+            diagram_type = extract_diagram_type(raw)
         except FileNotFoundError:
             return self._error_result(
                 config, f"Input file not found: {input_file.file_path}"
@@ -328,7 +332,11 @@ class LangGraphStrategy(BaseStrategy):
         # Execute the graph. LangGraph collects partial updates from each
         # node into a single final state dict.
         final_state: GraphState = compiled.invoke(
-            {"input_data": input_data, "sub_results": []}
+            {
+                "input_data": input_data,
+                "diagram_type": diagram_type,
+                "sub_results": [],
+            }
         )
 
         sub_results: list[SubResult] = final_state.get("sub_results", [])

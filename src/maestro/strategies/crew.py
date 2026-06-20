@@ -47,6 +47,7 @@ from maestro.strategies._extraction import (
     STEP_1_PROMPT,
     STEP_2_PROMPT,
     STEP_3_PROMPT,
+    extract_diagram_type,
     strip_fences,
     validate_step_output,
 )
@@ -153,19 +154,43 @@ class MaestroBackedLLM(BaseLLM):
         # recorder and surfaces it through SubResult.error.
         return result.output_diagram_code or ""
 
-    @staticmethod
-    def _collapse_messages(messages) -> str:
+    # CrewAI appends an "expected output" block after our task description,
+    # built from its en.json "expected_output" slice. That trailing text is
+    # CrewAI scaffolding SOP never sends, so leaving it in would make crew_ai's
+    # delivered prompt differ from SOP's and confound the comparison (the two
+    # strategies must differ only in orchestration, not prompt content). We cut
+    # from this stable marker onward so the provider receives exactly the step
+    # prompt, byte-identical to SOP. The marker is verbatim from CrewAI's
+    # en.json "expected_output" slice.
+    _CREW_EXPECTED_OUTPUT_MARKER = (
+        "\nThis is the expected criteria for your final answer:"
+    )
+
+    @classmethod
+    def _collapse_messages(cls, messages) -> str:
         """
         CrewAI's ``Agent`` + ``Task`` machinery composes a list of messages
-        with role 'system' (agent persona) and 'user' (task description). We
-        ignore CrewAI's system message (our system prompt is set explicitly
-        per step via ``system_prompt_override``) and concatenate the user
-        portion as the prompt.
+        with role 'system' (agent persona) and 'user' (task description plus an
+        expected-output block). We ignore CrewAI's system message (our system
+        prompt is set explicitly per step via ``system_prompt_override``),
+        concatenate the user portion, and strip CrewAI's expected-output
+        scaffolding so the delivered prompt matches SOP byte-for-byte.
         """
         if isinstance(messages, str):
-            return messages
-        user_parts = [m.get("content", "") for m in messages if m.get("role") == "user"]
-        return "\n\n".join(p for p in user_parts if p)
+            text = messages
+        else:
+            user_parts = [
+                m.get("content", "") for m in messages if m.get("role") == "user"
+            ]
+            text = "\n\n".join(p for p in user_parts if p)
+        # Drop CrewAI's expected-output block (and anything after it) so only
+        # our task prompt reaches the provider. rfind, not find: the scaffold is
+        # appended after the task description, so the last occurrence is the one
+        # to cut at even if the marker phrase ever appears in the prompt itself.
+        marker = text.rfind(cls._CREW_EXPECTED_OUTPUT_MARKER)
+        if marker != -1:
+            text = text[:marker]
+        return text.rstrip()
 
 
 # ---------------------------------------------------------------------------
@@ -246,6 +271,7 @@ class CrewAIStrategy(BaseStrategy):
         try:
             raw = input_file.file_path.read_text(encoding="utf-8")
             input_data = json.dumps(json.loads(raw), indent=2)
+            diagram_type = extract_diagram_type(raw)
         except FileNotFoundError:
             return self._error_result(
                 config, f"Input file not found: {input_file.file_path}"
@@ -261,7 +287,7 @@ class CrewAIStrategy(BaseStrategy):
 
         for step in STEPS:
             # Build the prompt with outputs from previous steps (same logic as SOP)
-            prompt = self._build_prompt(step, input_data, step_outputs)
+            prompt = self._build_prompt(step, input_data, diagram_type, step_outputs)
 
             # Execute this step as a single-task Crew, with retries
             sub, output_text = self._execute_step(
@@ -445,11 +471,12 @@ class CrewAIStrategy(BaseStrategy):
         self,
         step: dict,
         input_data: str,
+        diagram_type: str,
         step_outputs: dict[str, str],
     ) -> str:
         """Like SOP._build_prompt: fill template vars from prior outputs."""
         template = step["task_prompt"]
-        fmt = {"input_data": input_data}
+        fmt = {"input_data": input_data, "diagram_type": diagram_type}
         if "extract_entities" in step_outputs:
             fmt["entities_json"] = step_outputs["extract_entities"]
         if "extract_relationships" in step_outputs:
