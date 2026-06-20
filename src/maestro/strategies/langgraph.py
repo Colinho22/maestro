@@ -101,6 +101,7 @@ def _run_step(
     unobstructed.
     """
     last_error: str | None = None
+    last_raw: str | None = None
 
     total_prompt_tokens = 0
     total_completion_tokens = 0
@@ -116,9 +117,14 @@ def _run_step(
         total_completion_tokens += result.completion_tokens
         total_duration_ms += result.duration_ms
         total_cost_usd += result.cost_usd
+        # Keep the last raw output so a failed step stays diagnosable.
+        last_raw = result.raw_response
 
         if not result.success:
-            last_error = result.error
+            # success is False with no error string means an empty/blank
+            # diagram from the provider, not an SDK error; name it so the
+            # failed row does not read "No attempts executed".
+            last_error = result.error or "empty output from provider"
             continue
 
         output = strip_fences(result.output_diagram_code)
@@ -135,6 +141,7 @@ def _run_step(
             step_number=step_number,
             step_name=step_name,
             output_text=output,
+            raw_response=result.raw_response,
             prompt_tokens=total_prompt_tokens,
             completion_tokens=total_completion_tokens,
             duration_ms=total_duration_ms,
@@ -148,6 +155,7 @@ def _run_step(
         step_number=step_number,
         step_name=step_name,
         output_text=None,
+        raw_response=last_raw,
         prompt_tokens=total_prompt_tokens,
         completion_tokens=total_completion_tokens,
         duration_ms=total_duration_ms,

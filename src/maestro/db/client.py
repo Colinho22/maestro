@@ -42,6 +42,12 @@ CREATE TABLE IF NOT EXISTS run_configs (
 CREATE TABLE IF NOT EXISTS run_results (
     run_id               TEXT PRIMARY KEY,
     output_diagram_code  TEXT,
+    -- Unprocessed model output as returned by the provider, kept even when the
+    -- cell fails (output_diagram_code is None on a failure). This is what makes
+    -- a failure analysable after the fact: the malformed JSON or Mermaid the
+    -- model actually produced, not just the error string. Nullable: a provider
+    -- that returns nothing (safety block, no candidate) has no raw text.
+    raw_response         TEXT,
     prompt_tokens        INTEGER NOT NULL,
     completion_tokens    INTEGER NOT NULL,
     duration_ms          INTEGER NOT NULL,
@@ -57,6 +63,10 @@ CREATE TABLE IF NOT EXISTS sub_results (
     step_number       INTEGER NOT NULL,
     step_name         TEXT NOT NULL,
     output_text       TEXT,
+    -- Raw model output for this step, kept even when the step fails validation
+    -- (output_text is None then). This is where a rejected step-1 JSON or a
+    -- malformed step-3 diagram is recoverable for diagnosis. See run_results.
+    raw_response      TEXT,
     prompt_tokens     INTEGER NOT NULL,
     completion_tokens INTEGER NOT NULL,
     duration_ms       INTEGER NOT NULL,
