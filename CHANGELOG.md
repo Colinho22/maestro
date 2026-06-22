@@ -4,8 +4,35 @@ All notable changes to MAESTRO are recorded here, newest first. The format
 follows [Keep a Changelog](https://keepachangelog.com/), and the project uses
 [semantic versioning](https://semver.org/): a major bump marks a milestone (see
 the release table in `.github/CONTRIBUTING.md`). Each tagged release is also a
-GitHub Release; every row in a published `maestro.db` carries the `git_commit`
-of the tag that produced it, so data and code stay cross-verifiable.
+GitHub Release. A published `maestro.db` is integrity-anchored by the SHA-256
+committed alongside its data release, so a downloaded database can be verified
+against the exact file the results came from.
+
+## [1.0.1] - 2026-06-21
+
+Experiment data. The result database produced by the `v1.0.0` code, published
+as a release asset alongside its SHA-256 (`maestro.db.sha256`).
+
+### Dataset
+
+- 6,000 evaluated cells (30 inputs x 4 strategies x 10 models x 5 repeats) plus
+  90 deterministic control rows. 5,612 cells scored successfully; 478 failures,
+  all recorded with the raw model output (`raw_response`) for diagnosis.
+- Produced by `v1.0.0` in Docker, run timestamp 2026-06-21T07:16 to 11:19 UTC,
+  total API cost USD 171.62. Library versions are captured per invocation in
+  `run_environments.lib_versions`.
+
+### Provenance note
+
+The run executed inside the Docker image, which does not contain the `.git`
+directory, so the automatic `git_commit` / `git_dirty` / `docker_image_digest`
+columns in `run_environments` are NULL (environment capture fails soft by
+design rather than aborting the run). The data-to-code link is instead
+established by: this database was produced by the `v1.0.0` tag (the only tagged
+code at the run time, on a clean working tree, with nothing committed between
+the tag and the run), and its integrity is anchored by the committed SHA-256.
+A future run that captures `git_commit` in Docker (passing the commit and image
+digest as build arguments) is tracked for `v1.0.2+`.
 
 ## [1.0.0] - 2026-06-21
 
