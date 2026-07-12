@@ -12,7 +12,7 @@ code (`src/maestro/db/client.py`); the `.db` file is a build output.
 
 ## 1. Foreign-key chain
 
-```
+```text
 run_environments      one row per CLI invocation
     |
     | environment_id
@@ -32,10 +32,18 @@ run_results           one row per matrix cell (the "what came back")
 - `run_configs.environment_id` may be NULL for old rows that predate the
   provenance column. The additive migration in `init_db` adds the column
   without backfilling.
-- `run_results.retry_count` defaults to 0 for the same reason.
-- The container and attachment columns on `metric_results` default to
-  NULL (nullable P/R/F1) or 0 (nullable counts) so pre-Phase-3b rows
-  remain readable without special-casing.
+- `run_results.retry_count` is `INTEGER NOT NULL DEFAULT 0`, so old rows
+  that predate the column read as 0 after the additive migration, not NULL.
+- On `metric_results`, the container and attachment P/R/F1 columns are
+  nullable REAL (NULL = metric not applicable for that diagram), while
+  the corresponding count columns are `INTEGER NOT NULL DEFAULT 0`.
+  Pre-Phase-3b rows therefore read as NULL P/R/F1 and 0 counts after the
+  additive migration.
+- **Application-level invariant on `metric_results`**: at most one row
+  per `run_id`. The schema does not carry a `UNIQUE(run_id)` constraint;
+  uniqueness is enforced by the runner, which writes at most one metric
+  row per cell (`_execute_cell` returns a single `MetricResult` or None).
+  A downstream tool that inserts extra rows would break this contract.
 
 ---
 

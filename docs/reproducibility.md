@@ -19,8 +19,9 @@ This document documents the first: the provenance model and how to use it.
 
 ## 1. What gets captured
 
-Every CLI invocation of `python -m maestro.run` writes exactly one row to
-`run_environments` and links every result it produces to that row. The
+Every non-`--dry-run` invocation of `python -m maestro.run` writes exactly
+one row to `run_environments` and links every result it produces to that
+row. `--dry-run` prints the filtered matrix and exits before any write. The
 captured fields are:
 
 | Field | What it records |
@@ -141,13 +142,13 @@ sha256sum -c maestro.db.sha256
 
 Expected output:
 
-```
+```text
 maestro.db: OK
 ```
 
 The file itself:
 
-```
+```text
 2244cae2c6c24999fc9d8889637d4007f819c5658947c89d9a8a0f5a7fb89b0b  maestro.db
 ```
 
@@ -159,8 +160,11 @@ produced from. Re-download.
 - 6,000 evaluated cells: 30 inputs x 4 strategies x 10 models x 5
   repeats.
 - 90 deterministic control rows: 30 inputs x 3 controls.
-- 5,612 cells scored successfully; 478 failures, each recorded with the
-  raw model output (`run_results.raw_response`) for diagnosis.
+- 5,612 cells scored successfully; 478 failures, each recorded as a row
+  in `run_results` with the raw model output (`run_results.raw_response`)
+  retained where the provider returned one. `raw_response` is NULL only
+  when the provider returned no candidate at all (safety block, empty
+  response).
 - Produced by `v1.0.0` in Docker, run window 2026-06-21T07:16 to 11:19
   UTC, total API cost USD 171.62.
 

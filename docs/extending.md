@@ -140,7 +140,7 @@ picks the first matching substring.
 
 Add the key to `.env.template`:
 
-```
+```env
 SOMEVENDOR_API_KEY=<API_KEY>
 ```
 

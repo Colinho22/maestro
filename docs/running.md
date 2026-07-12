@@ -70,6 +70,7 @@ Without filters, `python -m maestro.run` executes the full experiment matrix:
   | Mistral | `mistral-medium-3-5` | `mistral-small-2603` |
   | Google | `gemini-3.5-flash` | `gemini-3.1-flash-lite` |
   | DeepSeek | `deepseek-v4-pro` | `deepseek-v4-flash` |
+
 - **30 inputs** across three tiers:
 
   | Tier | Value | Contents |
@@ -82,7 +83,7 @@ Controls collapse both the model and repeat dimensions to a single row per
 `(input, control_strategy)` cell, since neither dimension varies for a
 deterministic strategy. So the total matrix is:
 
-```
+```text
 30 inputs x 4 strategies x 10 models x 5 repeats  = 6000 real cells
 30 inputs x 3 control strategies                  =   90 control cells
                                                    ------
@@ -95,7 +96,7 @@ The published `v1.0.1` dataset was produced by exactly this matrix.
 
 ## 3. CLI reference
 
-```bash
+```text
 python -m maestro.run [FILTER FLAGS] [RESUME FLAG] [--dry-run]
 ```
 
@@ -119,7 +120,7 @@ not consume a model and are preserved by every `--model` value, so a
 
 ### 3.2 Concurrency
 
-```
+```text
 --provider-concurrency <int>   default: 4
 ```
 
@@ -153,7 +154,7 @@ run picks up exactly where the previous one left off.
 
 ### 3.4 Preview
 
-```
+```text
 --dry-run
 ```
 
@@ -167,13 +168,22 @@ verifying a filter combination before spending money.
 ### 4.1 Smoke test
 
 Before any long run, execute one tier-1 cell to confirm the install, keys,
-and scoring pipeline work end to end:
+and scoring pipeline work end to end. `--example` and `--model` narrow
+the matrix to exactly one cell so the cost is bounded and the check is
+fast:
 
 ```bash
 docker compose run --rm maestro python -m maestro.run \
-  --strategy single_agent --tier 1 --repeats 1
+  --strategy single_agent \
+  --example bpmn_1_01 \
+  --model claude-haiku-4-5-20251001 \
+  --repeats 1
 # Local:
-python -m maestro.run --strategy single_agent --tier 1 --repeats 1
+python -m maestro.run \
+  --strategy single_agent \
+  --example bpmn_1_01 \
+  --model claude-haiku-4-5-20251001 \
+  --repeats 1
 ```
 
 Expected: one row inserted into `out/maestro.db`, a printed cost around

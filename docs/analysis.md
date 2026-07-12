@@ -39,7 +39,7 @@ Exit code:
 
 Each invocation writes to `<out>/<timestamp>/`:
 
-```
+```text
 output/analysis/20260621T111935Z/
     report.md
     descriptive.json
@@ -144,7 +144,7 @@ Pareto view.
 
 ## 4. `report.md`
 
-Human-readable summary. Six sections:
+Human-readable summary. Four sections:
 
 1. Header (generation time, DB path, output schema version).
 2. **RQ -> output-file mapping** table. This is the interpretation layer,
@@ -206,7 +206,8 @@ Same nullable behaviour as containers.
 Boolean-typed: 1 if `mmdc` parsed the diagram, 0 if it rejected it, NULL
 if `mmdc` was unavailable. The metric is skip-friendly: an absent `mmdc`
 does not invalidate a run, it just leaves this column blank. Docker
-users always get the metric; local users on Windows or macOS may not.
+users always get the metric; local users without `mmdc` installed get
+NULL regardless of operating system.
 
 ---
 

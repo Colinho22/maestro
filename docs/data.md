@@ -102,7 +102,7 @@ An input node with an empty `name` (BPMN gateway, unnamed event, an
 unlabelled network element) becomes a ground-truth Mermaid node with the
 literal label `"a"`:
 
-```
+```mermaid
 gw_result{"a"}
 ```
 
