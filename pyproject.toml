@@ -42,7 +42,8 @@ dependencies = [
     # explicitly rather than relying on the transitive pin. scipy arrives
     # transitively via statsmodels and is not declared here directly.
     "statsmodels>=0.14.6",
-    "pandas>=3.0.4",
+    # pandas 3.0.4 was yanked from PyPI; 3.0.3 is the latest non-yanked release.
+    "pandas>=3.0.3",
     # scipy is a transitive dependency of statsmodels (it supplies the
     # underlying distributions for the F-test, Tukey HSD, etc.), so its
     # version materially affects the statistics output. Not declared as a

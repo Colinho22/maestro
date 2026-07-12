@@ -1,6 +1,6 @@
 # MAESTRO
 
-[![ci](https://github.com/Colinho22/maestro/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Colinho22/maestro/actions/workflows/ci.yml) ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Colinho22/maestro?utm_source=oss&utm_medium=github&utm_campaign=Colinho22%2Fmaestro&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) ![Python](https://img.shields.io/badge/python-3.11-blue.svg) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20792756.svg)](https://doi.org/10.5281/zenodo.20792756) ![Python](https://img.shields.io/badge/python-3.11-blue.svg) [![ci](https://github.com/Colinho22/maestro/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Colinho22/maestro/actions/workflows/ci.yml) ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Colinho22/maestro?utm_source=oss&utm_medium=github&utm_campaign=Colinho22%2Fmaestro&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 
 **M**ulti-**A**gent **E**valuation for **S**tructured **R**elational **O**utput
 
@@ -40,103 +40,90 @@ what each diagram got wrong. Every cell is repeated and variance is reported.
 
 ---
 
-## Running the experiment
+## Quickstart
 
-The benchmark runs a matrix of `inputs × strategies × models × repeats`, scores
+The benchmark runs a matrix of `inputs x strategies x models x repeats`, scores
 each generated Mermaid diagram against its ground truth, and records every
-result (plus the runtime environment) in a SQLite database. The steps below
-run the experiment from a clean checkout.
+result (plus the runtime environment) in a SQLite database. The four steps
+below are the minimum to get a scored row into the database from a clean
+checkout. For the full CLI reference, resume semantics, cost expectations, and
+troubleshooting, see [`docs/running.md`](docs/running.md).
 
-> This is a high-level walkthrough. A detailed guide (troubleshooting, full CLI
-> reference) will follow as the code stabilises.
+**Docker is the recommended way to run MAESTRO.** Local install is
+supported for day-to-day development.
 
 ### Prerequisites
 
-- Python 3.11
-- API keys for the providers you intend to run:
+- Docker (recommended), or Python 3.11 for the local path.
+- API keys for the providers you intend to exercise:
   [Anthropic](https://docs.anthropic.com/en/api/overview),
   [OpenAI](https://platform.openai.com/docs/api-reference/authentication),
   [Mistral](https://docs.mistral.ai/getting-started/quickstarts/studio/activate-and-generate-api-key),
   [Gemini](https://ai.google.dev/gemini-api/docs/api-key),
-  [DeepSeek](https://api-docs.deepseek.com/) (see each provider's docs for
-  obtaining a key)
-- [`mmdc`](https://github.com/mermaid-js/mermaid-cli) (mermaid-cli) for the
-  structural-validity metric (optional locally; the metric is skipped if it is
-  absent), bundled in the Docker image
-- Docker (optional), only if you prefer the container path over a local install
-
-The local install path is tested on macOS and works on Windows. The Docker path
-runs Linux inside the container, so it is platform-independent and is the
-recommended route on Windows: it bundles a headless Chromium, which the
-`parses_valid` structural-validity metric needs. A native Windows install
-computes that metric only if mermaid-cli and a Puppeteer Chrome build
-(`npx puppeteer browsers install chrome`) are present; without them the metric
-is skipped, and the rest of the pipeline is unaffected.
+  [DeepSeek](https://api-docs.deepseek.com/).
+- [`mmdc`](https://github.com/mermaid-js/mermaid-cli) for the
+  structural-validity metric. Bundled in the Docker image; optional locally
+  (the metric is skipped if absent).
 
 ### 1. Clone and install
 
 ```bash
 git clone https://github.com/Colinho22/maestro.git
 cd maestro
-pip install -e .            # or: pip install -e ".[dev]" for the test/lint tools
 ```
 
-Or build the container, which bundles Python, mermaid-cli, and Chromium:
+Docker (recommended), which bundles Python, mermaid-cli, and Chromium:
 
 ```bash
 docker compose build
 ```
 
-### 2. Configure API keys
-
-Copy the template and fill in the keys for the providers you will use:
+Or install locally:
 
 ```bash
-cp .env.template .env
-# edit .env (keys are read from the environment at run time)
+pip install -e .            # add ".[dev]" for the test/lint tools
 ```
 
-### 3. Validate the setup with a small run
+### 2. Configure API keys
 
-A single tier-1 cell confirms the install, keys, and scoring pipeline work
-before committing to the full matrix:
+```bash
+cp .env.template .env       # then edit .env with your keys
+```
+
+### 3. Smoke run
+
+Docker:
+
+```bash
+docker compose run --rm maestro python -m maestro.run \
+  --strategy single_agent --tier 1 --repeats 1
+```
+
+Local:
 
 ```bash
 python -m maestro.run --strategy single_agent --tier 1 --repeats 1
-# Docker: docker compose run --rm maestro python -m maestro.run --strategy single_agent --tier 1 --repeats 1
 ```
 
-### 4. Run the full matrix
+### 4. Analyse or explore
+
+Docker:
 
 ```bash
-python -m maestro.run
-# Docker: docker compose run --rm maestro python -m maestro.run
+docker compose up                    # dashboard at http://localhost:8501
+docker compose run --rm maestro python -m maestro.analysis
 ```
 
-Runs are resumable by default: already-completed cells are skipped, so an
-interrupted run can be restarted with the same command. Results are written to
-`maestro.db` (or `./out/maestro.db` under Docker).
-
-### 5. Analyse the results
+Local:
 
 ```bash
-python -m maestro.analysis
+python -m maestro.analysis          # scored summary to stdout
+streamlit run src/maestro/viz/app.py
 ```
 
-### 6. Explore the results in the dashboard
-
-```bash
-docker compose up          # → http://localhost:8501
-# Local (without Docker): streamlit run src/maestro/viz/app.py
-```
-
-### Reproducibility audit trail
-
-Every invocation snapshots its runtime environment (OS, architecture, Python
-version, library versions, git commit, and under Docker the image digest)
-into the `run_environments` table, linked to each run. This lets a later
-replication attempt diagnose diverging numbers against the exact stack that
-produced the original data.
+The full matrix, filter combinations, and troubleshooting live in
+[`docs/running.md`](docs/running.md). The provenance model and DB integrity
+verification live in [`docs/reproducibility.md`](docs/reproducibility.md).
 
 ---
 
@@ -159,6 +146,7 @@ in `.pre-commit-config.yaml`; enable them with `pre-commit install`.
 
 ## Citing
 
-If you use MAESTRO in your work, please cite it via the
-[`CITATION.cff`](CITATION.cff) file (GitHub's "Cite this repository" button), or
-see that file for the reference details.
+If you use MAESTRO in your work, please cite the archived release on Zenodo
+([`10.5281/zenodo.20792756`](https://doi.org/10.5281/zenodo.20792756), which
+always resolves to the latest version) or the [`CITATION.cff`](CITATION.cff)
+file (GitHub's "Cite this repository" button).
