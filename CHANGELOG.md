@@ -11,7 +11,8 @@ against the exact file the results came from.
 ## [1.0.1] - 2026-06-21
 
 Experiment data. The result database produced by the `v1.0.0` code, published
-as a release asset alongside its SHA-256 (`maestro.db.sha256`).
+as a release asset alongside its SHA-256 (`maestro.db.sha256`), and archived on
+Zenodo as [`10.5281/zenodo.20792757`](https://doi.org/10.5281/zenodo.20792757).
 
 ### Dataset
 

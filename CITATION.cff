@@ -14,12 +14,12 @@ authors:
     affiliation: "FH Graubünden (University of Applied Sciences of the Grisons) FHGR"
 license: MIT
 repository-code: "https://github.com/Colinho22/maestro"
-version: "1.0.0rc1"
-date-released: "2026-06-14"
+version: "1.0.1"
+date-released: "2026-06-21"
 keywords:
   - LLM evaluation
   - agentic orchestration
   - diagram generation
   - Mermaid
   - reproducibility
-# doi: "10.xxxx/xxxxx"
+doi: "10.5281/zenodo.20792756"
