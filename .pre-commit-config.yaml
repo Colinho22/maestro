@@ -17,7 +17,7 @@ repos:
     # Pin to a specific tag for deterministic CI/dev parity. Bump when
     # pyproject.toml's ruff>=X is bumped, so local and runtime versions
     # stay in lockstep.
-    rev: v0.15.14
+    rev: v0.15.21
     hooks:
       - id: ruff-format
       - id: ruff
