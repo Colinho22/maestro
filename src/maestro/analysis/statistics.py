@@ -6,17 +6,53 @@ paper-ready statistics as JSON plus an assembled ``report.md``. The
 visualizer is a separate consumer of these JSON outputs; it does
 not duplicate the math here.
 
+## Unit of analysis and scoring convention
+
+Two choices shape every inferential number here, and both are recorded in
+each emitted file's metadata so a reader never has to guess.
+
+*Unit of analysis.* The five repeats of a cell are technical replicates,
+not independent observations. Fitting the raw per-run rows would treat
+correlated repeats as independent and overstate significance
+(pseudoreplication). All inferential tests therefore run on **per-cell
+means**: one observation per (strategy, model, input) after averaging the
+repeats. Descriptives keep the per-run grain (they report spread, not a
+test).
+
+*Scoring convention.* A run can succeed with a good diagram, succeed with
+a diagram that does not render, or fail outright with no scored row at all.
+The two conventions below make explicit which of those count and how; the
+old implicit behaviour (drop failures, keep an unrenderable diagram at its
+partial F1) was neither, so it is gone.
+
+- ``intent_to_treat`` (the primary convention): every experimental run
+  counts. A run that failed, or whose diagram does not parse, scores 0.0
+  on the primary DV. This measures what a user actually receives, and it
+  denies a strategy the chance to look good by failing and being dropped.
+  Because failures are informative here (they concentrate in the more
+  complex orchestrations), excluding them would bias the comparison.
+- ``valid_only`` (a robustness convention): keep only runs whose diagram
+  parsed. This measures quality *given* the model produced a renderable
+  diagram, and is reported alongside intent-to-treat as a sensitivity
+  check, not as the headline.
+
 ## What this module computes
 
 - **Descriptives**: per-cell (strategy × model × tier) mean / median / std
-  for the primary correctness DV and the efficiency DVs. Controls are
-  *included* here (they are the sanity floor/ceiling anchors).
-- **ANOVA**: factorial models on the primary correctness DV. Controls are
+  for the primary correctness DV and the efficiency DVs, on the raw per-run
+  grain. Controls are *included* here (they are the sanity floor/ceiling
+  anchors).
+- **ANOVA**: factorial models on the primary correctness DV, fit on the
+  per-cell aggregated frame under a chosen scoring convention. Controls are
   *excluded* (their F1 is 0 or 1 by construction and would distort the
   F-statistic). ``single_agent`` is the reference level: it is the
   comparison *baseline*, distinct from the control conditions.
 - **Effect sizes**: partial η² per ANOVA term, Cohen's d for pairwise
-  strategy contrasts.
+  strategy contrasts (also on the aggregated frame).
+- **Mixed-effects robustness**: a ``MixedLM`` on the un-aggregated rows with
+  random intercepts for model and input, as a check that the aggregated
+  ANOVA conclusion survives a model that accounts for the crossed grouping
+  structure directly instead of by pre-averaging.
 - **Error taxonomy**: descriptive characterization of the eight taxonomy
   counts per strategy (exploratory; no inferential test).
 - **Correctness/efficiency trade-off**: per-strategy correctness against
@@ -45,7 +81,7 @@ statistics unchanged once the corpus grows.
 from __future__ import annotations
 
 import sqlite3
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from maestro.db.queries import fetch_analysis_rows
 from maestro.experiment_config import CONTROL_STRATEGIES
@@ -54,9 +90,27 @@ from maestro.schemas import Strategy
 if TYPE_CHECKING:  # pragma: no cover - typing only
     import pandas as pd
 
-# Version of the JSON output contract. Bump on any breaking change to the
-# shape of the emitted files so the visualizer can detect it.
-SCHEMA_VERSION = "1.0"
+# Version of the JSON output contract. Bumped to 1.1 when the inferential
+# path moved to per-cell aggregation under an explicit scoring convention:
+# the numbers changed meaning, so the contract version had to move with them.
+SCHEMA_VERSION = "1.1"
+
+# Scoring conventions for the primary DV. See the module docstring for the
+# full rationale; in short, ``intent_to_treat`` scores failures and
+# unrenderable diagrams as 0.0 (what the user receives), ``valid_only`` keeps
+# only renderable diagrams (quality given a parse).
+ScoringConvention = Literal["intent_to_treat", "valid_only"]
+INTENT_TO_TREAT: ScoringConvention = "intent_to_treat"
+VALID_ONLY: ScoringConvention = "valid_only"
+
+# The primary convention: the headline inferential numbers use it. valid_only
+# rides along as a robustness/sensitivity report.
+DEFAULT_CONVENTION: ScoringConvention = INTENT_TO_TREAT
+
+# The columns that identify one experimental cell. Repeats (run_number) are
+# averaged away within a cell; tier is carried along because it is a function
+# of example_id, not an independent grouping key.
+_CELL_KEYS = ("strategy", "model", "example_id")
 
 # Primary correctness dependent variable. The metric_results table carries
 # a family of F1 scores; entity_id_f1 (exact ID match) is the strictest
@@ -120,6 +174,91 @@ def _experimental(df: "pd.DataFrame") -> "pd.DataFrame":
     if df.empty:
         return df
     return df[~df["strategy"].isin(_CONTROL_VALUES)]
+
+
+# ---------------------------------------------------------------------------
+# Per-cell aggregation under a scoring convention
+# ---------------------------------------------------------------------------
+
+
+def _apply_convention(
+    df: "pd.DataFrame", convention: ScoringConvention
+) -> "pd.DataFrame":
+    """
+    Resolve the primary DV per the scoring convention, on the raw per-run
+    frame, before aggregation.
+
+    ``intent_to_treat`` keeps every experimental run and rewrites the primary
+    DV to 0.0 for any run that failed (no metric row, so ``entity_id_f1`` is
+    NaN) or whose diagram did not parse (``parses_valid`` is 0). Note the two
+    are distinct: a run can parse-fail yet still carry a partial ``entity_id_f1``
+    from the scorer, so a coalesce of NaN alone would leave those unrenderable
+    diagrams at their partial score. Both are zeroed here.
+
+    ``valid_only`` drops every run that did not parse (``parses_valid`` != 1),
+    which also drops outright failures (their ``parses_valid`` is NaN).
+    """
+    # Reject an unrecognized convention rather than letting it fall through to
+    # the valid_only branch: this is a scoring contract, and silently scoring
+    # under the wrong rule is exactly the kind of quiet mislabeling the project
+    # forbids. A caller passing a bad literal is a programmer error, so raise.
+    if convention not in (INTENT_TO_TREAT, VALID_ONLY):
+        raise ValueError(
+            f"unknown scoring convention {convention!r}; "
+            f"expected {INTENT_TO_TREAT!r} or {VALID_ONLY!r}"
+        )
+
+    out = df.copy()
+    parses = out["parses_valid"]
+    if convention == INTENT_TO_TREAT:
+        # A run counts as scorable only if it parsed. Anything else (failed
+        # run with NaN parses_valid, or a parsed-invalid diagram) is 0.0.
+        scored = out[PRIMARY_DV].where(parses == 1, other=0.0)
+        # A parsed run with a NaN DV should not exist, but guard anyway so a
+        # stray NaN never survives into the aggregate as a silent drop.
+        out[PRIMARY_DV] = scored.fillna(0.0)
+        return out
+    # valid_only: keep parsed runs only. NaN parses_valid (failures) compare
+    # false and are dropped, which is the intended exclusion.
+    return out[parses == 1]
+
+
+def aggregate_experimental(
+    df: "pd.DataFrame", convention: ScoringConvention = DEFAULT_CONVENTION
+) -> "pd.DataFrame":
+    """
+    Collapse the experimental rows to one observation per cell for the
+    inferential tests: filter to experimental, apply the scoring convention,
+    then average the DVs across the repeats of each
+    (strategy, model, example_id) cell.
+
+    ``tier`` is carried along unchanged (it is constant within a cell, being a
+    function of example_id). Under ``intent_to_treat`` every experimental cell
+    survives, because failures contribute a 0.0 rather than dropping out;
+    under ``valid_only`` a cell with no parsed run disappears entirely, which
+    is the honest outcome (there is nothing to average).
+
+    Returns an empty frame unchanged (callers guard on emptiness).
+    """
+    import pandas as pd  # noqa: F401
+
+    exp = _experimental(df)
+    if exp.empty:
+        return exp
+    scored = _apply_convention(exp, convention)
+    if scored.empty:
+        return scored
+
+    # Average the numeric DVs the inferential and effect-size code consume.
+    # tier rides along via a stable per-cell first value (constant in a cell).
+    dv_cols = [PRIMARY_DV, *EFFICIENCY_DVS]
+    present = [c for c in dv_cols if c in scored.columns]
+    agg = (
+        scored.groupby(list(_CELL_KEYS), dropna=False)
+        .agg({**{c: "mean" for c in present}, "tier": "first"})
+        .reset_index()
+    )
+    return agg
 
 
 # ---------------------------------------------------------------------------
@@ -222,11 +361,17 @@ def _anova(
     *,
     dv: str = PRIMARY_DV,
     term_of_interest: str | None = None,
+    convention: ScoringConvention = DEFAULT_CONVENTION,
 ) -> dict[str, Any]:
     """
-    Fit an OLS model ``dv ~ C(f1) [* C(f2) ...]`` on the experimental
-    (non-control) rows and run a Type-II ANOVA, returning F / p / df and
-    partial η² per term.
+    Fit an OLS model ``dv ~ C(f1) [* C(f2) ...]`` on the per-cell aggregated
+    frame (one mean per strategy×model×input under ``convention``) and run a
+    Type-II ANOVA, returning F / p / df and partial η² per term.
+
+    Aggregating before the fit is deliberate: the repeats are technical
+    replicates, so fitting the raw rows would be pseudoreplication and
+    overstate significance. ``n`` in the result is therefore the number of
+    cells, not the number of runs.
 
     ``factors`` of length 2 are crossed with ``*`` so the interaction term
     is included: that interaction is the quantity of interest for the
@@ -236,8 +381,8 @@ def _anova(
 
     Returns a skip-stub (never raises) when any factor is under-leveled.
     """
-    exp = _experimental(df)
-    guard = _guard_factors(exp, factors)
+    agg = aggregate_experimental(df, convention)
+    guard = _guard_factors(agg, factors)
 
     base_meta: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
@@ -249,6 +394,8 @@ def _anova(
         if "strategy" in factors
         else None,
         "excludes_controls": True,
+        "unit_of_analysis": "mean over repeats per (strategy, model, input)",
+        "scoring_convention": convention,
     }
     if guard is not None:
         return {**base_meta, **guard}
@@ -269,7 +416,23 @@ def _anova(
     rhs = " * ".join(terms)
     formula = f"{dv} ~ {rhs}"
 
-    model = ols(formula, data=exp).fit()
+    model = ols(formula, data=agg).fit()
+    # A saturated model (one observation per parameter) leaves zero residual
+    # degrees of freedom, so every F is a 0/0 division that surfaces as inf or
+    # NaN and would then be flattened to null in a misleading status "ok"
+    # result. That is uncomputable, not a real fit: skip it honestly, the same
+    # way an under-leveled factor is skipped. It happens on a sparse corpus
+    # where the cells barely outnumber the model terms.
+    if model.df_resid <= 0:
+        return {
+            **base_meta,
+            "status": "skipped",
+            "reason": (
+                "model is saturated (zero residual degrees of freedom): "
+                f"{int(model.nobs)} cells for {int(model.df_model) + 1} terms"
+            ),
+        }
+
     # Type II is the conventional choice for unbalanced factorial designs
     # without a strong a-priori ordering of effects.
     table = sm.stats.anova_lm(model, typ=2)
@@ -296,22 +459,27 @@ def _anova(
     return {
         **base_meta,
         "status": "ok",
-        "n": int(len(exp)),
+        "n": int(len(agg)),
         "residual_df": _to_native(table.loc["Residual", "df"]),
         "terms": results,
     }
 
 
-def anova_strategy(df: "pd.DataFrame") -> dict[str, Any]:
+def anova_strategy(
+    df: "pd.DataFrame", convention: ScoringConvention = DEFAULT_CONVENTION
+) -> dict[str, Any]:
     """One-way ANOVA: correctness ~ strategy (baseline = single_agent)."""
     return _anova(
         df,
         ["strategy"],
         term_of_interest="C(strategy, Treatment(reference='single_agent'))",
+        convention=convention,
     )
 
 
-def anova_strategy_by_tier(df: "pd.DataFrame") -> dict[str, Any]:
+def anova_strategy_by_tier(
+    df: "pd.DataFrame", convention: ScoringConvention = DEFAULT_CONVENTION
+) -> dict[str, Any]:
     """
     Two-way ANOVA: correctness ~ strategy × tier. The interaction term is
     the quantity of interest (does input complexity moderate the effect).
@@ -321,10 +489,13 @@ def anova_strategy_by_tier(df: "pd.DataFrame") -> dict[str, Any]:
         df,
         ["strategy", "tier"],
         term_of_interest=("C(strategy, Treatment(reference='single_agent')):C(tier)"),
+        convention=convention,
     )
 
 
-def anova_strategy_by_model(df: "pd.DataFrame") -> dict[str, Any]:
+def anova_strategy_by_model(
+    df: "pd.DataFrame", convention: ScoringConvention = DEFAULT_CONVENTION
+) -> dict[str, Any]:
     """
     Two-way ANOVA: correctness ~ strategy × model. The interaction probes
     whether the strategy effect holds across models / providers: a
@@ -334,6 +505,7 @@ def anova_strategy_by_model(df: "pd.DataFrame") -> dict[str, Any]:
         df,
         ["strategy", "model"],
         term_of_interest=("C(strategy, Treatment(reference='single_agent')):C(model)"),
+        convention=convention,
     )
 
 
@@ -342,29 +514,34 @@ def anova_strategy_by_model(df: "pd.DataFrame") -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def posthoc_strategy(df: "pd.DataFrame") -> dict[str, Any]:
+def posthoc_strategy(
+    df: "pd.DataFrame", convention: ScoringConvention = DEFAULT_CONVENTION
+) -> dict[str, Any]:
     """
-    Tukey HSD pairwise comparison of strategies on the primary DV. Run
-    regardless of ANOVA significance for completeness; the consumer decides
-    whether to report it (convention: only when the omnibus ANOVA is
-    significant). Self-skips when fewer than two strategies are present.
+    Tukey HSD pairwise comparison of strategies on the primary DV, on the
+    per-cell aggregated frame. Run regardless of ANOVA significance for
+    completeness; the consumer decides whether to report it (convention: only
+    when the omnibus ANOVA is significant). Self-skips when fewer than two
+    strategies are present.
     """
-    exp = _experimental(df)
+    agg = aggregate_experimental(df, convention)
     base_meta: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "analysis": "posthoc_tukey_hsd",
         "dependent_variable": PRIMARY_DV,
         "factor": "strategy",
+        "unit_of_analysis": "mean over repeats per (strategy, model, input)",
+        "scoring_convention": convention,
     }
-    guard = _guard_factors(exp, ["strategy"])
+    guard = _guard_factors(agg, ["strategy"])
     if guard is not None:
         return {**base_meta, **guard}
 
     from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
     tukey = pairwise_tukeyhsd(
-        endog=exp[PRIMARY_DV].astype(float),
-        groups=exp["strategy"].astype(str),
+        endog=agg[PRIMARY_DV].astype(float),
+        groups=agg["strategy"].astype(str),
         alpha=0.05,
     )
     # Build the comparison rows from the *public* TukeyHSDResults attributes
@@ -396,7 +573,7 @@ def posthoc_strategy(df: "pd.DataFrame") -> dict[str, Any]:
     return {
         **base_meta,
         "status": "ok",
-        "n": int(len(exp)),
+        "n": int(len(agg)),
         "alpha": 0.05,
         "comparisons": comparisons,
     }
@@ -407,28 +584,32 @@ def posthoc_strategy(df: "pd.DataFrame") -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def effect_sizes(df: "pd.DataFrame") -> dict[str, Any]:
+def effect_sizes(
+    df: "pd.DataFrame", convention: ScoringConvention = DEFAULT_CONVENTION
+) -> dict[str, Any]:
     """
     Cohen's d for every pairwise strategy contrast on the primary DV, using
-    a pooled standard deviation. Partial η² for the overall effects is
-    reported within each ANOVA file; here we provide the pairwise d that
-    the strategy comparison narrative needs.
+    a pooled standard deviation, on the per-cell aggregated frame. Partial η²
+    for the overall effects is reported within each ANOVA file; here we
+    provide the pairwise d that the strategy comparison narrative needs.
     """
-    exp = _experimental(df)
+    agg = aggregate_experimental(df, convention)
     out: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "analysis": "effect_sizes",
         "dependent_variable": PRIMARY_DV,
         "measure": "cohens_d_pairwise",
+        "unit_of_analysis": "mean over repeats per (strategy, model, input)",
+        "scoring_convention": convention,
         "pairs": [],
     }
-    guard = _guard_factors(exp, ["strategy"])
+    guard = _guard_factors(agg, ["strategy"])
     if guard is not None:
         return {**out, **guard}
 
     groups = {
         str(name): grp[PRIMARY_DV].dropna().astype(float)
-        for name, grp in exp.groupby("strategy")
+        for name, grp in agg.groupby("strategy")
     }
     names = sorted(groups)
     for i in range(len(names)):
@@ -487,6 +668,124 @@ def _cohens_d(a, b) -> float | str | None:
         # from "not computed").
         return "inf" if mean_diff > 0 else "-inf"
     return _to_native(mean_diff / (pooled**0.5))
+
+
+# ---------------------------------------------------------------------------
+# Mixed-effects robustness model
+# ---------------------------------------------------------------------------
+
+
+def mixed_effects_robustness(
+    df: "pd.DataFrame", convention: ScoringConvention = DEFAULT_CONVENTION
+) -> dict[str, Any]:
+    """
+    Robustness check on the aggregated ANOVA: a linear mixed model
+    ``entity_id_f1 ~ strategy * tier`` fit on the un-aggregated experimental
+    runs, with crossed random intercepts for model and input.
+
+    The aggregated ANOVA removes the repeat correlation by pre-averaging, but
+    the resulting cells still share structure: every cell on a strong model
+    is lifted, every cell on a hard input is dragged down. This model accounts
+    for that crossed grouping directly (model and example_id as random
+    effects) instead of by averaging, so agreement between the two is evidence
+    the strategy conclusion is not an artifact of the simpler error model.
+
+    Crossed (non-nested) random effects in statsmodels go through the
+    ``vc_formula`` variance-components mechanism on a single dummy grouping
+    column, and can fail to converge. This is a secondary check, so on any
+    failure it degrades to a skip-stub (never raises), matching the
+    ``_guard_factors`` contract used elsewhere.
+    """
+    base_meta: dict[str, Any] = {
+        "schema_version": SCHEMA_VERSION,
+        "analysis": "mixed_effects_robustness",
+        "dependent_variable": PRIMARY_DV,
+        "fixed_effects": "strategy * tier",
+        "random_effects": ["model", "example_id"],
+        "unit_of_analysis": "per-run (un-aggregated); repeats modeled, not averaged",
+        "scoring_convention": convention,
+        "role": "robustness_check",
+    }
+
+    # Apply the convention on the raw experimental rows, but do NOT aggregate:
+    # the mixed model wants one row per run so the random effects have within
+    # cell replication to estimate from.
+    exp = _experimental(df)
+    if exp.empty:
+        return {**base_meta, "status": "skipped", "reason": "no experimental rows"}
+    scored = _apply_convention(exp, convention)
+
+    # strategy and tier must vary for the strategy*tier fixed effect to be
+    # estimable, and both random-effect grouping factors (model, example_id)
+    # need >= 2 levels for their variance components to mean anything. Guard
+    # all four up front so a single-level grouping factor yields an honest
+    # skip-stub instead of falling into the fitter and being reported as a
+    # generic non-convergence.
+    guard = _guard_factors(scored, ["strategy", "tier", "model", "example_id"])
+    if guard is not None:
+        return {**base_meta, **guard}
+
+    try:
+        import warnings
+
+        import statsmodels.formula.api as smf
+        from statsmodels.tools.sm_exceptions import ConvergenceWarning
+
+        data = scored.copy()
+        # A single constant grouping column lets both model and example_id
+        # enter as variance components, giving crossed (not nested) effects.
+        data["_grp"] = 1
+        vc = {"model": "0 + C(model)", "example_id": "0 + C(example_id)"}
+        md = smf.mixedlm(
+            f"{PRIMARY_DV} ~ C(strategy, Treatment(reference={BASELINE_STRATEGY!r})) "
+            "* C(tier)",
+            data=data,
+            groups=data["_grp"],
+            vc_formula=vc,
+        )
+        # Non-convergence is handled below via fit.converged and reported as a
+        # skip-stub; the warnings it emits along the way are noise here, so
+        # silence them rather than letting them clutter the run log.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ConvergenceWarning)
+            fit = md.fit()
+    except Exception as exc:  # noqa: BLE001 - robustness check, never fatal
+        # Non-convergence, singular design, or a statsmodels internal error all
+        # land here: report the reason honestly rather than aborting the run.
+        return {
+            **base_meta,
+            "status": "skipped",
+            "reason": f"mixed model did not fit: {type(exc).__name__}: {exc}",
+        }
+
+    if not getattr(fit, "converged", True):
+        return {**base_meta, "status": "skipped", "reason": "did not converge"}
+
+    # Report the fixed-effect coefficients (the strategy/tier terms) with their
+    # standard errors and p-values; the random-effect variances go alongside.
+    params = fit.params
+    fixed = {}
+    for name in params.index:
+        # Skip the variance-component parameters (their names carry "Var").
+        if "Var" in name or name == "Group Var":
+            continue
+        fixed[name] = {
+            "coef": _to_native(params[name]),
+            "std_err": _to_native(fit.bse.get(name)),
+            "p": _to_native(fit.pvalues.get(name)),
+        }
+
+    return {
+        **base_meta,
+        "status": "ok",
+        "n": int(len(scored)),
+        "n_groups": {
+            "model": int(scored["model"].nunique()),
+            "example_id": int(scored["example_id"].nunique()),
+        },
+        "fixed_effects_estimates": fixed,
+        "converged": bool(getattr(fit, "converged", True)),
+    }
 
 
 # ---------------------------------------------------------------------------

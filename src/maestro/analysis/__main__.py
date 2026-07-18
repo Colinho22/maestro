@@ -23,7 +23,9 @@ from pathlib import Path
 from typing import Any, Callable
 
 from maestro.analysis.statistics import (
+    INTENT_TO_TREAT,
     SCHEMA_VERSION,
+    VALID_ONLY,
     anova_strategy,
     anova_strategy_by_model,
     anova_strategy_by_tier,
@@ -31,6 +33,7 @@ from maestro.analysis.statistics import (
     effect_sizes,
     error_taxonomy_by_strategy,
     load_dataframe,
+    mixed_effects_robustness,
     posthoc_strategy,
     tradeoff_correctness_efficiency,
 )
@@ -43,32 +46,51 @@ from maestro.experiment_config import DB_PATH
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_OUT_DIR = _PROJECT_ROOT / "output" / "analysis"
 
-# (filename, callable) for each analysis. Order is the report order.
-# Callables take the DataFrame and return a JSON-serializable dict.
+# The scoring conventions to emit, primary first. Every convention-dependent
+# analysis is written once per convention, so the results chapter can report
+# intent_to_treat as the headline and valid_only as a sensitivity check.
+_CONVENTIONS = (INTENT_TO_TREAT, VALID_ONLY)
+
+# Convention-independent analyses: (filename, callable). These take only the
+# DataFrame and do not depend on a scoring convention. Descriptives keep the
+# raw per-run grain and include controls; the taxonomy and trade-off outputs
+# are descriptive summaries, not inferential tests.
 _ANALYSES: list[tuple[str, Callable]] = [
     ("descriptive.json", describe),
-    ("anova_strategy.json", anova_strategy),
-    ("anova_strategy_by_tier.json", anova_strategy_by_tier),
-    ("anova_strategy_by_model.json", anova_strategy_by_model),
-    ("posthoc_strategy.json", posthoc_strategy),
-    ("effect_sizes.json", effect_sizes),
     ("error_taxonomy_by_strategy.json", error_taxonomy_by_strategy),
     ("tradeoff_correctness_efficiency.json", tradeoff_correctness_efficiency),
+]
+
+# Convention-dependent analyses: (stem, callable). Each is emitted once per
+# scoring convention as ``<stem>__<convention>.json`` (content-based naming:
+# the filename states both the test and the convention, so a file is never
+# ambiguous about which numbers it holds). The callable takes
+# (DataFrame, convention).
+_CONVENTION_ANALYSES: list[tuple[str, Callable]] = [
+    ("anova_strategy", anova_strategy),
+    ("anova_strategy_by_tier", anova_strategy_by_tier),
+    ("anova_strategy_by_model", anova_strategy_by_model),
+    ("posthoc_strategy", posthoc_strategy),
+    ("effect_sizes", effect_sizes),
+    ("mixed_effects_robustness", mixed_effects_robustness),
 ]
 
 # RQ -> file mapping, surfaced in report.md. This is the *interpretation*
 # layer: it lives in the human-facing report, never in the data files (so
 # the JSON stays reusable if the RQs are reframed). Keep in sync with the
-# thesis RQ definitions.
+# thesis RQ definitions. Inferential outputs are emitted per scoring convention
+# as ``<stem>__<convention>.json``; the map names the intent-to-treat file (the
+# primary convention), and the parallel ``__valid_only`` file is the
+# sensitivity check for the same question.
 _RQ_MAP: list[tuple[str, str, str]] = [
     (
         "RQ1",
-        "anova_strategy.json + posthoc_strategy.json",
+        "anova_strategy__intent_to_treat.json + posthoc_strategy__intent_to_treat.json",
         "Multi-agent strategies vs. single-agent baseline correctness.",
     ),
     (
         "RQ2",
-        "anova_strategy_by_tier.json",
+        "anova_strategy_by_tier__intent_to_treat.json",
         "Does input complexity moderate the multi-agent advantage "
         "(strategy×tier interaction)?",
     ),
@@ -80,14 +102,15 @@ _RQ_MAP: list[tuple[str, str, str]] = [
     ),
     (
         "RQ4",
-        "tradeoff_correctness_efficiency.json + effect_sizes.json",
+        "tradeoff_correctness_efficiency.json + effect_sizes__intent_to_treat.json",
         "Correctness vs. efficiency trade-off across strategies.",
     ),
     (
         "robustness",
-        "anova_strategy_by_model.json",
+        "anova_strategy_by_model__intent_to_treat.json + "
+        "mixed_effects_robustness__intent_to_treat.json",
         "Cross-cutting: does the strategy effect hold across models / "
-        "providers (strategy×model interaction)?",
+        "providers, and does it survive a mixed-effects model?",
     ),
 ]
 
@@ -196,22 +219,60 @@ def _build_report(
     desc = results.get("descriptive.json", {})
     n_cells = len(desc.get("cells", []))
     lines.append(f"- Descriptive cells: {n_cells}")
+    lines.append(
+        f"- Primary scoring convention: `{INTENT_TO_TREAT}` "
+        f"(sensitivity check: `{VALID_ONLY}`)"
+    )
+    lines.append(
+        "- Inferential unit of analysis: mean over repeats per (strategy, model, input)"
+    )
 
-    _summarize_anova(lines, "RQ1: strategy", results.get("anova_strategy.json", {}))
+    # Headline numbers use the primary (intent_to_treat) convention; the
+    # __valid_only files carry the sensitivity check for the same tests.
     _summarize_anova(
-        lines, "RQ2: strategy×tier", results.get("anova_strategy_by_tier.json", {})
+        lines,
+        "RQ1: strategy",
+        results.get("anova_strategy__intent_to_treat.json", {}),
+    )
+    _summarize_anova(
+        lines,
+        "RQ2: strategy×tier",
+        results.get("anova_strategy_by_tier__intent_to_treat.json", {}),
     )
     _summarize_anova(
         lines,
         "robustness: strategy×model",
-        results.get("anova_strategy_by_model.json", {}),
+        results.get("anova_strategy_by_model__intent_to_treat.json", {}),
     )
     lines.append("")
 
     lines.append("## Notes")
     lines.append("")
     lines.append(
-        "- Analyses reported as *skipped* lacked a factor with ≥2 observed "
+        "- Inferential tests run on per-cell means (one observation per "
+        "strategy x model x input, repeats averaged), not the raw runs. "
+        "Fitting the raw repeats would be pseudoreplication and overstate "
+        "significance."
+    )
+    lines.append(
+        f"- Two scoring conventions are reported. `{INTENT_TO_TREAT}` "
+        "(primary) scores every run, with a failed or unrenderable diagram "
+        "counting 0.0: it measures what a user receives, and does not let a "
+        "strategy look good by failing and being dropped. `{valid}` "
+        "(sensitivity) keeps only renderable diagrams. Failures are not "
+        "random (they concentrate in the more complex orchestrations), so the "
+        "two conventions can disagree, and that is the point of reporting "
+        "both.".format(valid=VALID_ONLY)
+    )
+    lines.append(
+        "- `mixed_effects_robustness__*.json` refits the strategy x tier "
+        "effect on the un-aggregated runs with crossed random intercepts for "
+        "model and input, as a check that the aggregated ANOVA conclusion "
+        "survives a model of the grouping structure. It self-skips if the "
+        "mixed model does not converge."
+    )
+    lines.append(
+        "- Analyses reported as *skipped* lacked a factor with >= 2 observed "
         "levels in the current corpus (e.g. a single input tier). They "
         "recompute automatically once the corpus grows: no code change."
     )
@@ -293,6 +354,14 @@ def main(argv: list[str] | None = None) -> int:
         payload = fn(df)
         results[filename] = payload
         _write_json(run_dir / filename, payload)
+
+    # Convention-dependent analyses: one file per (analysis, convention).
+    for stem, fn in _CONVENTION_ANALYSES:
+        for convention in _CONVENTIONS:
+            filename = f"{stem}__{convention}.json"
+            payload = fn(df, convention)
+            results[filename] = payload
+            _write_json(run_dir / filename, payload)
 
     # report.md (interpretation layer).
     report = _build_report(

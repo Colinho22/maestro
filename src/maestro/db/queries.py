@@ -234,8 +234,10 @@ def fetch_all_results(conn: sqlite3.Connection) -> list[sqlite3.Row]:
 
 def fetch_analysis_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     """
-    Three-way join (run_configs ⋈ run_results ⋈ metric_results) yielding
-    one row per metriced run, for the statistical analysis pipeline.
+    Three-way join (run_configs ⋈ run_results, then LEFT ⋈ metric_results)
+    yielding one row per completed run, for the statistical analysis pipeline.
+    The metric columns are nullable: a run with no ``metric_results`` row (an
+    outright failure) still appears, with every ``m.*`` column NULL.
 
     Read-only. Columns are listed *explicitly* rather than via ``c.*, r.*,
     m.*`` on purpose: all three tables carry a ``run_id`` column, and a
@@ -252,8 +254,13 @@ def fetch_analysis_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     for traceability. ``parses_valid`` rides along for structural-validity
     breakdowns.
 
-    An INNER join means runs without a metric row (e.g. a failed run that
-    never got scored) are excluded: analysis operates on scored runs only.
+    The metric join is a LEFT join on purpose: a run that failed outright
+    never got a ``metric_results`` row, and the intent-to-treat scoring
+    convention needs those failures present (scored 0.0), not silently
+    dropped. Such rows come back with every ``m.*`` column NULL; the
+    analysis layer decides how to treat them per scoring convention. The
+    ``run_results`` join stays INNER because a config without a result row
+    is not a run that happened.
     """
     return conn.execute(
         """
@@ -283,7 +290,7 @@ def fetch_analysis_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
             m.duplicate_relationships AS duplicate_relationships
         FROM run_configs c
         JOIN run_results r ON c.run_id = r.run_id
-        JOIN metric_results m ON c.run_id = m.run_id
+        LEFT JOIN metric_results m ON c.run_id = m.run_id
         ORDER BY c.timestamp
         """,
     ).fetchall()
