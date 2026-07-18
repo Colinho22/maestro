@@ -198,6 +198,16 @@ def _apply_convention(
     ``valid_only`` drops every run that did not parse (``parses_valid`` != 1),
     which also drops outright failures (their ``parses_valid`` is NaN).
     """
+    # Reject an unrecognized convention rather than letting it fall through to
+    # the valid_only branch: this is a scoring contract, and silently scoring
+    # under the wrong rule is exactly the kind of quiet mislabeling the project
+    # forbids. A caller passing a bad literal is a programmer error, so raise.
+    if convention not in (INTENT_TO_TREAT, VALID_ONLY):
+        raise ValueError(
+            f"unknown scoring convention {convention!r}; "
+            f"expected {INTENT_TO_TREAT!r} or {VALID_ONLY!r}"
+        )
+
     out = df.copy()
     parses = out["parses_valid"]
     if convention == INTENT_TO_TREAT:
@@ -407,6 +417,22 @@ def _anova(
     formula = f"{dv} ~ {rhs}"
 
     model = ols(formula, data=agg).fit()
+    # A saturated model (one observation per parameter) leaves zero residual
+    # degrees of freedom, so every F is a 0/0 division that surfaces as inf or
+    # NaN and would then be flattened to null in a misleading status "ok"
+    # result. That is uncomputable, not a real fit: skip it honestly, the same
+    # way an under-leveled factor is skipped. It happens on a sparse corpus
+    # where the cells barely outnumber the model terms.
+    if model.df_resid <= 0:
+        return {
+            **base_meta,
+            "status": "skipped",
+            "reason": (
+                "model is saturated (zero residual degrees of freedom): "
+                f"{int(model.nobs)} cells for {int(model.df_model) + 1} terms"
+            ),
+        }
+
     # Type II is the conventional choice for unbalanced factorial designs
     # without a strong a-priori ordering of effects.
     table = sm.stats.anova_lm(model, typ=2)
@@ -689,9 +715,13 @@ def mixed_effects_robustness(
         return {**base_meta, "status": "skipped", "reason": "no experimental rows"}
     scored = _apply_convention(exp, convention)
 
-    # tier must vary for the strategy*tier fixed effect to be estimable, and
-    # both grouping factors must have spread for the random effects.
-    guard = _guard_factors(scored, ["strategy", "tier"])
+    # strategy and tier must vary for the strategy*tier fixed effect to be
+    # estimable, and both random-effect grouping factors (model, example_id)
+    # need >= 2 levels for their variance components to mean anything. Guard
+    # all four up front so a single-level grouping factor yields an honest
+    # skip-stub instead of falling into the fitter and being reported as a
+    # generic non-convergence.
+    guard = _guard_factors(scored, ["strategy", "tier", "model", "example_id"])
     if guard is not None:
         return {**base_meta, **guard}
 

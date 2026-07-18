@@ -234,8 +234,10 @@ def fetch_all_results(conn: sqlite3.Connection) -> list[sqlite3.Row]:
 
 def fetch_analysis_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     """
-    Three-way join (run_configs ⋈ run_results ⋈ metric_results) yielding
-    one row per metriced run, for the statistical analysis pipeline.
+    Three-way join (run_configs ⋈ run_results, then LEFT ⋈ metric_results)
+    yielding one row per completed run, for the statistical analysis pipeline.
+    The metric columns are nullable: a run with no ``metric_results`` row (an
+    outright failure) still appears, with every ``m.*`` column NULL.
 
     Read-only. Columns are listed *explicitly* rather than via ``c.*, r.*,
     m.*`` on purpose: all three tables carry a ``run_id`` column, and a

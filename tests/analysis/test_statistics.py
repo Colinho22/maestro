@@ -192,6 +192,28 @@ def _populate_two_levels(conn: sqlite3.Connection) -> None:
     )
 
 
+def _populate_two_tiers(conn: sqlite3.Connection) -> None:
+    """
+    Extend the two-level fixture with a second tier so the mixed model's
+    strategy*tier fixed effect is estimable and the four-factor guard
+    (strategy, tier, model, example_id) is cleared. Used by the mixed-effects
+    tests that need to reach the fitter.
+    """
+    _populate_two_levels(conn)  # tier COMPLEX
+    for model in ("model_a", "model_b"):
+        for strategy in _EXPERIMENTAL:
+            for run_number, delta in enumerate([-0.05, 0.0, 0.05], start=1):
+                _insert_cell(
+                    conn,
+                    strategy=strategy,
+                    model=model,
+                    tier=Tier.SIMPLE,
+                    run_number=run_number,
+                    example_id="ex_simple",
+                    f1=0.5 + delta,
+                )
+
+
 # ---------------------------------------------------------------------------
 # load_dataframe
 # ---------------------------------------------------------------------------
@@ -429,6 +451,42 @@ def test_valid_only_convention_recorded_in_metadata():
     assert out["scoring_convention"] == "valid_only"
 
 
+def test_unknown_convention_rejected():
+    """An unrecognized convention is a programmer error, raised not swallowed."""
+    conn = _conn()
+    _populate_two_levels(conn)
+    df = stats.load_dataframe(conn)
+    with pytest.raises(ValueError, match="unknown scoring convention"):
+        stats.aggregate_experimental(df, "not_a_convention")  # type: ignore[arg-type]
+
+
+def test_anova_skips_on_saturated_model():
+    """
+    A cell count that barely exceeds the term count leaves zero residual df:
+    the ANOVA is uncomputable and must skip, not emit a status ok with null
+    F/p. Build a single input per model so strategy x model saturates: with one
+    input, each (strategy, model) cell is a single observation and the crossed
+    model has as many parameters as observations.
+    """
+    conn = _conn()
+    models = ["model_a", "model_b"]
+    for model in models:
+        for strategy in _EXPERIMENTAL:
+            _insert_cell(
+                conn,
+                strategy=strategy,
+                model=model,
+                tier=Tier.COMPLEX,
+                run_number=1,
+                example_id="ex_only",
+                f1=0.6,
+            )
+    df = stats.load_dataframe(conn)
+    out = stats.anova_strategy_by_model(df, stats.INTENT_TO_TREAT)
+    assert out["status"] == "skipped"
+    assert "saturated" in out["reason"]
+
+
 # ---------------------------------------------------------------------------
 # Mixed-effects robustness model
 # ---------------------------------------------------------------------------
@@ -442,32 +500,22 @@ def test_mixed_effects_returns_result_or_skip_stub():
     strategy*tier term, so build a two-tier corpus.
     """
     conn = _conn()
-    _populate_two_levels(conn)  # tier COMPLEX
-    # Add a second tier so strategy*tier is estimable.
-    for model in ("model_a", "model_b"):
-        for strategy in _EXPERIMENTAL:
-            for run_number, delta in enumerate([-0.05, 0.0, 0.05], start=1):
-                _insert_cell(
-                    conn,
-                    strategy=strategy,
-                    model=model,
-                    tier=Tier.SIMPLE,
-                    run_number=run_number,
-                    example_id="ex_simple",
-                    f1=0.5 + delta,
-                )
+    _populate_two_tiers(conn)
     df = stats.load_dataframe(conn)
     out = stats.mixed_effects_robustness(df, stats.INTENT_TO_TREAT)
 
     assert out["analysis"] == "mixed_effects_robustness"
     assert out["role"] == "robustness_check"
+    # Either branch is valid on this small synthetic fixture (crossed random
+    # effects can genuinely fail to converge here); the deterministic ok/skip
+    # branches are asserted exactly in the monkeypatched tests below. What must
+    # always hold: a self-describing status and strict-JSON serializability.
     assert out["status"] in {"ok", "skipped"}
     if out["status"] == "ok":
         assert out["fixed_effects_estimates"]
         assert out["scoring_convention"] == "intent_to_treat"
     else:
         assert "reason" in out
-    # Must be strict-JSON serializable regardless of branch.
     import json
 
     json.dumps(out, allow_nan=False)
@@ -480,6 +528,57 @@ def test_mixed_effects_skips_on_single_tier():
     df = stats.load_dataframe(conn)
     out = stats.mixed_effects_robustness(df, stats.INTENT_TO_TREAT)
     assert out["status"] == "skipped"
+    # The skip must name the offending factor, not just report a generic
+    # failure: tier is the one with a single level here.
+    assert out.get("factor") == "tier"
+    assert "tier" in out["reason"]
+
+
+def test_mixed_effects_skips_on_fit_exception(monkeypatch):
+    """
+    A raised exception inside the fitter (not just non-convergence) degrades to
+    a skip-stub whose reason names the exception, never propagating. Force it by
+    monkeypatching mixedlm to raise, on a corpus that clears the factor guard.
+    """
+    conn = _conn()
+    _populate_two_tiers(conn)
+    df = stats.load_dataframe(conn)
+
+    import statsmodels.formula.api as smf
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("synthetic fit failure")
+
+    monkeypatch.setattr(smf, "mixedlm", _boom)
+    out = stats.mixed_effects_robustness(df, stats.INTENT_TO_TREAT)
+    assert out["status"] == "skipped"
+    assert "RuntimeError" in out["reason"]
+    assert "synthetic fit failure" in out["reason"]
+
+
+def test_mixed_effects_skips_on_non_convergence(monkeypatch):
+    """
+    A model that fits but does not converge is reported as skipped, not ok:
+    a non-converged estimate is not a result we stand behind. Stub the fit to
+    return an object flagged not-converged.
+    """
+    conn = _conn()
+    _populate_two_tiers(conn)
+    df = stats.load_dataframe(conn)
+
+    import statsmodels.formula.api as smf
+
+    class _Fit:
+        converged = False
+
+    class _Model:
+        def fit(self, *args, **kwargs):
+            return _Fit()
+
+    monkeypatch.setattr(smf, "mixedlm", lambda *a, **k: _Model())
+    out = stats.mixed_effects_robustness(df, stats.INTENT_TO_TREAT)
+    assert out["status"] == "skipped"
+    assert "converge" in out["reason"]
 
 
 # ---------------------------------------------------------------------------
