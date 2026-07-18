@@ -4,8 +4,12 @@
 # ``from maestro.analysis import describe, anova_strategy`` without reaching
 # into the submodule. The CLI lives in maestro.analysis.__main__.
 from maestro.analysis.statistics import (
+    DEFAULT_CONVENTION,
+    INTENT_TO_TREAT,
     PRIMARY_DV,
     SCHEMA_VERSION,
+    VALID_ONLY,
+    aggregate_experimental,
     anova_strategy,
     anova_strategy_by_model,
     anova_strategy_by_tier,
@@ -13,6 +17,7 @@ from maestro.analysis.statistics import (
     effect_sizes,
     error_taxonomy_by_strategy,
     load_dataframe,
+    mixed_effects_robustness,
     posthoc_strategy,
     tradeoff_correctness_efficiency,
 )
@@ -34,8 +39,12 @@ __all__ = [
     "format_for_display",
     "resolve_display_tz",
     # statistics
+    "DEFAULT_CONVENTION",
+    "INTENT_TO_TREAT",
     "PRIMARY_DV",
     "SCHEMA_VERSION",
+    "VALID_ONLY",
+    "aggregate_experimental",
     "anova_strategy",
     "anova_strategy_by_model",
     "anova_strategy_by_tier",
@@ -43,6 +52,7 @@ __all__ = [
     "effect_sizes",
     "error_taxonomy_by_strategy",
     "load_dataframe",
+    "mixed_effects_robustness",
     "posthoc_strategy",
     "tradeoff_correctness_efficiency",
 ]
