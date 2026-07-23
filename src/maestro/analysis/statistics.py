@@ -592,6 +592,14 @@ def effect_sizes(
     a pooled standard deviation, on the per-cell aggregated frame. Partial η²
     for the overall effects is reported within each ANOVA file; here we
     provide the pairwise d that the strategy comparison narrative needs.
+
+    Alongside the per-pair values, a ``summary`` block reduces the contrasts
+    to the range of absolute d and the widest contrast. Reporting a null needs
+    an effect size next to the non-significant p (that is what licenses "the
+    difference is absent" over "the difference was not detected"), and a table
+    row cannot carry one value per pair. The reduction lives here, next to the
+    numbers it summarizes, so no consumer re-derives it: the analysis layer
+    owns the math and the report and figures only read it.
     """
     agg = aggregate_experimental(df, convention)
     out: dict[str, Any] = {
@@ -627,8 +635,66 @@ def effect_sizes(
                     "cohens_d": d,
                 }
             )
+    out["summary"] = _summarize_pairs(out["pairs"])
     out["status"] = "ok"
     return out
+
+
+def _summarize_pairs(pairs: list[dict[str, Any]]) -> dict[str, Any]:
+    """
+    Reduce the pairwise contrasts to a reportable range of absolute d.
+
+    Absolute values throughout: the sign of a pairwise d only records which
+    strategy was named first (groups are sorted alphabetically), so a signed
+    range like -0.04 to 0.18 would read as directional variation where there
+    is none.
+
+    Pairs that produced no finite d are counted, never dropped into silence.
+    ``n_sentinel_pairs`` counts the infinite-d cases (zero pooled variance,
+    unequal means) and ``n_undefined_pairs`` the ones with too few
+    observations. A non-zero count means the range does not cover every
+    contrast, and the reporting has to say so rather than quietly presenting a
+    partial range as a complete one.
+    """
+    magnitudes: list[tuple[float, dict[str, Any]]] = []
+    n_sentinel = 0
+    n_undefined = 0
+    for pair in pairs:
+        d = pair["cohens_d"]
+        # bool is an int subclass, but cohens_d never yields one; the isinstance
+        # check mirrors _cohens_d's documented return contract (float, the
+        # "inf"/"-inf" strings, or None).
+        if isinstance(d, (int, float)):
+            magnitudes.append((abs(float(d)), pair))
+        elif d is None:
+            n_undefined += 1
+        else:
+            n_sentinel += 1
+
+    summary: dict[str, Any] = {
+        "measure": "abs_cohens_d",
+        "n_pairs": len(pairs),
+        "n_sentinel_pairs": n_sentinel,
+        "n_undefined_pairs": n_undefined,
+        "abs_d_min": None,
+        "abs_d_max": None,
+        "largest_contrast": None,
+    }
+    if not magnitudes:
+        return summary
+
+    magnitudes.sort(key=lambda item: item[0])
+    smallest = magnitudes[0][0]
+    largest, widest = magnitudes[-1]
+    summary["abs_d_min"] = _to_native(smallest)
+    summary["abs_d_max"] = _to_native(largest)
+    summary["largest_contrast"] = {
+        "group_a": widest["group_a"],
+        "group_b": widest["group_b"],
+        "cohens_d": widest["cohens_d"],
+        "abs_cohens_d": _to_native(largest),
+    }
+    return summary
 
 
 def _cohens_d(a, b) -> float | str | None:

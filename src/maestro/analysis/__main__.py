@@ -244,6 +244,16 @@ def _build_report(
         "robustness: strategy×model",
         results.get("anova_strategy_by_model__intent_to_treat.json", {}),
     )
+
+    # Pairwise effect sizes for both conventions, not just the primary one:
+    # the results chapter reports the |d| range next to each convention's
+    # ANOVA row, so both belong in the report the numbers are read from.
+    for convention in _CONVENTIONS:
+        _summarize_effect_sizes(
+            lines,
+            f"effect sizes ({convention})",
+            results.get(f"effect_sizes__{convention}.json", {}),
+        )
     lines.append("")
 
     lines.append("## Notes")
@@ -308,6 +318,48 @@ def _summarize_anova(lines: list[str], label: str, payload: dict[str, Any]) -> N
         f"- {label}: F={_fmt(term.get('F'))}, p={_fmt(term.get('p'))}, "
         f"partial η²={_fmt(term.get('partial_eta_sq'))} (n={payload.get('n')})"
     )
+
+
+def _summarize_effect_sizes(
+    lines: list[str], label: str, payload: dict[str, Any]
+) -> None:
+    """
+    Append the absolute Cohen's d range and the widest contrast (or the skip
+    reason). This is the line the results chapter reads its effect-size column
+    off, so incomplete coverage is stated inline rather than left to a reader
+    who would otherwise take the range for all of the contrasts.
+    """
+    status = payload.get("status")
+    if status == "skipped":
+        lines.append(f"- {label}: skipped: {payload.get('reason', 'n/a')}")
+        return
+    if status != "ok":
+        lines.append(f"- {label}: not computed")
+        return
+
+    summary = payload.get("summary") or {}
+    lo, hi = summary.get("abs_d_min"), summary.get("abs_d_max")
+    if lo is None or hi is None:
+        lines.append(f"- {label}: no finite pairwise d")
+        return
+
+    widest = summary.get("largest_contrast") or {}
+    pair = f"{widest.get('group_a')} vs {widest.get('group_b')}"
+    line = (
+        f"- {label}: |d| {_fmt(lo)} to {_fmt(hi)} "
+        f"across {summary.get('n_pairs')} contrasts; largest: {pair}"
+    )
+    excluded = (summary.get("n_sentinel_pairs") or 0) + (
+        summary.get("n_undefined_pairs") or 0
+    )
+    if excluded:
+        line += (
+            f" (range covers {len(payload.get('pairs', [])) - excluded} of "
+            f"{summary.get('n_pairs')}: "
+            f"{summary.get('n_sentinel_pairs')} infinite, "
+            f"{summary.get('n_undefined_pairs')} undefined)"
+        )
+    lines.append(line)
 
 
 def _fmt(x: Any) -> str:
