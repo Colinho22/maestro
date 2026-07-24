@@ -1,6 +1,6 @@
 [project]
 name = "maestro"
-version = "1.0.0"
+version = "1.0.2"
 description = "MAESTRO - Multi-Agent Evaluation for Structured Relational Output. Thesis artifact comparing orchestration frameworks for relational visualization."
 readme = "README.md"
 license = { text = "MIT" }
