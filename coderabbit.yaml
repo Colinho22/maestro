@@ -25,6 +25,7 @@ reviews:
     - "!data/**"          # benchmark inputs + ground truth, not code
     - "!**/*.MMD"
     - "!**/*.JSON"
+    - "!**/*.ipynb"       # runnable figure/table catalogues, not library API
 
   # Global instructions
   instructions: |
