@@ -43,7 +43,7 @@ dependencies = [
     # transitively via statsmodels and is not declared here directly.
     "statsmodels>=0.14.6",
     # pandas 3.0.4 was yanked from PyPI; 3.0.3 is the latest non-yanked release.
-    "pandas>=3.0.3",
+    "pandas>=3.0.5",
     # scipy is a transitive dependency of statsmodels (it supplies the
     # underlying distributions for the F-test, Tukey HSD, etc.), so its
     # version materially affects the statistics output. Not declared as a
@@ -60,8 +60,8 @@ dependencies = [
     # publication-quality figures, and matplotlib gives one style system for
     # both the dashboard and the embedded thesis figures with no
     # browser-component fragility.
-    "streamlit>=1.59.1,<2.0",
-    "matplotlib>=3.11.0,<4",
+    "streamlit>=1.60.0,<2.0",
+    "matplotlib>=3.11.1,<4",
     # Windows-only: provides the IANA timezone database that zoneinfo
     # (used by analysis/timestamps.py) needs at runtime. macOS and most
     # Linux distros ship the DB with the OS, so this is a no-op there:
@@ -81,10 +81,10 @@ dev = [
     # misreads illustrative fragments, e.g. a trailing-comma snippet as a
     # tuple). Adopt it deliberately later with an explicit config, not via a
     # floating CI install. The pre-commit rev tracks this bound in lockstep.
-    "ruff>=0.15.21,<0.16",
+    "ruff>=0.16.0,<0.17",
     # Strips notebook outputs/exec-counts/metadata; also wired as a pre-commit
     # hook. Here so the CLI is available to strip a notebook on demand.
-    "nbstripout>=0.8.1",
+    "nbstripout>=0.9.1",
 ]
 
 [build-system]
