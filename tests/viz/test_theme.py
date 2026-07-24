@@ -41,7 +41,7 @@ def test_strategy_palette_matches_guide():
     assert theme.STRATEGY_COLORS == {
         "Single Agent": "#ED93B1",
         "SOP": "#D4537E",
-        "Crew AI": "#993556",
+        "CrewAI": "#993556",
         "LangGraph": "#72243E",
     }
 
@@ -112,6 +112,26 @@ def test_apply_thesis_style_sets_rcparams():
     assert plt.rcParams["axes.spines.right"] is False
     assert plt.rcParams["font.family"] == ["sans-serif"]
     assert "Arial" in plt.rcParams["font.sans-serif"]
+
+
+def test_apply_thesis_style_pins_text_colors():
+    """Text colors are pinned so labels never inherit an ambient (e.g. white,
+    invisible) default. Guards the design-guide section 2 color spec: axis and
+    chart titles pure black, body text #333333."""
+    import matplotlib.pyplot as plt
+
+    # Simulate a hostile dark-mode default where every text color is white.
+    plt.rcParams.update(
+        {
+            "text.color": "white",
+            "axes.labelcolor": "white",
+            "axes.titlecolor": "white",
+        }
+    )
+    theme.apply_thesis_style(force=True)
+    assert plt.rcParams["axes.labelcolor"] == "#000000"
+    assert plt.rcParams["axes.titlecolor"] == "#000000"
+    assert plt.rcParams["text.color"] == "#333333"
 
 
 # ---------------------------------------------------------------------------

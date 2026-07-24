@@ -40,7 +40,7 @@ PROVIDER_TIERS: dict[str, list[str]] = {
 STRATEGY_COLORS: dict[str, str] = {
     "Single Agent": "#ED93B1",
     "SOP": "#D4537E",
-    "Crew AI": "#993556",
+    "CrewAI": "#993556",
     "LangGraph": "#72243E",
 }
 
@@ -62,6 +62,14 @@ HEAT_COLORMAP: str = "YlOrRd"
 # should read as subordinate.)
 CONTROL_COLOR: str = "#9CA3AF"
 
+# Run-outcome neutrals for the reliability funnel, where a bar is split into
+# what the user got rather than which strategy produced it. Deliberately
+# achromatic: strategy hue already encodes the valid segment, so the two
+# failure modes must not read as a fifth and sixth strategy. Dark for a run
+# that errored, light for one that returned a diagram that would not render.
+OUTCOME_ERROR_COLOR: str = "#333333"
+OUTCOME_INVALID_COLOR: str = "#D0D0D0"
+
 # Default categorical cycle for a dimension without its own palette: the
 # strategy gradient, in its frozen order.
 DEFAULT_CYCLE: list[str] = list(STRATEGY_COLORS.values())
@@ -78,7 +86,8 @@ DEFAULT_CYCLE: list[str] = list(STRATEGY_COLORS.values())
 _STRATEGY_VALUE_TO_NAME: dict[str, str] = {
     "single_agent": "Single Agent",
     "sop_based": "SOP",
-    "crew_ai": "Crew AI",
+    # One word, as the vendor spells it.
+    "crew_ai": "CrewAI",
     "lang_graph": "LangGraph",
 }
 
@@ -136,6 +145,15 @@ def apply_thesis_style(*, force: bool = False) -> None:
             "xtick.labelsize": 9,
             "ytick.labelsize": 9,
             "legend.fontsize": 9,
+            # Text colors (design guide section 2). Pinned explicitly so the
+            # style is self-contained: without these, axis titles, legend text,
+            # titles and colorbar labels inherit matplotlib's ambient text
+            # color, which renders white (invisible) under a dark-mode config.
+            # Axis and chart titles are pure black; body text (legend entries,
+            # in-chart annotations, colorbar labels) is the softer #333333.
+            "text.color": "#333333",
+            "axes.labelcolor": "#000000",
+            "axes.titlecolor": "#000000",
             # Axes: L-shape, dark-gray spines.
             "axes.edgecolor": "#333333",
             "axes.linewidth": 0.75,

@@ -178,6 +178,162 @@ def test_runs_by_strategy_includes_controls():
     assert "null_control" in rows
 
 
+def test_run_outcomes_partition_every_run():
+    """
+    The three funnel outcomes are mutually exclusive and cover every run.
+
+    An errored run has no metric row at all, so it must still be counted (via
+    the LEFT JOIN) rather than vanishing from its strategy's total.
+    """
+    conn = _conn()
+    # One valid, one unrenderable, one outright failure: all three outcomes.
+    _insert_run(conn, strategy="single_agent", model="m", tier=1, f1=0.6)
+    rid = _insert_run(conn, strategy="single_agent", model="m", tier=1, f1=0.0)
+    conn.execute("UPDATE metric_results SET parses_valid = 0 WHERE run_id = ?", (rid,))
+    failed = _insert_run(
+        conn, strategy="single_agent", model="m", tier=1, f1=0.0, success=False
+    )
+    conn.execute("DELETE FROM metric_results WHERE run_id = ?", (failed,))
+
+    outcomes = {r[0]: r[1:] for r in q.run_outcomes_by_strategy(conn)}
+    n_valid, n_invalid, n_error = outcomes["single_agent"]
+    assert (n_valid, n_invalid, n_error) == (1, 1, 1)
+    # The partition is what makes the funnel's percentages trustworthy.
+    assert n_valid + n_invalid + n_error == 3
+
+
+def test_run_outcomes_empty_db():
+    assert q.run_outcomes_by_strategy(_conn()) == []
+
+
+def test_mean_f1_by_convention_differ_on_failures():
+    """
+    A failed run drags intent-to-treat below valid-only for its strategy but
+    leaves valid-only untouched: the two conventions must diverge exactly by
+    how a zero is folded in.
+    """
+    conn = _conn()
+    # single_agent: two valid runs at 0.8, plus one failure (no metric row).
+    _insert_run(conn, strategy="single_agent", model="m", tier=1, f1=0.8)
+    _insert_run(conn, strategy="single_agent", model="m", tier=1, f1=0.8)
+    failed = _insert_run(
+        conn, strategy="single_agent", model="m", tier=1, f1=0.0, success=False
+    )
+    conn.execute("DELETE FROM metric_results WHERE run_id = ?", (failed,))
+    # crew_ai: one valid run, no failures, so the two conventions agree.
+    _insert_run(conn, strategy="crew_ai", model="m", tier=1, f1=0.6)
+
+    rows = q.mean_entity_id_f1_by_strategy_by_convention(conn)
+    by = {r[0]: (r[1], r[2]) for r in rows}
+    sa_vo, sa_itt = by["single_agent"]
+    assert sa_vo == pytest.approx(0.8)  # only the two parsed runs
+    assert sa_itt == pytest.approx(0.8 * 2 / 3)  # the failure counts as 0
+    ca_vo, ca_itt = by["crew_ai"]
+    assert ca_vo == pytest.approx(ca_itt)  # no failures: conventions agree
+    assert "null_control" not in by  # controls excluded
+
+
+def test_mean_f1_by_convention_empty_db():
+    assert q.mean_entity_id_f1_by_strategy_by_convention(_conn()) == []
+
+
+def test_run_rates_by_tier_are_pooled_fractions():
+    """
+    valid_rate and fail_rate are run-count fractions of the tier total, over
+    experimental runs only. This query is deliberately not an F1 average:
+    tier-level correctness uses per-cell means, a different grain.
+    """
+    conn = _conn()
+    # Tier 1: two valid runs, one failure (no metric row).
+    _insert_run(conn, strategy="single_agent", model="m", tier=1, f1=0.8)
+    _insert_run(conn, strategy="crew_ai", model="m", tier=1, f1=0.8)
+    failed = _insert_run(
+        conn, strategy="crew_ai", model="m", tier=1, f1=0.0, success=False
+    )
+    conn.execute("DELETE FROM metric_results WHERE run_id = ?", (failed,))
+    # A control at tier 1 must not enter the counts.
+    _insert_run(conn, strategy="null_control", model="control", tier=1, f1=0.0)
+
+    by = {r[0]: r for r in q.run_rates_by_tier(conn)}
+    tier, n, valid_rate, fail_rate = by[1]
+    assert n == 3  # control excluded
+    assert valid_rate == pytest.approx(2 / 3)
+    assert fail_rate == pytest.approx(1 / 3)
+
+
+def test_run_rates_by_tier_empty_db():
+    assert q.run_rates_by_tier(_conn()) == []
+
+
+def test_efficiency_averages_include_failed_runs():
+    """
+    Cost and latency are averaged over every run, failures included: a failed
+    run still spent tokens. A metric JOIN would silently drop it and inflate
+    the per-run figures. Controls excluded.
+    """
+    conn = _conn()
+    _insert_run(conn, strategy="crew_ai", model="m", tier=1, f1=0.8, cost=0.02)
+    failed = _insert_run(
+        conn, strategy="crew_ai", model="m", tier=1, f1=0.0, cost=0.04, success=False
+    )
+    conn.execute("DELETE FROM metric_results WHERE run_id = ?", (failed,))
+    _insert_run(conn, strategy="null_control", model="c", tier=1, f1=0.0, cost=0.0)
+
+    by = {r[0]: r for r in q.efficiency_by_strategy(conn)}
+    strategy, mean_tokens, mean_cost, mean_latency_s, total_cost = by["crew_ai"]
+    # Both runs counted: mean cost = (0.02 + 0.04) / 2, total = 0.06.
+    assert mean_cost == pytest.approx(0.03)
+    assert total_cost == pytest.approx(0.06)
+    assert "null_control" not in by
+
+
+def test_efficiency_by_strategy_empty_db():
+    assert q.efficiency_by_strategy(_conn()) == []
+
+
+def test_valid_rate_by_model_is_pooled_fraction():
+    """Parsed fraction of a model's experimental runs; controls excluded."""
+    conn = _conn()
+    _insert_run(conn, strategy="crew_ai", model="m_x", tier=1, f1=0.8)
+    inv = _insert_run(conn, strategy="crew_ai", model="m_x", tier=1, f1=0.0)
+    conn.execute("UPDATE metric_results SET parses_valid = 0 WHERE run_id = ?", (inv,))
+    _insert_run(conn, strategy="null_control", model="m_x", tier=1, f1=0.0)
+
+    by = {r[0]: r for r in q.valid_rate_by_model(conn)}
+    model, n, valid_rate = by["m_x"]
+    assert n == 2  # control excluded
+    assert valid_rate == pytest.approx(0.5)  # one of two parsed
+
+
+def test_valid_rate_by_model_empty_db():
+    assert q.valid_rate_by_model(_conn()) == []
+
+
+def test_taxonomy_rates_average_over_valid_diagrams_only():
+    """
+    The rate is a mean over parsed diagrams, not all runs, and controls do
+    not appear. An unparseable diagram must not drag the average.
+    """
+    conn = _conn()
+    _insert_run(conn, strategy="crew_ai", model="m", tier=1, f1=0.9, missing_entities=2)
+    _insert_run(conn, strategy="crew_ai", model="m", tier=1, f1=0.9, missing_entities=4)
+    # An unrenderable run with a huge miss count must be excluded, not averaged.
+    inv = _insert_run(
+        conn, strategy="crew_ai", model="m", tier=1, f1=0.0, missing_entities=99
+    )
+    conn.execute("UPDATE metric_results SET parses_valid = 0 WHERE run_id = ?", (inv,))
+    _insert_run(conn, strategy="null_control", model="c", tier=1, f1=0.0)
+
+    rates = q.taxonomy_rates_per_valid_diagram(conn, ("missing_entities",))
+    assert rates["crew_ai"]["missing_entities"] == pytest.approx(3.0)  # (2+4)/2
+    assert "null_control" not in rates
+
+
+def test_taxonomy_rates_rejects_bad_column():
+    with pytest.raises(ValueError):
+        q.taxonomy_rates_per_valid_diagram(_conn(), ("missing_entities; DROP",))
+
+
 # ---------------------------------------------------------------------------
 # Strategy Comparison
 # ---------------------------------------------------------------------------
