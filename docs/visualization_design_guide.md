@@ -48,7 +48,7 @@ Four orchestration strategies on a single pink-to-magenta gradient. Lightness en
 |---|---|
 | Single Agent | `#ED93B1` |
 | SOP | `#D4537E` |
-| Crew AI | `#993556` |
+| CrewAI | `#993556` |
 | LangGraph | `#72243E` |
 
 **Rationale.** Pink occupies a region of color space that no provider uses, which removes any chance of a reader confusing a strategy for a provider. The gradient implies ordering. Lightest is the single-LLM-call baseline, darkest is the explicit graph workflow.
@@ -112,7 +112,7 @@ PROVIDER_TIERS = {
 STRATEGY_COLORS = {
     "Single Agent": "#ED93B1",
     "SOP":          "#D4537E",
-    "Crew AI":      "#993556",
+    "CrewAI":       "#993556",
     "LangGraph":    "#72243E",
 }
 

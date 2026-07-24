@@ -14,9 +14,10 @@
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Pin to a specific tag for deterministic CI/dev parity. Bump when
-    # pyproject.toml's ruff>=X is bumped, so local and runtime versions
-    # stay in lockstep.
+    # Pin to a specific tag for deterministic CI/dev parity. Track
+    # pyproject.toml's ruff bound (currently >=0.15.21,<0.16), so local and
+    # runtime versions stay in lockstep. Stay below 0.16, which formats
+    # markdown code fences by default.
     rev: v0.15.21
     hooks:
       - id: ruff-format
@@ -24,3 +25,13 @@ repos:
         # --fix lets the hook auto-resolve trivial issues (import order,
         # quotes) so commits aren't blocked on things ruff can repair.
         args: [--fix]
+
+  - repo: https://github.com/kynan/nbstripout
+    # Strip outputs, execution counts, and volatile metadata from notebooks
+    # before they are committed. Notebook outputs bloat diffs, embed absolute
+    # paths and machine-specific kernel metadata, and can leak DB contents;
+    # the notebooks here are runnable sources, not result artifacts. Pinned
+    # for dev/CI parity, same as the ruff hook above.
+    rev: 0.8.1
+    hooks:
+      - id: nbstripout

@@ -34,5 +34,13 @@ htmlcov/
 # Claude Code local working files (recaps, session notes, local settings)
 .claude/
 
+# Build outputs: the results DB is a separate release artifact (see the
+# release table in CONTRIBUTING), and figures / analysis JSON are regenerated
+# from it. Keep the out/ directory itself (via .gitkeep) but ignore its
+# generated contents; ignore the analysis output tree entirely.
+/out/*
+!/out/.gitkeep
+/output/
+
 # Misc
 *.log

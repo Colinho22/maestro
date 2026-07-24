@@ -14,8 +14,8 @@ authors:
     affiliation: "FH Graubünden (University of Applied Sciences of the Grisons) FHGR"
 license: MIT
 repository-code: "https://github.com/Colinho22/maestro"
-version: "1.0.1"
-date-released: "2026-06-21"
+version: "1.0.2"
+date-released: "2026-07-24"
 keywords:
   - LLM evaluation
   - agentic orchestration

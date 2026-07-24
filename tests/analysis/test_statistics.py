@@ -610,6 +610,152 @@ def test_effect_sizes_excludes_controls():
 
 
 # ---------------------------------------------------------------------------
+# Effect-size summary: the reportable |d| range
+# ---------------------------------------------------------------------------
+
+
+def _varying_analysis_frame() -> "object":
+    """
+    A frame whose per-cell means differ within each strategy, so pooled
+    variance is non-zero and every pairwise d is finite.
+
+    ``_analysis_frame`` deliberately holds each strategy at one constant score
+    to exercise the zero-variance sentinel; the summary range needs the
+    opposite, so the per-cell scores are spread here instead.
+
+    The levels are chosen so the widest contrast is ``crew_ai vs lang_graph``,
+    a *negative* d (crew_ai sorts first alphabetically but scores lowest).
+    That makes the summary's use of absolute values load-bearing: a range over
+    signed values would miss the largest magnitude entirely.
+    """
+    import pandas as pd
+
+    spreads = {
+        Strategy.CREW_AI: (0.10, 0.20, 0.30),
+        Strategy.LANG_GRAPH: (0.80, 0.90, 1.00),
+        Strategy.SINGLE_AGENT: (0.45, 0.55, 0.65),
+    }
+    cells = (("m_a", "ex_01"), ("m_b", "ex_02"), ("m_c", "ex_03"))
+    rows = []
+    for strat, scores in spreads.items():
+        for (model, example_id), score in zip(cells, scores):
+            rows.append(
+                {
+                    "strategy": strat.value,
+                    "model": model,
+                    "example_id": example_id,
+                    "tier": 2,
+                    "parses_valid": 1,
+                    stats.PRIMARY_DV: score,
+                    "cost_usd": 0.001,
+                    "duration_ms": 100,
+                    "retry_count": 0,
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+def test_effect_sizes_summary_uses_absolute_values():
+    """
+    The summary range is over |d|, and names the widest contrast.
+
+    The sign of a pairwise d only records which strategy sorted first, so a
+    negative d must still be able to be the largest magnitude.
+    """
+    out = stats.effect_sizes(_varying_analysis_frame())
+
+    summary = out["summary"]
+    finite = [
+        abs(p["cohens_d"])
+        for p in out["pairs"]
+        if isinstance(p["cohens_d"], (int, float))
+    ]
+    assert summary["abs_d_min"] == pytest.approx(min(finite))
+    assert summary["abs_d_max"] == pytest.approx(max(finite))
+    assert summary["abs_d_min"] >= 0
+    assert summary["n_pairs"] == len(out["pairs"])
+    assert summary["n_sentinel_pairs"] == 0
+    assert summary["n_undefined_pairs"] == 0
+
+    # The fixture puts the widest contrast on a negative d (crew_ai sorts
+    # first but scores lowest). Ranging over signed values would miss it, so
+    # this pins the absolute-value behaviour rather than merely asserting a
+    # non-negative minimum.
+    assert summary["largest_contrast"]["cohens_d"] < 0
+    assert {
+        summary["largest_contrast"]["group_a"],
+        summary["largest_contrast"]["group_b"],
+    } == {Strategy.CREW_AI.value, Strategy.LANG_GRAPH.value}
+
+    # The named contrast is the one carrying the maximum magnitude.
+    widest = summary["largest_contrast"]
+    assert widest["abs_cohens_d"] == pytest.approx(summary["abs_d_max"])
+    assert abs(widest["cohens_d"]) == pytest.approx(summary["abs_d_max"])
+    assert {widest["group_a"], widest["group_b"]} <= {
+        p["group_a"] for p in out["pairs"]
+    } | {p["group_b"] for p in out["pairs"]}
+
+
+def test_effect_sizes_summary_counts_sentinels_outside_the_range():
+    """
+    Infinite d (zero pooled variance, unequal means) is counted, not ranged.
+
+    An infinity cannot sit in a numeric range, and dropping it silently would
+    present a partial range as if it covered every contrast.
+    """
+    df = _analysis_frame(
+        {
+            Strategy.SINGLE_AGENT: 0.5,
+            Strategy.CREW_AI: 0.9,
+            Strategy.LANG_GRAPH: 0.1,
+        }
+    )
+    out = stats.effect_sizes(df)
+    summary = out["summary"]
+
+    # Every pair here is deterministic-vs-deterministic: all infinite.
+    assert summary["n_pairs"] == 3
+    assert summary["n_sentinel_pairs"] == 3
+    assert summary["n_undefined_pairs"] == 0
+    assert summary["abs_d_min"] is None
+    assert summary["abs_d_max"] is None
+    assert summary["largest_contrast"] is None
+
+
+def test_effect_sizes_summary_counts_undefined_pairs():
+    """A strategy with a single cell yields d=None, counted as undefined."""
+    import pandas as pd
+
+    df = _analysis_frame({Strategy.SINGLE_AGENT: 0.5, Strategy.CREW_AI: 0.9})
+    # Reduce crew_ai to one cell: with n < 2 the pooled SD is undefined, so
+    # _cohens_d returns None for every pair involving it.
+    single_cell = df[(df["strategy"] == Strategy.CREW_AI.value)].iloc[:1]
+    df = pd.concat([df[df["strategy"] != Strategy.CREW_AI.value], single_cell])
+
+    out = stats.effect_sizes(df)
+    summary = out["summary"]
+    assert summary["n_pairs"] == 1
+    assert summary["n_undefined_pairs"] == 1
+    assert summary["abs_d_max"] is None
+    assert summary["largest_contrast"] is None
+
+
+def test_effect_sizes_skip_stub_carries_no_summary():
+    """
+    A skipped analysis emits no summary at all, rather than an empty range: a
+    null min/max would be indistinguishable from a computed-but-degenerate
+    one. The skip reason is the honest record instead.
+    """
+    conn = _conn()
+    df = stats.load_dataframe(conn)  # empty DB: no experimental rows
+    out = stats.effect_sizes(df)
+    assert out["status"] == "skipped"
+    assert "summary" not in out
+    # Metadata still present so the file is self-describing even when skipped.
+    assert out["dependent_variable"] == stats.PRIMARY_DV
+
+
+# ---------------------------------------------------------------------------
 # Error taxonomy: descriptive, controls included
 # ---------------------------------------------------------------------------
 

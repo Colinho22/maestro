@@ -111,6 +111,61 @@ def mean_entity_id_f1_by_strategy(
     return [(r["strategy"], float(r["mean_f1"])) for r in rows]
 
 
+def mean_entity_id_f1_by_strategy_by_convention(
+    conn: sqlite3.Connection,
+) -> list[tuple[str, float, float]]:
+    """
+    Mean ``entity_id_f1`` per strategy under both scoring conventions, as
+    ``(strategy, valid_only, intent_to_treat)`` ordered by strategy name.
+
+    ``valid_only`` averages only runs whose diagram parsed (quality given a
+    render); ``intent_to_treat`` averages every run, scoring a failed or
+    unrenderable one as 0 (what a user receives). Reporting both is the point:
+    failures concentrate in the more complex orchestrations, so the two
+    columns can diverge.
+
+    These are grand means over the raw runs, distinct from the per-cell means
+    the inferential tests use (they differ by at most ~0.001). LEFT JOIN so a
+    failed run with no metric row still counts as a 0 under intent-to-treat.
+    Controls excluded. Empty list if the tables are absent.
+    """
+    if not (
+        table_exists(conn, "run_configs")
+        and table_exists(conn, "run_results")
+        and table_exists(conn, "metric_results")
+    ):
+        return []
+    placeholders = ",".join("?" * len(_CONTROL_VALUES))
+    rows = conn.execute(
+        f"""
+        SELECT
+            c.strategy AS strategy,
+            AVG(CASE WHEN COALESCE(m.parses_valid, 0) = 1
+                     THEN m.entity_id_f1 END)                    AS valid_only,
+            AVG(CASE WHEN COALESCE(m.parses_valid, 0) = 1
+                     THEN m.entity_id_f1 ELSE 0 END)             AS intent_to_treat
+        FROM run_configs c
+        JOIN run_results r ON c.run_id = r.run_id
+        LEFT JOIN metric_results m ON c.run_id = m.run_id
+        WHERE c.strategy NOT IN ({placeholders})
+        GROUP BY c.strategy
+        ORDER BY c.strategy
+        """,
+        _CONTROL_VALUES,
+    ).fetchall()
+    return [
+        # valid_only is AVG over parsed runs only, so it is NULL for a
+        # strategy with zero valid runs; coalesce to 0.0. intent_to_treat has
+        # an ELSE 0 branch and is never NULL.
+        (
+            r["strategy"],
+            float(r["valid_only"]) if r["valid_only"] is not None else 0.0,
+            float(r["intent_to_treat"]),
+        )
+        for r in rows
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Overview view
 # ---------------------------------------------------------------------------
@@ -177,6 +232,122 @@ def runs_by_strategy_success(
     return [(r["strategy"], r["n_success"], r["n_failure"]) for r in rows]
 
 
+def run_outcomes_by_strategy(
+    conn: sqlite3.Connection,
+) -> list[tuple[str, int, int, int]]:
+    """
+    Per strategy: ``(strategy, n_valid, n_invalid, n_error)``, the three
+    mutually exclusive outcomes of a run, summing to its total.
+
+    ``n_error`` is a run that never produced a scorable result; ``n_invalid``
+    is one that returned a diagram which does not render; ``n_valid`` is one
+    that rendered. Splitting reliability from correctness this way is the
+    point of the funnel: a strategy can be crash-free yet frequently return
+    something unusable, and a single success rate would hide that.
+
+    LEFT JOIN so an errored run (no ``metric_results`` row at all) is still
+    counted rather than silently dropped from its strategy's total.
+    """
+    if not (
+        table_exists(conn, "run_configs")
+        and table_exists(conn, "run_results")
+        and table_exists(conn, "metric_results")
+    ):
+        return []
+    rows = conn.execute(
+        f"""
+        SELECT
+            c.strategy AS strategy,
+            SUM(CASE WHEN {_SUCCESS_SQL} AND COALESCE(m.parses_valid, 0) = 1
+                     THEN 1 ELSE 0 END)                          AS n_valid,
+            SUM(CASE WHEN {_SUCCESS_SQL} AND COALESCE(m.parses_valid, 0) != 1
+                     THEN 1 ELSE 0 END)                          AS n_invalid,
+            SUM(CASE WHEN {_SUCCESS_SQL} THEN 0 ELSE 1 END)      AS n_error
+        FROM run_configs c
+        JOIN run_results r ON c.run_id = r.run_id
+        LEFT JOIN metric_results m ON c.run_id = m.run_id
+        GROUP BY c.strategy
+        ORDER BY c.strategy
+        """
+    ).fetchall()
+    return [(r["strategy"], r["n_valid"], r["n_invalid"], r["n_error"]) for r in rows]
+
+
+def run_rates_by_tier(
+    conn: sqlite3.Connection,
+) -> list[tuple[int, int, float, float]]:
+    """
+    Per input-complexity tier: ``(tier, n, valid_rate, fail_rate)``, over the
+    experimental strategies only.
+
+    These are run-count fractions of the tier's total runs: ``valid_rate`` is
+    the parsed fraction, ``fail_rate`` the fraction that never produced a
+    scorable result (a run error, distinct from an unrenderable diagram, so
+    the two need not sum to 1). Deliberately NOT an F1 average: correctness at
+    the tier level uses per-cell means (see ``analysis.statistics``), a
+    different grain from these pooled counts. Controls excluded. Empty list if
+    the tables are absent.
+    """
+    if not (table_exists(conn, "run_configs") and table_exists(conn, "run_results")):
+        return []
+    placeholders = ",".join("?" * len(_CONTROL_VALUES))
+    rows = conn.execute(
+        f"""
+        SELECT
+            c.tier AS tier,
+            COUNT(*) AS n,
+            SUM(CASE WHEN COALESCE(m.parses_valid, 0) = 1
+                     THEN 1 ELSE 0 END) * 1.0 / COUNT(*)         AS valid_rate,
+            SUM(CASE WHEN {_SUCCESS_SQL} THEN 0 ELSE 1 END)
+                     * 1.0 / COUNT(*)                            AS fail_rate
+        FROM run_configs c
+        JOIN run_results r ON c.run_id = r.run_id
+        LEFT JOIN metric_results m ON c.run_id = m.run_id
+        WHERE c.strategy NOT IN ({placeholders})
+        GROUP BY c.tier
+        ORDER BY c.tier
+        """,
+        _CONTROL_VALUES,
+    ).fetchall()
+    return [
+        (int(r["tier"]), int(r["n"]), float(r["valid_rate"]), float(r["fail_rate"]))
+        for r in rows
+    ]
+
+
+def valid_rate_by_model(
+    conn: sqlite3.Connection,
+) -> list[tuple[str, int, float]]:
+    """
+    Per model: ``(model, n, valid_rate)`` over the experimental strategies.
+
+    The parsed fraction of a model's runs, a run-count fraction like
+    ``run_rates_by_tier`` rather than an F1 average (correctness by model uses
+    per-cell means, a different grain). Controls excluded. Empty list if the
+    tables are absent.
+    """
+    if not (table_exists(conn, "run_configs") and table_exists(conn, "run_results")):
+        return []
+    placeholders = ",".join("?" * len(_CONTROL_VALUES))
+    rows = conn.execute(
+        f"""
+        SELECT
+            c.model AS model,
+            COUNT(*) AS n,
+            SUM(CASE WHEN COALESCE(m.parses_valid, 0) = 1
+                     THEN 1 ELSE 0 END) * 1.0 / COUNT(*)         AS valid_rate
+        FROM run_configs c
+        JOIN run_results r ON c.run_id = r.run_id
+        LEFT JOIN metric_results m ON c.run_id = m.run_id
+        WHERE c.strategy NOT IN ({placeholders})
+        GROUP BY c.model
+        ORDER BY c.model
+        """,
+        _CONTROL_VALUES,
+    ).fetchall()
+    return [(r["model"], int(r["n"]), float(r["valid_rate"])) for r in rows]
+
+
 def total_cost_by_strategy(conn: sqlite3.Connection) -> list[tuple[str, float]]:
     """Per strategy total cost (USD), all strategies. Empty list if no runs."""
     if not (table_exists(conn, "run_configs") and table_exists(conn, "run_results")):
@@ -191,6 +362,51 @@ def total_cost_by_strategy(conn: sqlite3.Connection) -> list[tuple[str, float]]:
         """
     ).fetchall()
     return [(r["strategy"], float(r["cost"])) for r in rows]
+
+
+def efficiency_by_strategy(
+    conn: sqlite3.Connection,
+) -> list[tuple[str, float, float, float, float]]:
+    """
+    Per strategy: ``(strategy, mean_tokens, mean_cost_usd, mean_latency_s,
+    total_cost_usd)``, over the experimental strategies, across ALL runs.
+
+    Averaged over every run including failures: a run that fails still spends
+    tokens and is still paid for, so an efficiency figure that dropped them
+    would understate what a strategy actually costs. This is a per-run average,
+    the natural grain for cost and latency (unlike correctness, which uses
+    per-cell means). No metric JOIN, so failed runs with no metric row are
+    kept. Controls excluded. Empty list if the tables are absent.
+    """
+    if not (table_exists(conn, "run_configs") and table_exists(conn, "run_results")):
+        return []
+    placeholders = ",".join("?" * len(_CONTROL_VALUES))
+    rows = conn.execute(
+        f"""
+        SELECT
+            c.strategy AS strategy,
+            AVG(r.prompt_tokens + r.completion_tokens)      AS mean_tokens,
+            AVG(r.cost_usd)                                 AS mean_cost,
+            AVG(r.duration_ms) / 1000.0                     AS mean_latency_s,
+            COALESCE(SUM(r.cost_usd), 0.0)                  AS total_cost
+        FROM run_configs c
+        JOIN run_results r ON c.run_id = r.run_id
+        WHERE c.strategy NOT IN ({placeholders})
+        GROUP BY c.strategy
+        ORDER BY c.strategy
+        """,
+        _CONTROL_VALUES,
+    ).fetchall()
+    return [
+        (
+            r["strategy"],
+            float(r["mean_tokens"]),
+            float(r["mean_cost"]),
+            float(r["mean_latency_s"]),
+            float(r["total_cost"]),
+        )
+        for r in rows
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -502,3 +718,42 @@ def taxonomy_counts_by_strategy(
         params,
     ).fetchall()
     return {r["strategy"]: {c: int(r[c] or 0) for c in columns} for r in rows}
+
+
+def taxonomy_rates_per_valid_diagram(
+    conn: sqlite3.Connection,
+    columns: tuple[str, ...],
+) -> dict[str, dict[str, float]]:
+    """
+    Mean taxonomy count per valid diagram, per strategy, for the given
+    ``columns``. Returns ``{strategy: {column: mean_per_valid_diagram}}``.
+
+    Valid diagrams only (``parses_valid = 1``): an unparseable diagram scores
+    every truth element as missing, which would just restate the reliability
+    finding instead of describing error content. Rates rather than sums,
+    because each strategy has a different valid count. Experimental strategies
+    only, since a control's error profile is a different question.
+    """
+    for col in columns:
+        if not _IDENTIFIER_RE.match(col):
+            raise ValueError(f"invalid taxonomy column: {col!r}")
+    if not (table_exists(conn, "metric_results") and table_exists(conn, "run_configs")):
+        return {}
+
+    placeholders = ",".join("?" * len(_CONTROL_VALUES))
+    avg_cols = ", ".join(f'AVG(m."{c}") AS "{c}"' for c in columns)
+    rows = conn.execute(
+        f"""
+        SELECT c.strategy AS strategy, {avg_cols}
+        FROM run_configs c
+        JOIN metric_results m ON c.run_id = m.run_id
+        WHERE m.parses_valid = 1 AND c.strategy NOT IN ({placeholders})
+        GROUP BY c.strategy
+        ORDER BY c.strategy
+        """,
+        _CONTROL_VALUES,
+    ).fetchall()
+    return {
+        r["strategy"]: {c: float(r[c]) if r[c] is not None else 0.0 for c in columns}
+        for r in rows
+    }

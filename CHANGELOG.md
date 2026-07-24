@@ -8,6 +8,75 @@ GitHub Release. A published `maestro.db` is integrity-anchored by the SHA-256
 committed alongside its data release, so a downloaded database can be verified
 against the exact file the results came from.
 
+## [1.0.2] - 2026-07-24
+
+Polished visualization and analysis refinements on the `v1.0.1` dataset. The
+result database is unchanged; this release changes how those results are
+analysed and presented, so pre-change and post-change statistics must not be
+mixed (see the scoring-contract note below).
+
+### Added
+
+- Two runnable notebooks under `src/maestro/viz/`, each reproducing a set of
+  thesis exhibits from the frozen database. `core-visualization.ipynb` renders
+  the figures (reliability funnel, correctness with confidence intervals,
+  pairwise strategy contrasts, error profiles, correctness-vs-cost, the
+  strategy x model heatmap) and writes an SVG and a PNG per figure plus a
+  `figure_values.json` of the exact plotted values. `analysis_tables.ipynb`
+  formats the statistical tables (per-strategy F1, the one- and two-way
+  ANOVAs, per-tier outcomes, error rates, efficiency, mixed-effects estimates,
+  per-model reliability) by reading the canonical analysis JSON, never
+  recomputing a statistic.
+- Reusable read-only queries in `viz/queries.py`, promoted from the notebooks
+  so the notebooks and the dashboard share one tested source:
+  `run_outcomes_by_strategy`, `mean_entity_id_f1_by_strategy_by_convention`,
+  `run_rates_by_tier`, `valid_rate_by_model`, `taxonomy_rates_per_valid_diagram`,
+  and `efficiency_by_strategy`. Each carries a test pinning its population and
+  grain (per-cell means for correctness, pooled counts for rates).
+- Outcome-neutral theme colors (`OUTCOME_ERROR_COLOR`, `OUTCOME_INVALID_COLOR`)
+  for the reliability funnel, kept achromatic so the two failure modes never
+  read as additional strategies.
+- An `nbstripout` pre-commit hook that strips notebook outputs, execution
+  counts, and volatile metadata before commit, so the notebooks are committed
+  as runnable sources rather than result artifacts.
+- `mixed_effects_robustness` output: a `MixedLM` fit of
+  `entity_id_f1 ~ strategy * tier` on the un-aggregated runs, with crossed
+  random intercepts for model and input, as a robustness check on the
+  aggregated ANOVA. Degrades to a skip-stub if the mixed model does not
+  converge.
+- Output contract `schema_version` bumped to `1.1`; each inferential file
+  records its `unit_of_analysis` and `scoring_convention`.
+- `effect_sizes` output gains a `summary` block: the range of absolute
+  Cohen's d across the pairwise strategy contrasts, plus the widest contrast.
+  Reporting a null needs an effect size beside the non-significant p, and a
+  results table cannot carry one value per pair. Pairs with no finite d are
+  counted (`n_sentinel_pairs`, `n_undefined_pairs`) rather than dropped, so a
+  partial range is never presented as a complete one. `report.md` prints the
+  range for both conventions. Purely additive, so `schema_version` stays
+  `1.1`: no previously reported number changes.
+
+### Changed
+
+- The `crew_ai` strategy displays as `CrewAI` (one word, as the vendor spells
+  it) across figures, tables, and the dashboard.
+- **Scoring contract: inferential tests now aggregate to per-cell means under
+  an explicit scoring convention.** This changes what the reported statistics
+  mean, so it is a versioned scoring change: pre-change and post-change numbers
+  must not be mixed in one analysis.
+  - The ANOVA / Tukey / Cohen's d path previously fit the raw per-run rows,
+    treating the five repeats of a cell as independent (pseudoreplication).
+    They now fit one observation per (strategy, model, input) after averaging
+    repeats. Reported `n` is the cell count, not the run count.
+  - Two scoring conventions are made explicit and are each emitted as their
+    own file (`<analysis>__intent_to_treat.json`, `<analysis>__valid_only.json`).
+    `intent_to_treat` (primary) scores a failed or unrenderable diagram as 0.0;
+    `valid_only` keeps only renderable diagrams. The prior implicit behaviour
+    (drop failures, keep an unrenderable diagram at its partial F1) matched
+    neither convention and is gone.
+  - `db.queries.fetch_analysis_rows` now LEFT JOINs `metric_results` so
+    outright failures (no scored row) reach the analysis layer and can be
+    scored 0.0 under `intent_to_treat`.
+
 ## [1.0.1] - 2026-06-21
 
 Experiment data. The result database produced by the `v1.0.0` code, published
