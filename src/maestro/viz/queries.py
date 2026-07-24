@@ -154,7 +154,14 @@ def mean_entity_id_f1_by_strategy_by_convention(
         _CONTROL_VALUES,
     ).fetchall()
     return [
-        (r["strategy"], float(r["valid_only"]), float(r["intent_to_treat"]))
+        # valid_only is AVG over parsed runs only, so it is NULL for a
+        # strategy with zero valid runs; coalesce to 0.0. intent_to_treat has
+        # an ELSE 0 branch and is never NULL.
+        (
+            r["strategy"],
+            float(r["valid_only"]) if r["valid_only"] is not None else 0.0,
+            float(r["intent_to_treat"]),
+        )
         for r in rows
     ]
 

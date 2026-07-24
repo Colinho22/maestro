@@ -233,6 +233,22 @@ def test_mean_f1_by_convention_differ_on_failures():
     assert "null_control" not in by  # controls excluded
 
 
+def test_mean_f1_by_convention_all_invalid_strategy():
+    """
+    A strategy whose every run failed to parse has a NULL valid_only average
+    (AVG over an empty set). It must coalesce to 0.0, not raise on float(None).
+    """
+    conn = _conn()
+    rid = _insert_run(conn, strategy="crew_ai", model="m", tier=1, f1=0.0)
+    conn.execute("UPDATE metric_results SET parses_valid = 0 WHERE run_id = ?", (rid,))
+
+    rows = q.mean_entity_id_f1_by_strategy_by_convention(conn)
+    by = {r[0]: (r[1], r[2]) for r in rows}
+    valid_only, intent_to_treat = by["crew_ai"]
+    assert valid_only == 0.0  # no parsed run to average; coalesced
+    assert intent_to_treat == 0.0  # the one invalid run scores 0
+
+
 def test_mean_f1_by_convention_empty_db():
     assert q.mean_entity_id_f1_by_strategy_by_convention(_conn()) == []
 
