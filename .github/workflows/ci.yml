@@ -25,7 +25,7 @@ jobs:
       # the human-readable version Dependabot will compare against when
       # opening update PRs (see .github/dependabot.yml github-actions
       # ecosystem entry).
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           # Don't leave the GITHUB_TOKEN in .git/config after checkout:
           # the CI job doesn't push, tag, or otherwise need git auth from
@@ -34,7 +34,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           # Match the .python-version pin and pyproject.toml requires-python.
           python-version: "3.11"
