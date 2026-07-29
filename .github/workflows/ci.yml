@@ -10,6 +10,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 # Cancel in-progress runs when new commits land on the same PR; the latest
 # diff is the only one worth gating.
 concurrency:
