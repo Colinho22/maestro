@@ -81,7 +81,7 @@ dev = [
     # misreads illustrative fragments, e.g. a trailing-comma snippet as a
     # tuple). Adopt it deliberately later with an explicit config, not via a
     # floating CI install. The pre-commit rev tracks this bound in lockstep.
-    "ruff>=0.15.21,<0.16",
+    "ruff>=0.15.22,<0.16",
     # Strips notebook outputs/exec-counts/metadata; also wired as a pre-commit
     # hook. Here so the CLI is available to strip a notebook on demand.
     "nbstripout>=0.9.1",
