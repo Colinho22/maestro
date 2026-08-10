@@ -60,7 +60,7 @@ dependencies = [
     # publication-quality figures, and matplotlib gives one style system for
     # both the dashboard and the embedded thesis figures with no
     # browser-component fragility.
-    "streamlit>=1.60.0,<2.0",
+    "streamlit>=1.61.1,<2.0",
     "matplotlib>=3.11.1,<4",
     # Windows-only: provides the IANA timezone database that zoneinfo
     # (used by analysis/timestamps.py) needs at runtime. macOS and most
