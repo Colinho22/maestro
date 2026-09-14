@@ -187,6 +187,30 @@ class ModelSpec(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# ReportedNumbers: docs-referenced headline totals dumped from the DB
+# ---------------------------------------------------------------------------
+
+
+class ReportedNumbers(BaseModel):
+    """
+    Machine-readable join point between the results database and any prose
+    (README, CHANGELOG, docs markdown) that quotes a headline total. The
+    producer (``maestro.analysis.reported_numbers``) writes an instance of
+    this model to JSON; the consistency test reads the same file back to
+    diff against tracked prose. Keeping it as a Pydantic model, rather
+    than a free dict, means the field set cannot silently drift between
+    the producer and the consumer.
+    """
+
+    schema_version: str
+    status: str
+    total_runs: int
+    successes: int
+    failures: int
+    total_cost_usd: float
+
+
+# ---------------------------------------------------------------------------
 # ModelPricing: lookup table for cost calculation
 # ---------------------------------------------------------------------------
 

@@ -26,17 +26,23 @@ from maestro.schemas import ModelSpec
 TIER_FRONTIER = "frontier"
 TIER_EFFICIENCY = "efficiency"
 
-# Regex over an internal id's terminal segment: 8 consecutive digits count as
-# a snapshot date (e.g. the 20251001 in claude-haiku-4-5-20251001), 4 do not
-# (a version number). Loose match is deliberate: a vendor's convention is
-# not something the registry can normalise, only expose.
-_SNAPSHOT_DATE_PATTERN = re.compile(r"-(\d{8})$")
+# Regex over an internal id's terminal segment. Two vendor shapes are
+# accepted: 8 consecutive digits (``20251001``) and the hyphenated form
+# ``YYYY-MM-DD`` (``2026-04-23``). The captured group is normalised to the
+# compact 8-digit form on return so downstream comparators do not need to
+# know which shape the vendor picked. 4 consecutive digits do not count
+# (that is a version number, e.g. ``mistral-small-2603``). Loose match
+# is deliberate: a vendor's convention is not something the registry can
+# normalise beyond this compact-form step, only expose.
+_SNAPSHOT_DATE_PATTERN = re.compile(r"-(\d{4}-\d{2}-\d{2}|\d{8})$")
 
 
 def _snapshot_of(internal_id: str) -> str | None:
-    """Extract an 8-digit snapshot date from the tail of an internal id."""
+    """Extract a snapshot date from the tail of an internal id, compact form."""
     match = _SNAPSHOT_DATE_PATTERN.search(internal_id)
-    return match.group(1) if match else None
+    if match is None:
+        return None
+    return match.group(1).replace("-", "")
 
 
 def _spec(

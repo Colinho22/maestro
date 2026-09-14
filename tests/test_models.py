@@ -92,3 +92,18 @@ def test_snapshot_date_extracted_when_present():
 def test_snapshot_date_is_none_when_absent():
     opus = get_model("claude-opus-4-8")
     assert opus.snapshot_date is None
+
+
+def test_snapshot_date_hyphenated_form_is_normalised_to_compact():
+    """Vendor ids like ``gpt-5.5-2026-04-23`` embed the date with hyphens;
+    the registry stores the compact 8-digit form so downstream comparators
+    do not need to know which shape the vendor picked."""
+    gpt = get_model("gpt-5.5-2026-04-23")
+    assert gpt.snapshot_date == "20260423"
+
+
+def test_snapshot_date_four_digit_tail_is_not_a_date():
+    """A 4-digit tail is a version number, not a date; leaving it as a
+    date would let a version bump masquerade as a snapshot roll."""
+    small = get_model("mistral-small-2603")
+    assert small.snapshot_date is None

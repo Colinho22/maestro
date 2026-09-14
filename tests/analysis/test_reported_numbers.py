@@ -69,12 +69,12 @@ def test_empty_db_returns_zeroed_payload(db_path: Path) -> None:
     with get_connection(db_path) as conn:
         payload = compute_reported_numbers(conn)
 
-    assert payload["schema_version"] == SCHEMA_VERSION
-    assert payload["status"] == "empty"
-    assert payload["total_runs"] == 0
-    assert payload["successes"] == 0
-    assert payload["failures"] == 0
-    assert payload["total_cost_usd"] == 0.0
+    assert payload.schema_version == SCHEMA_VERSION
+    assert payload.status == "empty"
+    assert payload.total_runs == 0
+    assert payload.successes == 0
+    assert payload.failures == 0
+    assert payload.total_cost_usd == 0.0
 
 
 def test_populated_db_reports_split_and_cost(db_path: Path) -> None:
@@ -107,12 +107,12 @@ def test_populated_db_reports_split_and_cost(db_path: Path) -> None:
     with get_connection(db_path) as conn:
         payload = compute_reported_numbers(conn)
 
-    assert payload["status"] == "ok"
-    assert payload["total_runs"] == 3
-    assert payload["successes"] == 2
-    assert payload["failures"] == 1
+    assert payload.status == "ok"
+    assert payload.total_runs == 3
+    assert payload.successes == 2
+    assert payload.failures == 1
     # Cost is rounded to two decimals; matches how docs quote it.
-    assert payload["total_cost_usd"] == 0.03
+    assert payload.total_cost_usd == 0.03
 
 
 def test_empty_output_counts_as_failure(db_path: Path) -> None:
@@ -131,6 +131,6 @@ def test_empty_output_counts_as_failure(db_path: Path) -> None:
     with get_connection(db_path) as conn:
         payload = compute_reported_numbers(conn)
 
-    assert payload["total_runs"] == 1
-    assert payload["successes"] == 0
-    assert payload["failures"] == 1
+    assert payload.total_runs == 1
+    assert payload.successes == 0
+    assert payload.failures == 1

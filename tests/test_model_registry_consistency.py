@@ -77,10 +77,14 @@ _MODEL_LITERAL_PATTERN = re.compile(
     r"\b(" + "|".join(_PROVIDER_NEEDLES) + r")-[a-z0-9][a-z0-9.\-]*"
 )
 
-# Substrings whose match is deliberately not a target model id. Kept
+# Model-family literals accepted only in prose (docstrings, comments, .md
+# files, and Python string literals). Active model ids in production
+# Python code must still resolve through the registry: the split exists
+# so a family name like ``gpt-5.5`` cannot shadow an unregistered active
+# alias if one ever appears as a bare identifier or dict key. Kept
 # narrow on purpose: broadening it here would defeat the point of the
-# scan. Each entry is a literal (lowercase, matches the pattern above).
-_LITERAL_ALLOWLIST: frozenset[str] = frozenset(
+# scan.
+_PROSE_ALLOWLIST: frozenset[str] = frozenset(
     {
         # Generic version families referenced in provider docstrings.
         # Not registered because they are examples of a lineage, not the
@@ -98,7 +102,8 @@ _LITERAL_ALLOWLIST: frozenset[str] = frozenset(
         # Test fixture used by legacy viz tests: a synthetic id that
         # exercises the display path without needing a registry entry.
         # Migration to a registered id is tracked separately from the
-        # registry rollout.
+        # registry rollout. It only ever appears as a string literal in
+        # test files, so the prose-context heuristic covers it.
         "gpt-4o-mini-2024-07-18",
         # Design-guide palette label (docs/visualization_design_guide.md).
         "claude-coral",
@@ -134,12 +139,93 @@ def _tracked_files() -> list[Path]:
     return files
 
 
-def _find_unregistered_literals(text: str) -> set[str]:
+def _is_python_prose_context(text: str, match_start: int) -> bool:
+    """
+    Heuristic: is the byte at ``match_start`` inside a Python comment, a
+    triple-quoted docstring, or a single/double-quoted string literal?
+
+    Walks backward from ``match_start`` on the current line to catch
+    ``#``-style comments, and scans from the start of the file to count
+    unclosed quote runs so a match inside any string literal (including
+    triple-quoted docstrings) is flagged as prose. Approximate on
+    purpose: the goal is to distinguish "the match sits in prose or a
+    string literal" from "the match is a bare identifier or a dict key",
+    not to be a full Python tokenizer. Errs toward permissive on the
+    prose side; the CamelCase / registered-id checks upstream keep the
+    scan honest.
+    """
+    # 1. Same-line ``#`` comment: any unquoted # earlier on the line means
+    #    the match is inside a comment.
+    line_start = text.rfind("\n", 0, match_start) + 1
+    line_prefix = text[line_start:match_start]
+    in_string = False
+    quote: str | None = None
+    i = 0
+    while i < len(line_prefix):
+        ch = line_prefix[i]
+        if in_string:
+            if ch == "\\":
+                i += 2
+                continue
+            if ch == quote:
+                in_string = False
+                quote = None
+        else:
+            if ch == "#":
+                return True
+            if ch in ('"', "'"):
+                in_string = True
+                quote = ch
+        i += 1
+
+    # 2. String / docstring context across the whole file up to the match.
+    #    Count triple-quote and single-quote runs to see if the match sits
+    #    inside an open string. Handles escaped quotes inside strings.
+    prefix = text[:match_start]
+    in_string = False
+    quote_seq: str | None = None
+    i = 0
+    while i < len(prefix):
+        ch = prefix[i]
+        if in_string:
+            if ch == "\\":
+                i += 2
+                continue
+            # Triple-quoted string only closes on the matching triple.
+            if quote_seq is not None and len(quote_seq) == 3:
+                if prefix[i : i + 3] == quote_seq:
+                    in_string = False
+                    quote_seq = None
+                    i += 3
+                    continue
+            elif ch == quote_seq:
+                in_string = False
+                quote_seq = None
+        else:
+            if ch in ('"', "'"):
+                # Triple-quote takes precedence over single-quote.
+                if prefix[i : i + 3] == ch * 3:
+                    in_string = True
+                    quote_seq = ch * 3
+                    i += 3
+                    continue
+                in_string = True
+                quote_seq = ch
+        i += 1
+    return in_string
+
+
+def _find_unregistered_literals(text: str, *, is_python: bool) -> set[str]:
     """
     Model-shaped literals in ``text`` that are neither in the registry
-    nor on the allowlist. Match is case-sensitive lowercase (the pattern
-    itself enforces it), which lets ``MistralProvider`` and other
+    nor on the prose allowlist. Match is case-sensitive lowercase (the
+    pattern itself enforces it), which lets ``MistralProvider`` and other
     CamelCase references pass without an explicit exemption.
+
+    In Python files the prose allowlist only fires when the match sits in
+    a comment, docstring, or string literal, so a family-name literal
+    cannot shadow an unregistered active id used as a bare identifier or
+    dict key. In markdown, allowlist matches unconditionally.
     """
     unregistered: set[str] = set()
     for match in _MODEL_LITERAL_PATTERN.finditer(text):
@@ -150,8 +236,9 @@ def _find_unregistered_literals(text: str) -> set[str]:
         candidate = raw.rstrip(".,:;)\"'`")
         if candidate in MODEL_REGISTRY:
             continue
-        if candidate in _LITERAL_ALLOWLIST:
-            continue
+        if candidate in _PROSE_ALLOWLIST:
+            if not is_python or _is_python_prose_context(text, match.start()):
+                continue
         unregistered.add(candidate)
     return unregistered
 
@@ -238,14 +325,15 @@ def test_no_unregistered_model_literals_in_tracked_files():
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
-        bad = _find_unregistered_literals(text)
+        is_python = path.suffix == ".py"
+        bad = _find_unregistered_literals(text, is_python=is_python)
         if bad:
             offenders[str(path.relative_to(_REPO_ROOT))] = bad
 
     assert not offenders, (
         "Unregistered model-shaped literals found. Add them to "
         "maestro.models.MODEL_REGISTRY or, if they are not model ids, "
-        "extend _LITERAL_ALLOWLIST with a one-line justification. "
+        "extend _PROSE_ALLOWLIST with a one-line justification. "
         f"Offenders: {offenders}"
     )
 
@@ -288,6 +376,11 @@ def test_docs_totals_match_reported_numbers_file():
     If a reported-numbers dump exists, docs must not contradict it. On a
     fresh checkout (no DB, no dump) this self-skips: the check exists to
     catch drift, not to require the DB be populated before merge.
+
+    Only literals explicitly qualified as totals ("total N runs",
+    "all N cells", "N total runs") are diffed against ``total_runs``.
+    Qualified subsets (evaluated, successful, failed) live in richer
+    artefacts and are out of scope for this drift check.
     """
     payload = _load_reported_numbers()
     if payload is None:
@@ -322,7 +415,16 @@ def test_docs_totals_match_reported_numbers_file():
     # this can catch reworded prose that keeps the numbers.
     mismatches: list[str] = []
     cost_pattern = re.compile(r"USD\s+(\d+(?:,\d{3})*(?:\.\d+)?)")
-    cell_pattern = re.compile(r"(\d[\d,]*)\s*(?:evaluated\s+)?cells?", re.IGNORECASE)
+    # Match only literals explicitly labelled as a grand total. Two
+    # accepted shapes: a "total"/"all" qualifier immediately before the
+    # number ("total 4230 cells"), or "total run(s)"/"total cell(s)"
+    # immediately after ("4230 total cells"). Qualified subsets
+    # ("evaluated", "successful", "failed") are deliberately not matched.
+    cell_pattern = re.compile(
+        r"(?:total|all)\s+(?:of\s+)?(\d[\d,]*)\s*(?:runs?|cells?)\b"
+        r"|(\d[\d,]*)\s*total\s+(?:runs?|cells?)\b",
+        re.IGNORECASE,
+    )
 
     for path in _prose_files():
         try:
@@ -342,10 +444,11 @@ def test_docs_totals_match_reported_numbers_file():
         runs_allowed = allowed.get("total_runs")
         if runs_allowed is not None:
             for match in cell_pattern.finditer(text):
-                # "5 repeats" and similar short numeric contexts are noise;
-                # only flag when the number itself is large enough to be
-                # the cell count (four+ digits).
-                literal = match.group(1)
+                # Two alternatives in the pattern; exactly one group
+                # captures per match. "5 repeats" and similar short
+                # numeric contexts are noise; only flag when the number
+                # itself is large enough to be the cell count (4+ digits).
+                literal = next(g for g in match.groups() if g)
                 cleaned = literal.replace(",", "")
                 if cleaned.isdigit() and len(cleaned) >= 4:
                     if literal not in runs_allowed:

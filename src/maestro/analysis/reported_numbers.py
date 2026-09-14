@@ -15,13 +15,12 @@ meets truth.
 from __future__ import annotations
 
 import argparse
-import json
 import sqlite3
 from pathlib import Path
-from typing import Any
 
 from maestro.db.client import get_readonly_connection
 from maestro.experiment_config import DB_PATH
+from maestro.schemas import ReportedNumbers
 
 # Emitted schema version. Bump when a field is renamed or its meaning
 # changes; consumers (docs, the consistency check) can then pin against a
@@ -38,7 +37,7 @@ DEFAULT_OUTPUT_PATH = (
 )
 
 
-def compute_reported_numbers(conn: sqlite3.Connection) -> dict[str, Any]:
+def compute_reported_numbers(conn: sqlite3.Connection) -> ReportedNumbers:
     """
     Aggregate the docs-referenced totals from a results DB, read-only.
 
@@ -63,31 +62,30 @@ def compute_reported_numbers(conn: sqlite3.Connection) -> dict[str, Any]:
 
     total_runs = int(totals_row["total_runs"])
     if total_runs == 0:
-        return {
-            "schema_version": SCHEMA_VERSION,
-            "status": "empty",
-            "total_runs": 0,
-            "successes": 0,
-            "failures": 0,
-            "total_cost_usd": 0.0,
-        }
+        return ReportedNumbers(
+            schema_version=SCHEMA_VERSION,
+            status="empty",
+            total_runs=0,
+            successes=0,
+            failures=0,
+            total_cost_usd=0.0,
+        )
 
-    return {
-        "schema_version": SCHEMA_VERSION,
-        "status": "ok",
-        "total_runs": total_runs,
-        "successes": int(totals_row["successes"]),
-        "failures": int(totals_row["failures"]),
+    return ReportedNumbers(
+        schema_version=SCHEMA_VERSION,
+        status="ok",
+        total_runs=total_runs,
+        successes=int(totals_row["successes"]),
+        failures=int(totals_row["failures"]),
         # Rounded to cents: docs quote e.g. USD 171.62, so writing extra
         # digits would create a mismatch on the last decimal that is
         # cosmetic, not real. Two-place rounding matches the reporting
         # convention and keeps the diff meaningful.
-        "total_cost_usd": round(float(totals_row["total_cost_usd"]), 2),
-    }
+        total_cost_usd=round(float(totals_row["total_cost_usd"]), 2),
+    )
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse the CLI (``--db``, ``--out``)."""
     parser = argparse.ArgumentParser(
         prog="python -m maestro.analysis.reported_numbers",
         description=(
@@ -129,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(
-        json.dumps(payload, indent=2, sort_keys=False) + "\n",
+        payload.model_dump_json(indent=2) + "\n",
         encoding="utf-8",
     )
     print(f"Wrote {args.out}")
