@@ -22,7 +22,6 @@ source of truth its docstring claims:
 
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 
@@ -30,6 +29,7 @@ import pytest
 
 from maestro.experiment_config import CONTROL_MODEL, MODELS
 from maestro.models import MODEL_REGISTRY, all_internal_ids, get_model
+from maestro.schemas import ReportedNumbers
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _SRC_ROOT = _REPO_ROOT / "src" / "maestro"
@@ -273,24 +273,38 @@ def test_get_model_raises_keyerror_with_message_on_unknown():
 # ---------------------------------------------------------------------------
 
 
-def test_every_pricing_entry_is_registered():
+def test_pricing_and_registry_are_one_to_one():
     """
-    Every real ``ModelPricing`` row (all except the synthetic ``control``
-    model) has a matching registry entry, so cost calculations and
-    scoring cannot resolve a row that no other layer recognises.
+    Every non-control registry model has exactly one pricing entry, and
+    every pricing entry has a matching registry row. CONTROL_MODEL is the
+    single intentional exception (synthetic 'control' pricing row for the
+    zero-cost control strategies). Without set-equality, a registry model
+    could ship without pricing (crash at cost calculation) or a pricing
+    entry could linger under a stale name (silent zero cost).
     """
-    for mp in MODELS:
-        if mp.model == CONTROL_MODEL.model:
-            continue
-        assert mp.model in MODEL_REGISTRY, (
-            f"pricing entry '{mp.model}' has no matching registry row"
-        )
+    pricing_ids = [mp.model for mp in MODELS if mp.model != CONTROL_MODEL.model]
+    registry_ids = set(MODEL_REGISTRY)
+
+    assert len(pricing_ids) == len(set(pricing_ids)), (
+        f"duplicate pricing entries: "
+        f"{sorted({m for m in pricing_ids if pricing_ids.count(m) > 1})}"
+    )
+    assert set(pricing_ids) == registry_ids, (
+        "pricing and registry are out of sync. "
+        f"In pricing but not registry: {set(pricing_ids) - registry_ids}. "
+        f"In registry but not pricing: {registry_ids - set(pricing_ids)}."
+    )
 
 
 def test_every_provider_dispatch_target_resolves_through_registry():
     """
     Each provider needle in ``run.py:_PROVIDER_DISPATCH`` claims at least
-    one registered model (so a needle without a live user gets caught).
+    one registered model (so a needle without a live user gets caught),
+    and the dispatched provider class's ``_PROVIDER_NAME`` matches the
+    registry's ``spec.provider_id`` for that model. That second assertion
+    pins the identity that ``models_by_provider`` and every provider-keyed
+    join rely on: a rename on one side without the other would silently
+    unjoin.
     """
     from maestro.run import _PROVIDER_DISPATCH, _dispatch_for_model
 
@@ -301,8 +315,13 @@ def test_every_provider_dispatch_target_resolves_through_registry():
         assert dispatch is not None, (
             f"registered model '{spec.internal_id}' does not dispatch to a provider"
         )
-        needle, _, _ = dispatch
+        needle, provider_cls, _ = dispatch
         covered.add(needle)
+        assert provider_cls._PROVIDER_NAME == spec.provider_id, (
+            f"registered model '{spec.internal_id}' has provider_id="
+            f"'{spec.provider_id}' but dispatches to {provider_cls.__name__} "
+            f"with _PROVIDER_NAME='{provider_cls._PROVIDER_NAME}'"
+        )
     assert needles == covered, (
         f"provider dispatch needles have no registered users: {needles - covered}"
     )
@@ -356,10 +375,15 @@ _TRANSCRIBED_NUMBERS: tuple[tuple[str, tuple[str, ...]], ...] = (
 
 
 def _load_reported_numbers() -> dict | None:
-    """Return the JSON payload if present, else ``None`` (skip signal)."""
+    """
+    Return the JSON payload as a plain dict if present, else ``None``
+    (skip signal). Parsing goes through ``ReportedNumbers.model_validate_json``
+    so a schema drift on read is caught here too, not only at write time.
+    """
     if not _REPORTED_NUMBERS_PATH.exists():
         return None
-    return json.loads(_REPORTED_NUMBERS_PATH.read_text(encoding="utf-8"))
+    raw = _REPORTED_NUMBERS_PATH.read_text(encoding="utf-8")
+    return ReportedNumbers.model_validate_json(raw).model_dump()
 
 
 def _prose_files() -> list[Path]:

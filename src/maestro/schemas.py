@@ -10,7 +10,7 @@ from enum import Enum
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 # ---------------------------------------------------------------------------
 # Enums: constrain experiment dimensions to valid values
@@ -159,6 +159,8 @@ class ModelSpec(BaseModel):
     Cross-snapshot comparability is a research question, not a registry
     concern.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     # Stored verbatim in ``RunConfig.model`` and ``ModelPricing.model``,
     # so this string IS the join key. Never rename an id once data has
