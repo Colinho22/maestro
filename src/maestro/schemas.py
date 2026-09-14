@@ -91,7 +91,8 @@ class RunConfig(BaseModel):
 
     run_id: UUID = Field(default_factory=uuid4)
     strategy: Strategy
-    model: str  # e.g. "gpt-4o", "claude-3-5-sonnet"
+    # A registered internal_id from maestro.models.MODEL_REGISTRY.
+    model: str
     example_id: str  # FK to InputFile.example_id
     tier: Tier
     run_number: int  # Repeat index within same config (1-N)
@@ -137,6 +138,52 @@ class RunEnvironment(BaseModel):
     docker_image_digest: str | None = None
 
     captured_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# ---------------------------------------------------------------------------
+# ModelSpec: canonical registry entry for a benchmarked model
+# ---------------------------------------------------------------------------
+
+
+class ModelSpec(BaseModel):
+    """
+    Canonical identity of one benchmarked model, referenced everywhere a
+    model is named. The registry (``maestro.models.MODEL_REGISTRY``) is the
+    only place these fields are defined; pricing (``ModelPricing``), viz
+    palettes, provider dispatch and analysis all join back through
+    ``internal_id``.
+
+    A dated snapshot is a distinct registry entry, not a mutable attribute:
+    each vendor-pinned snapshot id (for example the dated Haiku snapshot)
+    is its own row, and an undated alias would be another row entirely.
+    Cross-snapshot comparability is a research question, not a registry
+    concern.
+    """
+
+    # Stored verbatim in ``RunConfig.model`` and ``ModelPricing.model``,
+    # so this string IS the join key. Never rename an id once data has
+    # been collected under it: rows would silently unjoin.
+    internal_id: str
+    # Vendor / SDK identity, matching each provider's ``_PROVIDER_NAME``
+    # (e.g. ``"anthropic"``, ``"openai"``). Distinct from the model-name
+    # needle in ``run.py:_PROVIDER_DISPATCH`` (``"claude"`` / ``"gpt"`` /
+    # ...) which is a dispatch-implementation detail, not a stable id.
+    provider_id: str
+    # Human display name of the specific model (e.g. ``"Claude Opus 4.8"``).
+    display_name: str
+    # Human display name of the vendor (e.g. ``"Claude"``). Kept beside
+    # ``display_name`` so the viz layer's provider-keyed palettes join
+    # directly against the registry.
+    provider_display_name: str
+    # Provider positioning within MAESTRO's paired experiment matrix:
+    # ``"frontier"`` (flagship) or ``"efficiency"`` (smaller/cheaper).
+    # Drives the viz slot mapping (frontier == slot 1, efficiency == 0).
+    tier: str
+    # Snapshot date embedded in the model id where the vendor pins one
+    # (an 8-digit tail like ``20251001``). ``None`` when the vendor rolls
+    # the id forward silently; that is a reproducibility risk the docs
+    # note, not a registry concern.
+    snapshot_date: str | None = None
 
 
 # ---------------------------------------------------------------------------

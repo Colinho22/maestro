@@ -249,7 +249,28 @@ them in `pyproject.toml` is what keeps historical numbers stable.
 
 ---
 
-## 8. Related documentation
+## 8. Reported-numbers dump
+
+A companion entry point,
+
+```bash
+python -m maestro.analysis.reported_numbers
+```
+
+emits `output/analysis/reported_numbers.json`: the headline totals docs
+and slide decks cite (total cell count, success / failure split,
+aggregate cost). The file is the machine-readable source that
+transcribed numbers in tracked prose must match, and the model-registry
+consistency test in CI enforces that. Regenerate it after any run that
+changes those totals, then update the docs from the file rather than
+from a screenshot of the runner output.
+
+Empty database produces a valid `status: "empty"` payload so a fresh
+checkout can still write the file and pass the consistency test.
+
+---
+
+## 9. Related documentation
 
 - `docs/schema.md`: full database schema reference.
 - `docs/running.md`: how to produce the database in the first place.

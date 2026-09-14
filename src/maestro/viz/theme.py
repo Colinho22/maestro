@@ -21,6 +21,8 @@ from __future__ import annotations
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
+from maestro.models import TIER_FRONTIER, registered_models
+
 # ---------------------------------------------------------------------------
 # Palettes: verbatim from the design guide (display-name keys).
 # ---------------------------------------------------------------------------
@@ -78,8 +80,9 @@ DEFAULT_CYCLE: list[str] = list(STRATEGY_COLORS.values())
 # DB-value -> guide-display mappings.
 #
 # The database stores enum values and full model ids; the guide keys palettes
-# by display name. These dicts are the bridge. Keep them in sync with
-# maestro.schemas.Strategy and maestro.experiment_config.MODELS.
+# by display name. These dicts are the bridge. Strategy values must stay in
+# step with maestro.schemas.Strategy; model ids come from
+# maestro.models.MODEL_REGISTRY (the canonical model registry).
 # ---------------------------------------------------------------------------
 
 # Strategy enum value (run_configs.strategy) -> guide display name.
@@ -101,20 +104,16 @@ _CONTROL_VALUE_TO_NAME: dict[str, str] = {
     "ground_truth_control": "Ground Truth Control",
 }
 
-# Model id (run_configs.model) -> (provider display name, slot) where slot is
-# 0 for the efficiency model and 1 for the frontier model. Keep this in sync
-# with experiment_config.MODELS (two ids per provider).
+# Model id (run_configs.model) -> (provider display name, slot) where slot
+# is 0 for the efficiency model and 1 for the frontier model. Derived from
+# the canonical registry so palette assignments and provider dispatch
+# cannot drift.
 _MODEL_TO_PROVIDER_SLOT: dict[str, tuple[str, int]] = {
-    "claude-opus-4-8": ("Claude", 1),
-    "claude-haiku-4-5-20251001": ("Claude", 0),
-    "gpt-5.5-2026-04-23": ("ChatGPT", 1),
-    "gpt-5.4-mini-2026-03-17": ("ChatGPT", 0),
-    "mistral-medium-3-5": ("Mistral", 1),
-    "mistral-small-2603": ("Mistral", 0),
-    "gemini-3.5-flash": ("Gemini", 1),
-    "gemini-3.1-flash-lite": ("Gemini", 0),
-    "deepseek-v4-pro": ("DeepSeek", 1),
-    "deepseek-v4-flash": ("DeepSeek", 0),
+    spec.internal_id: (
+        spec.provider_display_name,
+        1 if spec.tier == TIER_FRONTIER else 0,
+    )
+    for spec in registered_models()
 }
 
 # Module-level guard so the rcParams update runs once per process even if
