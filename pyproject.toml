@@ -41,7 +41,7 @@ dependencies = [
     # layer (and statsmodels pulls it in regardless) so we depend on it
     # explicitly rather than relying on the transitive pin. scipy arrives
     # transitively via statsmodels and is not declared here directly.
-    "statsmodels>=0.14.6",
+    "statsmodels>=0.15.0",
     # pandas 3.0.4 was yanked from PyPI; 3.0.3 is the latest non-yanked release.
     "pandas>=3.0.5",
     # scipy is a transitive dependency of statsmodels (it supplies the
@@ -60,7 +60,7 @@ dependencies = [
     # publication-quality figures, and matplotlib gives one style system for
     # both the dashboard and the embedded thesis figures with no
     # browser-component fragility.
-    "streamlit>=1.62.0,<2.0",
+    "streamlit>=1.63.0,<2.0",
     "matplotlib>=3.11.1,<4",
     # Windows-only: provides the IANA timezone database that zoneinfo
     # (used by analysis/timestamps.py) needs at runtime. macOS and most
