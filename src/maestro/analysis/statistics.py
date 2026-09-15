@@ -54,7 +54,12 @@ partial F1) was neither, so it is gone.
   ANOVA conclusion survives a model that accounts for the crossed grouping
   structure directly instead of by pre-averaging.
 - **Error taxonomy**: descriptive characterization of the eight taxonomy
-  counts per strategy (exploratory; no inferential test).
+  counts per strategy (exploratory; no inferential test). This scores the
+  *content* of a diagram that was produced; the failure analysis below covers
+  runs that produced nothing scorable at all. The two are disjoint populations.
+- **Failure modes**: per-strategy/model/tier failure rates broken down by
+  primary cause (see ``failures.py``), plus a survivor-bias number saying how
+  much the valid-only view flatters each strategy.
 - **Correctness/efficiency trade-off**: per-strategy correctness against
   cost and latency, plus a correctness-to-cost ratio.
 
@@ -83,7 +88,8 @@ from __future__ import annotations
 import sqlite3
 from typing import TYPE_CHECKING, Any, Literal
 
-from maestro.db.queries import fetch_analysis_rows
+from maestro.analysis.failures import FailureCause, classify_failure
+from maestro.db.queries import fetch_analysis_rows, fetch_failure_rows
 from maestro.experiment_config import CONTROL_STRATEGIES
 from maestro.schemas import Strategy
 
@@ -889,6 +895,182 @@ def error_taxonomy_by_strategy(df: "pd.DataFrame") -> dict[str, Any]:
             "counts": {col: _to_native(grp[col].mean()) for col in TAXONOMY_COLUMNS},
         }
         out["by_strategy"].append(entry)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Failure modes
+# ---------------------------------------------------------------------------
+
+
+def load_failure_dataframe(conn: sqlite3.Connection) -> "pd.DataFrame":
+    """
+    Load every invalid run, classified by primary failure cause. Read-only.
+
+    Adds a ``failure_cause`` column via ``classify_failure``. The frame is a
+    different population from ``load_dataframe``'s: one row per *failed* run
+    rather than per completed run, so the two are never concatenated. Failure
+    *rates* need both, which is why ``failure_rates`` takes the two frames.
+
+    Returns an empty DataFrame when nothing failed, which is a legitimate
+    result (a perfect run), not an error.
+    """
+    import pandas as pd
+
+    rows = [dict(r) for r in fetch_failure_rows(conn)]
+    if not rows:
+        return pd.DataFrame()
+    df = pd.DataFrame(rows)
+    df["failure_cause"] = [
+        classify_failure(r["error"], r["failing_raw_response"]).value for r in rows
+    ]
+    return df
+
+
+def failure_rates(df: "pd.DataFrame", failures: "pd.DataFrame") -> dict[str, Any]:
+    """
+    Failure rate and cause breakdown per strategy, model, and tier, mirroring
+    the grouping of the accuracy tables so the reliability and accuracy sides
+    of a strategy can be read against each other.
+
+    Rates are **pooled counts**, not means of per-cell rates: the denominator
+    is every run attempted in the group. A per-cell mean would weight a cell
+    with one run as heavily as a cell with five, which for a rate is the wrong
+    grain. This deliberately differs from the F1 path, which aggregates per
+    cell because it is averaging a score rather than counting events.
+
+    Controls are excluded: they never call a model, so their failure rate is
+    zero by construction and would dilute every pooled denominator it entered.
+    """
+    exp = _experimental(df)
+    out: dict[str, Any] = {
+        "schema_version": SCHEMA_VERSION,
+        "analysis": "failure_rates",
+        "grouping": ["strategy", "model", "tier"],
+        "statistic": "pooled_failure_rate",
+        "causes": [c.value for c in FailureCause],
+        "excludes_controls": True,
+        "overall": {},
+        "by_strategy": [],
+        "by_model": [],
+        "by_tier": [],
+    }
+    if exp.empty:
+        out["status"] = "empty"
+        return out
+
+    exp_failures = _experimental(failures) if not failures.empty else failures
+    out["overall"] = _failure_summary(exp, exp_failures)
+    for field in ("strategy", "model", "tier"):
+        out[f"by_{field}"] = _failure_breakdown(exp, exp_failures, field)
+    out["status"] = "ok"
+    return out
+
+
+def _failure_breakdown(
+    runs: "pd.DataFrame", failures: "pd.DataFrame", field: str
+) -> list[dict[str, Any]]:
+    """One summary per observed level of ``field``, ordered by level."""
+    entries: list[dict[str, Any]] = []
+    for level, group in runs.groupby(field, dropna=False):
+        matching = (
+            failures[failures[field] == level] if not failures.empty else failures
+        )
+        entries.append({field: _to_native(level), **_failure_summary(group, matching)})
+    return entries
+
+
+def _failure_summary(runs: "pd.DataFrame", failures: "pd.DataFrame") -> dict[str, Any]:
+    """
+    Counts, pooled rate, and per-cause counts for one group.
+
+    ``causes`` carries every ``FailureCause`` member, including the zeros: a
+    cause absent from the output would be ambiguous between "never happened"
+    and "not measured", and the zeros are what make two groups comparable
+    column by column.
+    """
+    n_runs = int(len(runs))
+    n_failed = int(len(failures))
+    counts = (
+        failures["failure_cause"].value_counts().to_dict() if not failures.empty else {}
+    )
+    return {
+        "n_runs": n_runs,
+        "n_failed": n_failed,
+        "failure_rate": (n_failed / n_runs) if n_runs else None,
+        "causes": {c.value: int(counts.get(c.value, 0)) for c in FailureCause},
+    }
+
+
+def survivor_bias(
+    df: "pd.DataFrame", convention: ScoringConvention = VALID_ONLY
+) -> dict[str, Any]:
+    """
+    Quantify survivor bias: does the surviving subset differ systematically
+    from the full set?
+
+    Reports the primary DV under ``valid_only`` (survivors only) against
+    ``intent_to_treat`` (every run, failures scored 0.0), per strategy. The
+    gap between them *is* the bias: a strategy that fails often looks better
+    under valid_only, because its failures were dropped rather than scored,
+    and the difference measures exactly how much that dropping flatters it.
+
+    Reported as a number per strategy rather than a single test statistic,
+    because the bias is not uniform: it scales with each strategy's failure
+    rate, so one pooled figure would hide the comparison that matters.
+
+    The default convention names the survivor side explicitly; passing
+    ``INTENT_TO_TREAT`` is accepted but yields a zero gap by construction,
+    so it exists only for symmetry with the other convention-taking
+    functions rather than as a useful call.
+    """
+    exp = _experimental(df)
+    out: dict[str, Any] = {
+        "schema_version": SCHEMA_VERSION,
+        "analysis": "survivor_bias",
+        "dependent_variable": PRIMARY_DV,
+        "survivor_convention": convention,
+        "reference_convention": INTENT_TO_TREAT,
+        "excludes_controls": True,
+        "by_strategy": [],
+    }
+    if exp.empty:
+        out["status"] = "empty"
+        return out
+
+    all_runs = aggregate_experimental(df, INTENT_TO_TREAT)
+    survivors = aggregate_experimental(df, convention)
+    if all_runs.empty:
+        out["status"] = "empty"
+        return out
+
+    for strategy, group in all_runs.groupby("strategy"):
+        kept = (
+            survivors[survivors["strategy"] == strategy]
+            if not survivors.empty
+            else survivors
+        )
+        all_mean = _to_native(group[PRIMARY_DV].mean())
+        kept_mean = _to_native(kept[PRIMARY_DV].mean()) if not kept.empty else None
+        gap = (
+            kept_mean - all_mean
+            if kept_mean is not None and all_mean is not None
+            else None
+        )
+        out["by_strategy"].append(
+            {
+                "strategy": strategy,
+                "n_cells_all": int(len(group)),
+                "n_cells_survivors": int(len(kept)),
+                # Cells lost entirely: every run in them failed, so valid_only
+                # has nothing to average and the cell vanishes from the frame.
+                "n_cells_dropped": int(len(group)) - int(len(kept)),
+                "mean_all_runs": all_mean,
+                "mean_survivors": kept_mean,
+                "survivor_bias": gap,
+            }
+        )
+    out["status"] = "ok"
     return out
 
 

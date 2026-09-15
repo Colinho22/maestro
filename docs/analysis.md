@@ -50,6 +50,8 @@ output/analysis/20260621T111935Z/
     effect_sizes.json
     error_taxonomy_by_strategy.json
     tradeoff_correctness_efficiency.json
+    failure_rates.json
+    survivor_bias.json
     figures/README.md
 ```
 
@@ -139,6 +141,131 @@ question.
 Per-strategy medians on both dimensions: `entity_id_f1` (correctness)
 and `cost_usd` / `duration_ms` (efficiency). Consumed by the dashboard's
 Pareto view.
+
+### 3.9 `failure_rates.json`
+
+Failure rate and cause breakdown per strategy, model, and tier, plus an
+`overall` block. This is the reliability counterpart to the accuracy
+tables: `error_taxonomy_by_strategy.json` scores the content of diagrams
+that were produced, while this file covers the runs that produced nothing
+scorable at all. The two populations are disjoint.
+
+Rates are **pooled counts**: the denominator is every run attempted in the
+group, not a mean of per-cell rates. A per-cell mean would weight a cell
+with one run as heavily as a cell with five, which for a rate is the wrong
+grain. This deliberately differs from the F1 path, which aggregates per
+cell because it averages a score rather than counting events.
+
+Every cause appears in every `causes` block, including the zeros: an
+absent key would be ambiguous between "never happened" and "not measured".
+Controls are excluded (they never call a model).
+
+Payload shape (abridged):
+
+```json
+{
+  "status": "ok",
+  "statistic": "pooled_failure_rate",
+  "overall": {
+    "n_runs": 6000,
+    "n_failed": 478,
+    "failure_rate": 0.0797,
+    "causes": { "schema_violation": 261, "truncation": 135, "...": 0 }
+  },
+  "by_strategy": [
+    {
+      "strategy": "sop_based",
+      "n_runs": 1500,
+      "n_failed": 151,
+      "failure_rate": 0.1007,
+      "causes": { "schema_violation": 85, "...": 0 }
+    }
+  ]
+}
+```
+
+### 3.10 `survivor_bias.json`
+
+Per strategy, the primary DV under `valid_only` (survivors only) against
+`intent_to_treat` (every run, failures scored 0.0). The gap between them
+is the survivor bias: a strategy that fails often looks better under
+`valid_only` because its failures were dropped rather than scored, and
+`survivor_bias` measures exactly how much that dropping flatters it.
+
+Reported per strategy rather than as one pooled figure, because the bias
+scales with each strategy's failure rate: a single number would hide the
+comparison that matters. `n_cells_dropped` counts cells where every run
+failed, so `valid_only` had nothing to average.
+
+---
+
+## 3a. Failure taxonomy
+
+`failure_rates.json` classifies each invalid run into exactly one primary
+cause. The classifier lives in `src/maestro/analysis/failures.py`.
+
+### What counts as a failure
+
+Two disjoint shapes, both rejected by `RunResult.success`:
+
+- an **errored** run: `error` is set, and the string is the evidence.
+- a **silent-empty** run: `error` is `None` but the diagram is missing or
+  blank. A provider can return whitespace without raising, so this is a
+  real category, not a data defect.
+
+### Where the evidence lives
+
+On a failed run, `run_results.raw_response` is always `NULL`: the error
+result is built before any text exists. The failing text is retained one
+level down, on the `sub_results` row that failed. Classification therefore
+reads the run's `error` plus the first failed sub-result's `raw_response`.
+
+This means historical runs can be classified retroactively with no model
+re-invocation, which is why re-scoring was never needed for this analysis.
+
+### The causes
+
+| Cause | Meaning |
+|---|---|
+| `rate_limit` | Provider returned a rate-limit error. |
+| `timeout` | Request exceeded the client deadline. |
+| `api_error` | Generic provider API error (the SDKs' catch-all base class). |
+| `safety_block` | Response blocked by a content or safety filter. |
+| `empty_output` | Provider returned no text, or only whitespace. |
+| `truncation` | Response stopped mid-structure, consistent with a token limit. |
+| `parse_error` | Output was not parseable in the requested format. |
+| `schema_violation` | Output parsed but broke the Mermaid output contract. |
+| `orchestration_error` | The framework misbehaved, not the model output. |
+| `unknown` | No rule matched. Visible by design rather than mis-filed. |
+
+### Classification rules
+
+Causes are not mutually exclusive in practice: a truncated response is
+usually *also* a parse error, because the truncation is what broke the
+parse. Rather than multi-label (which makes rates hard to sum and
+compare), each failure gets one primary cause under a fixed precedence,
+most specific first:
+
+1. **Infrastructure** (`rate_limit`, `timeout`, `safety_block`). If the
+   API never returned, nothing downstream is meaningful.
+2. **`empty_output`**. A missing response cannot be a parse error.
+3. **`schema_violation`**, before the generic parse rule: well-formed text
+   that violates the output contract is a different failure from text that
+   is not parseable at all.
+4. **`parse_error`**, promoted to **`truncation`** when the parser message
+   is truncation-shaped (an unterminated string, or a structure that simply
+   stops) *and* the raw response is long enough that running out of tokens
+   is plausible. Without the raw text the two are indistinguishable, so the
+   conservative `parse_error` label stands: under-reporting truncation is
+   safer than inventing it.
+5. **`orchestration_error`**.
+6. **`api_error`** last among the infrastructure family, since a more
+   specific subclass above must win over the catch-all base class.
+7. **`unknown`** as the explicit fallback.
+
+Adding a provider means checking whether its error prefixes are covered.
+An unmatched prefix surfaces as `unknown` rather than being mis-filed,
+which is the failure mode this ordering exists to prevent.
 
 ---
 
