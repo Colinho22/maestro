@@ -167,6 +167,33 @@ def test_empty_output_precedes_parse_rules() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "error,expected",
+    [
+        ("ratelimiterror: 429", FailureCause.RATE_LIMIT),
+        ("RATELIMITERROR: 429", FailureCause.RATE_LIMIT),
+        ("apierror: 500", FailureCause.API_ERROR),
+        ("ApiError: 500", FailureCause.API_ERROR),
+        ("emptyresponse: no content", FailureCause.EMPTY_OUTPUT),
+        ("Invalid Json: bad", FailureCause.PARSE_ERROR),
+        ("Empty Node Label Bracket", FailureCause.SCHEMA_VIOLATION),
+    ],
+)
+def test_classification_is_case_insensitive(error: str, expected: FailureCause) -> None:
+    """
+    Error text originates in vendor SDKs and third-party frameworks, so its
+    casing is not ours to rely on: a provider rewording ``APIError`` to
+    ``ApiError`` must not silently push a whole category into UNKNOWN.
+    """
+    assert classify_failure(error) is expected
+
+
+def test_truncation_detection_is_case_insensitive() -> None:
+    """The truncation signatures come from the json module, not from us."""
+    error = "invalid json: unterminated string starting at: line 9 column 2"
+    assert classify_failure(error, "x" * 900) is FailureCause.TRUNCATION
+
+
 # ---------------------------------------------------------------------------
 # fetch_failure_rows / failure_rates
 # ---------------------------------------------------------------------------

@@ -87,28 +87,40 @@ class FailureCause(StrEnum):
     UNKNOWN = "unknown"
 
 
+def _rule(pattern: str) -> re.Pattern[str]:
+    """
+    Compile one classification pattern.
+
+    Every pattern is case-insensitive: the error text comes from vendor SDKs
+    and third-party frameworks, so its casing is not ours to rely on. A
+    provider rewording ``APIError`` to ``ApiError`` would otherwise push a
+    whole category into ``UNKNOWN`` silently. Centralised here so a new rule
+    cannot forget the flag.
+    """
+    return re.compile(pattern, re.IGNORECASE)
+
+
 # Ordered (cause, pattern) rules. Order *is* the precedence documented in the
 # module docstring: the first match wins, so never reorder without re-reading
-# it. Patterns match case-insensitively against the error string, and are
-# anchored on the literal prefixes the providers and strategies emit
-# (``RateLimitError:``, ``EmptyResponse:``, ``invalid JSON:``, ...) rather
-# than on loose keywords, so an unrelated message that merely mentions
-# "timeout" in prose does not get mis-filed.
+# it. Patterns are anchored on the literal prefixes the providers and
+# strategies emit (``RateLimitError:``, ``EmptyResponse:``, ``invalid JSON:``,
+# ...) rather than on loose keywords, so an unrelated message that merely
+# mentions "timeout" in prose does not get mis-filed.
 _RULES: tuple[tuple[FailureCause, re.Pattern[str]], ...] = (
     # 1. Infrastructure. These preempt everything: no usable output existed.
-    (FailureCause.RATE_LIMIT, re.compile(r"\bRateLimitError\b")),
-    (FailureCause.TIMEOUT, re.compile(r"\b(?:APITimeoutError|TimeoutError)\b")),
-    (FailureCause.SAFETY_BLOCK, re.compile(r"\b(?:BlockedResponse|ContentFilter)\b")),
+    (FailureCause.RATE_LIMIT, _rule(r"\bRateLimitError\b")),
+    (FailureCause.TIMEOUT, _rule(r"\b(?:APITimeoutError|TimeoutError)\b")),
+    (FailureCause.SAFETY_BLOCK, _rule(r"\b(?:BlockedResponse|ContentFilter)\b")),
     # 2. Empty output, before the parse rules: nothing to parse.
     (
         FailureCause.EMPTY_OUTPUT,
-        re.compile(r"\bEmptyResponse\b|\bempty output from provider\b"),
+        _rule(r"\bEmptyResponse\b|\bempty output from provider\b"),
     ),
     # CrewAI surfaces an empty LLM reply as its own kickoff message rather
     # than an EmptyResponse; it is the same underlying cause.
     (
         FailureCause.EMPTY_OUTPUT,
-        re.compile(r"Invalid response from LLM call\s*-\s*None or empty"),
+        _rule(r"Invalid response from LLM call\s*-\s*None or empty"),
     ),
     # 3. Schema violations. Checked before the generic parse rule because the
     # structural Mermaid checks (empty label bracket, unbalanced subgraph)
@@ -116,24 +128,25 @@ _RULES: tuple[tuple[FailureCause, re.Pattern[str]], ...] = (
     # different failure from text that is not parseable at all.
     (
         FailureCause.SCHEMA_VIOLATION,
-        re.compile(r"empty node label bracket|unbalanced subgraph/end"),
+        _rule(r"empty node label bracket|unbalanced subgraph/end"),
     ),
     # 4. Parse errors: the model did not produce the requested format.
-    (FailureCause.PARSE_ERROR, re.compile(r"\binvalid JSON\b|\bJSONDecodeError\b")),
+    (FailureCause.PARSE_ERROR, _rule(r"\binvalid JSON\b|\bJSONDecodeError\b")),
     # 5. Orchestration: the framework misbehaved, not the model output.
     (
         FailureCause.ORCHESTRATION_ERROR,
-        re.compile(r"Single-call invariant violated|kickoff raised"),
+        _rule(r"Single-call invariant violated|kickoff raised"),
     ),
     # Generic API error last among the infrastructure family: APIError is the
     # SDKs' catch-all base class, so a more specific subclass above must win.
-    (FailureCause.API_ERROR, re.compile(r"\bAPIError\b")),
+    (FailureCause.API_ERROR, _rule(r"\bAPIError\b")),
 )
 
 # Signatures of a response cut off mid-token. An unterminated string or a
 # structure that simply stops is what truncation looks like after the fact;
-# the provider does not tell us the token limit was hit.
-_TRUNCATION_PATTERN = re.compile(
+# the provider does not tell us the token limit was hit. Case-insensitive for
+# the same reason as the rules above: the text is the json module's, not ours.
+_TRUNCATION_PATTERN = _rule(
     r"Unterminated string|Expecting value: line \d+ column \d+ \(char \d+\)"
 )
 
