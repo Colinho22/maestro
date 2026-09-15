@@ -297,6 +297,12 @@ CONTROL_MODEL = ModelPricing(
 # April 2026 for the frozen main run. IDs are pinned to dated snapshots where
 # the provider offers one, so the run stays reproducible.
 #
+# The model id on each row is the canonical internal_id from
+# maestro.models.MODEL_REGISTRY (the single source of truth for model
+# naming). A consistency test asserts every non-control entry here is
+# registered, so a typo cannot land pricing under a name no other layer
+# recognises.
+#
 # Note: provider dispatch (run.py) is by substring (claude / gpt / mistral /
 # gemini / deepseek), so any new model id must contain its provider's needle.
 # tests/providers/test_provider_dispatch.py enforces this for every entry here.
