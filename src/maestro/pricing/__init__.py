@@ -25,6 +25,8 @@ are a research decision the analyst opts into, never a silent side effect.
 
 from __future__ import annotations
 
+import re
+
 from maestro.pricing import snapshot_2026_04
 from maestro.schemas import ModelPricing
 
@@ -34,6 +36,13 @@ from maestro.schemas import ModelPricing
 # import via ``_validate``, and so it is grep-able as a literal identifier
 # in commit diffs and archived docs.
 DEFAULT_VERSION = "2026-04"
+
+
+# Strict shape a snapshot key must satisfy: four-digit year, hyphen, two-digit
+# month 01 to 12. A malformed key sorts oddly in ``available_versions`` and
+# reads confusingly in the DB, so ``_validate`` rejects it at import time
+# before any run is written under it.
+_KEY_PATTERN = re.compile(r"^(\d{4})-(0[1-9]|1[0-2])$")
 
 
 # All snapshots the package knows about, keyed by their ISO-year-month
@@ -76,6 +85,9 @@ def load_pricing(version: str | None = None) -> tuple[str, list[ModelPricing]]:
     Returns the version string alongside the list so callers that persist
     provenance (``run_environments.pricing_version``, the CLI banner) never
     have to synthesise it and cannot disagree about what "current" means.
+    The returned list is a shared reference, but each ``ModelPricing`` row
+    is a frozen Pydantic model, so callers cannot mutate a snapshot's rates
+    in place and poison another caller's read.
     """
     key = version if version is not None else DEFAULT_VERSION
     try:
@@ -121,8 +133,11 @@ def _validate() -> None:
 
     Enforcing them at import time (not lazily) means a broken snapshot fails
     the process before any run starts, not halfway through the matrix when
-    the missing row is finally reached. Three shapes of drift are caught:
+    the missing row is finally reached. Four shapes of drift are caught:
 
+    - a snapshot registered under a key that is not a valid ``YYYY-MM``
+      identifier (year plus month 01 to 12), which would sort oddly and
+      read confusingly wherever the id is joined against;
     - a snapshot module whose ``VERSION`` disagrees with its ``_VERSIONS``
       key (rename typo);
     - a snapshot with duplicate ``ModelPricing.model`` rows (would silently
@@ -130,6 +145,12 @@ def _validate() -> None:
     - a ``DEFAULT_VERSION`` that names a snapshot no longer registered
       (typo in the bump).
     """
+    for key in _VERSIONS:
+        if not _KEY_PATTERN.fullmatch(key):
+            raise RuntimeError(
+                f"pricing snapshot key {key!r} is not a valid YYYY-MM identifier "
+                f"(four-digit year, hyphen, two-digit month 01 to 12)"
+            )
     if DEFAULT_VERSION not in _VERSIONS:
         raise RuntimeError(
             f"pricing DEFAULT_VERSION {DEFAULT_VERSION!r} not in _VERSIONS: "

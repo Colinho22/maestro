@@ -191,8 +191,11 @@ update its top-level `VERSION` to the new `YYYY-MM` string and its
 `PRICING` list to the new rates, register it in `_VERSIONS`, and bump
 `DEFAULT_VERSION` to point at the new file. Historical runs stay pinned
 to whichever snapshot was default when they ran; every new run records
-its snapshot id in `run_environments.pricing_version` so a cross-snapshot
-analysis is an explicit research choice, never a silent side effect.
+its snapshot id in `run_environments.pricing_version` when pricing
+capture succeeds, and a soft-failed capture leaves the column NULL
+rather than aborting the run. Cross-snapshot analysis is therefore an
+explicit research choice (either the column matches a known snapshot or
+is NULL), never a silent side effect.
 
 ### 1.7 Smoke test
 

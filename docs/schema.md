@@ -97,7 +97,7 @@ guarantee.
 | `prompt_tokens` | INTEGER NOT NULL | Prompt/input token count. 0 for controls and for cells that failed before any call. |
 | `completion_tokens` | INTEGER NOT NULL | Completion/output token count. |
 | `duration_ms` | INTEGER NOT NULL | Wall-clock latency of the cell. |
-| `cost_usd` | REAL NOT NULL | Computed at write time from token counts and the `ModelPricing` rate from the active snapshot in `maestro.pricing`. Never recomputed at read time, so a later repricing does not alter historical rows; join to `run_environments.pricing_version` via `run_configs.environment_id` to recover which snapshot produced a row. |
+| `cost_usd` | REAL NOT NULL | Computed at write time from token counts and the `ModelPricing` rate from the active snapshot in `maestro.pricing`. Never recomputed at read time, so a later repricing does not alter historical rows; join to `run_environments.pricing_version` via `run_configs.environment_id` to recover which snapshot produced a row; the join yields a snapshot id when both `environment_id` and `pricing_version` are present, and NULL if capture failed. |
 | `error` | TEXT | Human-readable error string. NULL means success (the sole flag for `is_success`). |
 | `retry_count` | INTEGER NOT NULL DEFAULT 0 | Number of retries the provider's retry policy consumed for this cell. |
 

@@ -230,6 +230,8 @@ class ModelPricing(BaseModel):
     Used to compute cost_usd at write time.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     model: str
     input_price_per_1m: float  # USD per 1M prompt tokens
     output_price_per_1m: float  # USD per 1M completion tokens

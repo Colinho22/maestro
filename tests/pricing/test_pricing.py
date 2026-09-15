@@ -204,3 +204,24 @@ def test_validate_detects_orphan_default(monkeypatch):
     with pytest.raises(RuntimeError) as excinfo:
         pricing._validate()
     assert "9999-99" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("bad_key", ["04-2026", "2026-13", "2026-1", "2026-00"])
+def test_validate_rejects_malformed_key(monkeypatch, bad_key):
+    """
+    A snapshot key that is not a strict ``YYYY-MM`` identifier would sort
+    oddly against real ones and read confusingly wherever the id is joined,
+    so ``_validate`` must reject it at import time.
+    """
+    monkeypatch.setattr(pricing, "_VERSIONS", {bad_key: (bad_key, [])})
+    with pytest.raises(RuntimeError) as excinfo:
+        pricing._validate()
+    assert bad_key in str(excinfo.value)
+    assert "YYYY-MM" in str(excinfo.value)
+
+
+def test_validate_accepts_current_snapshot_key():
+    """Positive case: the shipped ``2026-04`` key satisfies the regex."""
+    # No monkeypatching: we exercise the real _VERSIONS to confirm the
+    # pattern does not over-reject the snapshot the package ships with.
+    pricing._validate()

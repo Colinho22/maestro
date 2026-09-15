@@ -130,7 +130,9 @@ def _lib_versions() -> dict[str, str | None]:
 
 
 def _pricing_version() -> str | None:
-    """Return the active pricing snapshot's ``YYYY-MM`` id, ``None`` if absent."""
+    """Best-effort probe: environment capture must never crash the run it
+    describes, so a broken or missing pricing package returns ``None`` rather
+    than propagating."""
     try:
         from maestro.pricing import DEFAULT_VERSION
 
