@@ -3,6 +3,7 @@
 # Statistical analysis pipeline. Re-exported so callers can do
 # ``from maestro.analysis import describe, anova_strategy`` without reaching
 # into the submodule. The CLI lives in maestro.analysis.__main__.
+from maestro.analysis.failures import FailureCause, classify_failure
 from maestro.analysis.statistics import (
     DEFAULT_CONVENTION,
     INTENT_TO_TREAT,
@@ -16,9 +17,12 @@ from maestro.analysis.statistics import (
     describe,
     effect_sizes,
     error_taxonomy_by_strategy,
+    failure_rates,
     load_dataframe,
+    load_failure_dataframe,
     mixed_effects_robustness,
     posthoc_strategy,
+    survivor_bias,
     tradeoff_correctness_efficiency,
 )
 
@@ -51,8 +55,14 @@ __all__ = [
     "describe",
     "effect_sizes",
     "error_taxonomy_by_strategy",
+    "failure_rates",
     "load_dataframe",
+    "load_failure_dataframe",
     "mixed_effects_robustness",
     "posthoc_strategy",
+    "survivor_bias",
     "tradeoff_correctness_efficiency",
+    # failure classification
+    "FailureCause",
+    "classify_failure",
 ]

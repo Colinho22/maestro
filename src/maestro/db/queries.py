@@ -232,6 +232,56 @@ def fetch_all_results(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     ).fetchall()
 
 
+def fetch_failure_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """
+    One row per *invalid* run, for failure-mode classification. Read-only.
+
+    Covers both failure shapes ``RunResult.success`` rejects: an errored run,
+    and a run with no error but a missing or blank diagram. The WHERE clause
+    is the negation of the success condition used by ``fetch_completed_cells``,
+    so the two partition the run set and a row can never be counted as both.
+
+    ``failing_raw_response`` comes from a correlated subquery over
+    ``sub_results`` rather than from ``run_results``: on a failed run the
+    top-level ``raw_response`` is always NULL, because the error result is
+    built before any text exists. The failing text is retained one level down,
+    on the sub-result whose step failed. The subquery takes the *first* failed
+    step by ``step_number``, which is the step that actually broke the run
+    (later steps never ran). It stays NULL when the framework produced no text
+    at all, which is itself classifiable evidence.
+
+    Left-joining ``sub_results`` instead would multiply a run into one row per
+    sub-result and inflate every failure count; the subquery keeps the grain at
+    one row per run.
+    """
+    return conn.execute(
+        """
+        SELECT
+            c.run_id     AS run_id,
+            c.strategy   AS strategy,
+            c.model      AS model,
+            c.example_id AS example_id,
+            c.tier       AS tier,
+            c.run_number AS run_number,
+            r.error      AS error,
+            (
+                SELECT s.raw_response
+                FROM sub_results s
+                WHERE s.run_id = c.run_id
+                  AND s.error IS NOT NULL
+                ORDER BY s.step_number
+                LIMIT 1
+            ) AS failing_raw_response
+        FROM run_configs c
+        JOIN run_results r ON c.run_id = r.run_id
+        WHERE r.error IS NOT NULL
+           OR r.output_diagram_code IS NULL
+           OR TRIM(r.output_diagram_code) = ''
+        ORDER BY c.timestamp
+        """,
+    ).fetchall()
+
+
 def fetch_analysis_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     """
     Three-way join (run_configs ⋈ run_results, then LEFT ⋈ metric_results)

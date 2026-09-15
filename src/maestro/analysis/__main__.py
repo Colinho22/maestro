@@ -32,9 +32,12 @@ from maestro.analysis.statistics import (
     describe,
     effect_sizes,
     error_taxonomy_by_strategy,
+    failure_rates,
     load_dataframe,
+    load_failure_dataframe,
     mixed_effects_robustness,
     posthoc_strategy,
+    survivor_bias,
     tradeoff_correctness_efficiency,
 )
 from maestro.analysis.timestamps import format_for_display
@@ -59,7 +62,13 @@ _ANALYSES: list[tuple[str, Callable]] = [
     ("descriptive.json", describe),
     ("error_taxonomy_by_strategy.json", error_taxonomy_by_strategy),
     ("tradeoff_correctness_efficiency.json", tradeoff_correctness_efficiency),
+    ("survivor_bias.json", survivor_bias),
 ]
+
+# failure_rates is wired separately rather than added to _ANALYSES: it needs
+# the failure frame as well as the run frame, so it does not share the
+# single-DataFrame signature every entry above has.
+_FAILURE_RATES_FILE = "failure_rates.json"
 
 # Convention-dependent analyses: (stem, callable). Each is emitted once per
 # scoring convention as ``<stem>__<convention>.json`` (content-based naming:
@@ -104,6 +113,12 @@ _RQ_MAP: list[tuple[str, str, str]] = [
         "RQ4",
         "tradeoff_correctness_efficiency.json + effect_sizes__intent_to_treat.json",
         "Correctness vs. efficiency trade-off across strategies.",
+    ),
+    (
+        "reliability",
+        "failure_rates.json + survivor_bias.json",
+        "Cross-cutting: how often does a strategy produce nothing usable, "
+        "from what cause, and how much does the valid-only view flatter it?",
     ),
     (
         "robustness",
@@ -393,6 +408,7 @@ def main(argv: list[str] | None = None) -> int:
     # enforces that at the boundary instead of relying on a no-op commit.
     with get_readonly_connection(args.db) as conn:
         df = load_dataframe(conn)
+        failures = load_failure_dataframe(conn)
 
     if df.empty:
         print(
@@ -406,6 +422,10 @@ def main(argv: list[str] | None = None) -> int:
         payload = fn(df)
         results[filename] = payload
         _write_json(run_dir / filename, payload)
+
+    failure_payload = failure_rates(df, failures)
+    results[_FAILURE_RATES_FILE] = failure_payload
+    _write_json(run_dir / _FAILURE_RATES_FILE, failure_payload)
 
     # Convention-dependent analyses: one file per (analysis, convention).
     for stem, fn in _CONVENTION_ANALYSES:
