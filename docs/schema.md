@@ -65,6 +65,7 @@ result traces back to the exact software stack that produced it.
 | `git_dirty` | INTEGER | Tri-state: 1 = dirty, 0 = clean, NULL = probe failed. Never conflate NULL with clean. |
 | `lib_versions` | TEXT | JSON blob: `{"anthropic": "0.34.2", "openai": "...", ...}`. Whitelisted runtime deps only (see `db/environment.py`). |
 | `docker_image_digest` | TEXT | Value of `MAESTRO_IMAGE_DIGEST` at build time. NULL if the build did not pass it. |
+| `pricing_version` | TEXT | Active pricing snapshot id (`YYYY-MM`, see `maestro.pricing.DEFAULT_VERSION`) at run time. NULL on pre-migration rows and if pricing capture failed. |
 | `captured_at` | TEXT NOT NULL | UTC ISO 8601. |
 
 ### 2.2 `run_configs`
@@ -96,7 +97,7 @@ guarantee.
 | `prompt_tokens` | INTEGER NOT NULL | Prompt/input token count. 0 for controls and for cells that failed before any call. |
 | `completion_tokens` | INTEGER NOT NULL | Completion/output token count. |
 | `duration_ms` | INTEGER NOT NULL | Wall-clock latency of the cell. |
-| `cost_usd` | REAL NOT NULL | Computed at write time from token counts and the `ModelPricing` rate captured in `experiment_config.py`. Never recomputed at read time, so a later pricing change does not alter historical rows. |
+| `cost_usd` | REAL NOT NULL | Computed at write time from token counts and the `ModelPricing` rate from the active snapshot in `maestro.pricing`. Never recomputed at read time, so a later repricing does not alter historical rows; join to `run_environments.pricing_version` via `run_configs.environment_id` to recover which snapshot produced a row; the join yields a snapshot id when both `environment_id` and `pricing_version` are present, and NULL if capture failed. |
 | `error` | TEXT | Human-readable error string. NULL means success (the sole flag for `is_success`). |
 | `retry_count` | INTEGER NOT NULL DEFAULT 0 | Number of retries the provider's retry policy consumed for this cell. |
 

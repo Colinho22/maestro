@@ -4,7 +4,8 @@ Central registry of inputs, model pricing, and available strategies.
 Single source of truth for the experiment matrix.
 
 To add a new input:   append to INPUTS
-To add a new model:   append to MODELS
+To add a new model:   add a row to the active pricing snapshot in
+                      ``maestro.pricing`` (never hardcode a rate here)
 To enable a strategy: add to STRATEGIES (once implemented)
 """
 
@@ -13,7 +14,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from maestro.schemas import InputFile, ModelPricing, Strategy, Tier
+from maestro.pricing import DEFAULT_VERSION, load_pricing
+from maestro.schemas import InputFile, Strategy, Tier
 
 # ---------------------------------------------------------------------------
 # Base path for all data files (relative to project root)
@@ -280,98 +282,22 @@ INPUTS: list[InputFile] = [
 # Model registry - pricing per model for cost calculation
 # ---------------------------------------------------------------------------
 
-# Synthetic "model" used only for control-strategy rows. Controls bypass the
-# LLM entirely so no real model is involved; this entry exists so the
-# ``RunConfig.model`` column has an honest value ("control") rather than
-# borrowing the name of a real model and lying about what produced the row.
-# Zero pricing means control rows never affect cost rollups.
-CONTROL_MODEL = ModelPricing(
-    model="control",
-    input_price_per_1m=0.0,
-    output_price_per_1m=0.0,
-)
-
-# Two models per provider: a frontier ("best") model and an efficiency model,
-# so the experiment can compare quality against cost within and across vendors.
-# Prices are USD per 1M tokens, verified against each provider's pricing page in
-# April 2026 for the frozen main run. IDs are pinned to dated snapshots where
-# the provider offers one, so the run stays reproducible.
-#
-# The model id on each row is the canonical internal_id from
-# maestro.models.MODEL_REGISTRY (the single source of truth for model
-# naming). A consistency test asserts every non-control entry here is
-# registered, so a typo cannot land pricing under a name no other layer
-# recognises.
+# MODELS is derived from the active pricing snapshot in ``maestro.pricing``
+# so rates live in one place: a dated ``snapshot_YYYY_MM.py`` file whose
+# version string is recorded on every run (run_environments.pricing_version).
+# Every model id here is a canonical internal_id from
+# maestro.models.MODEL_REGISTRY; the model-registry consistency test asserts
+# the pricing/registry one-to-one invariant, and a typo would fail loudly at
+# import via _validate() in the pricing package.
 #
 # Note: provider dispatch (run.py) is by substring (claude / gpt / mistral /
 # gemini / deepseek), so any new model id must contain its provider's needle.
 # tests/providers/test_provider_dispatch.py enforces this for every entry here.
-MODELS: list[ModelPricing] = [
-    # Anthropic
-    ModelPricing(
-        model="claude-opus-4-8",  # frontier
-        input_price_per_1m=5.00,
-        output_price_per_1m=25.00,
-        # Opus 4.7+ removed sampling params; sending temperature returns 400.
-        supports_temperature=False,
-    ),
-    ModelPricing(
-        model="claude-haiku-4-5-20251001",  # efficiency
-        input_price_per_1m=1.00,
-        output_price_per_1m=5.00,
-    ),
-    # OpenAI (GPT-5 family: max_completion_tokens, no custom temperature)
-    ModelPricing(
-        model="gpt-5.5-2026-04-23",  # frontier
-        input_price_per_1m=5.00,
-        output_price_per_1m=30.00,
-        supports_temperature=False,
-    ),
-    ModelPricing(
-        model="gpt-5.4-mini-2026-03-17",  # efficiency
-        input_price_per_1m=0.75,
-        output_price_per_1m=4.50,
-        supports_temperature=False,
-    ),
-    # Mistral
-    ModelPricing(
-        model="mistral-medium-3-5",  # frontier
-        input_price_per_1m=1.50,
-        output_price_per_1m=7.50,
-    ),
-    ModelPricing(
-        model="mistral-small-2603",  # efficiency
-        input_price_per_1m=0.15,
-        output_price_per_1m=0.60,
-    ),
-    # Gemini
-    ModelPricing(
-        model="gemini-3.5-flash",  # frontier
-        input_price_per_1m=1.50,
-        output_price_per_1m=9.00,
-    ),
-    ModelPricing(
-        model="gemini-3.1-flash-lite",  # efficiency
-        input_price_per_1m=0.25,
-        output_price_per_1m=1.50,
-    ),
-    # DeepSeek: the cross-provider replication dimension's emerging-Chinese
-    # entry (proposal section 3.2), consumed via the OpenAI-compatible endpoint
-    # (see providers/deepseek.py). Pricing is the cache-MISS (standard) rate;
-    # DeepSeek also offers a cheaper cache-hit input price, but ModelPricing has
-    # a single input rate, so cache-miss makes the tracked cost an upper bound
-    # on actual spend (never an under-count).
-    ModelPricing(
-        model="deepseek-v4-pro",  # frontier
-        input_price_per_1m=0.435,
-        output_price_per_1m=0.87,
-    ),
-    ModelPricing(
-        model="deepseek-v4-flash",  # efficiency
-        input_price_per_1m=0.14,
-        output_price_per_1m=0.28,
-    ),
-]
+PRICING_VERSION, MODELS = load_pricing()
+
+# Re-export the pricing version constant for consumers (run.py's environment
+# capture, tests) that want to name it without importing the pricing package.
+DEFAULT_PRICING_VERSION = DEFAULT_VERSION
 
 
 # ---------------------------------------------------------------------------
@@ -394,7 +320,8 @@ STRATEGIES: list[Strategy] = [
 
 
 # Set used by ``build_matrix`` and analysis code to special-case controls:
-# - matrix builder uses CONTROL_MODEL and run_number=1 for these strategies
+# - matrix builder uses ``maestro.pricing.CONTROL_MODEL`` and run_number=1
+#   for these strategies
 # - analysis can exclude them from ANOVA / cost rollups with
 #   ``WHERE strategy NOT IN (SELECT value FROM control_strategies)`` or the
 #   in-Python equivalent ``s not in CONTROL_STRATEGIES``.

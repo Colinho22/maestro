@@ -137,6 +137,13 @@ class RunEnvironment(BaseModel):
     # Container provenance: set by CI/CD via env var, NULL when running locally
     docker_image_digest: str | None = None
 
+    # Pricing snapshot the cost columns were computed against, in
+    # ``YYYY-MM`` form (see ``maestro.pricing.DEFAULT_VERSION``). Nullable
+    # because pre-migration rows predate the column and because the pricing
+    # capture is best effort like every other environment probe: a bad pricing
+    # package must never abort the run it is meant to describe.
+    pricing_version: str | None = None
+
     captured_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -222,6 +229,8 @@ class ModelPricing(BaseModel):
     Per-model token pricing in USD per 1M tokens.
     Used to compute cost_usd at write time.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     model: str
     input_price_per_1m: float  # USD per 1M prompt tokens

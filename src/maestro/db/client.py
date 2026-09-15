@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS run_environments (
     git_dirty           INTEGER,
     lib_versions        TEXT,
     docker_image_digest TEXT,
+    -- Pricing snapshot the cost columns were computed against (YYYY-MM
+    -- form; see maestro.pricing). Nullable: pre-migration rows keep NULL,
+    -- and the environment probe records NULL if pricing capture fails.
+    pricing_version     TEXT,
     captured_at         TEXT NOT NULL
 );
 
@@ -147,6 +151,7 @@ def init_db(db_path: Path) -> None:
         _migrate_add_environment_id_column(conn)
         _migrate_add_retry_count_column(conn)
         _migrate_add_container_attachment_columns(conn)
+        _migrate_add_pricing_version_column(conn)
         conn.commit()
 
 
@@ -178,6 +183,18 @@ def _migrate_add_retry_count_column(conn: sqlite3.Connection) -> None:
         conn.execute(
             "ALTER TABLE run_results ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0"
         )
+
+
+def _migrate_add_pricing_version_column(conn: sqlite3.Connection) -> None:
+    """
+    Add ``run_environments.pricing_version`` to databases that predate the
+    column. Nullable TEXT: pre-migration rows stay NULL (they were recorded
+    before pricing was versioned, so the value is genuinely unknown and
+    fabricating a snapshot label would misrepresent the archive).
+    """
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(run_environments)")}
+    if "pricing_version" not in cols:
+        conn.execute("ALTER TABLE run_environments ADD COLUMN pricing_version TEXT")
 
 
 def _migrate_add_container_attachment_columns(conn: sqlite3.Connection) -> None:

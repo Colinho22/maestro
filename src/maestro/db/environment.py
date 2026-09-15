@@ -129,6 +129,21 @@ def _lib_versions() -> dict[str, str | None]:
     return resolved
 
 
+def _pricing_version() -> str | None:
+    """Best-effort probe: environment capture must never crash the run it
+    describes, so a broken or missing pricing package returns ``None`` rather
+    than propagating."""
+    try:
+        from maestro.pricing import DEFAULT_VERSION
+
+        return DEFAULT_VERSION
+    except Exception:
+        # Env capture must never crash the run it describes; a broken pricing
+        # package would be caught at import time by the runner long before this.
+        # Recording None preserves the failure signal instead of guessing.
+        return None
+
+
 def capture_environment(
     image_digest_env: str = "MAESTRO_IMAGE_DIGEST",
 ) -> RunEnvironment:
@@ -150,5 +165,6 @@ def capture_environment(
         git_dirty=_git_dirty(),
         lib_versions=json.dumps(_lib_versions(), sort_keys=True),
         docker_image_digest=os.environ.get(image_digest_env) or None,
+        pricing_version=_pricing_version(),
         captured_at=datetime.now(timezone.utc),
     )

@@ -84,7 +84,6 @@ from maestro.db.queries import (
     insert_sub_result,
 )
 from maestro.experiment_config import (
-    CONTROL_MODEL,
     CONTROL_STRATEGIES,
     DB_PATH,
     DEFAULT_REPEATS,
@@ -92,6 +91,7 @@ from maestro.experiment_config import (
     MODELS,
     STRATEGIES,
 )
+from maestro.pricing import CONTROL_MODEL
 from maestro.providers.anthropic import AnthropicProvider
 from maestro.providers.deepseek import DeepSeekProvider
 from maestro.providers.gemini import GeminiProvider

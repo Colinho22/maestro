@@ -23,9 +23,9 @@ def insert_run_environment(conn: sqlite3.Connection, env: RunEnvironment) -> Non
         INSERT INTO run_environments
             (environment_id, os, arch, python, hostname,
              git_commit, git_dirty, lib_versions, docker_image_digest,
-             captured_at)
+             pricing_version, captured_at)
         VALUES
-            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             str(env.environment_id),
@@ -38,6 +38,7 @@ def insert_run_environment(conn: sqlite3.Connection, env: RunEnvironment) -> Non
             None if env.git_dirty is None else int(env.git_dirty),
             env.lib_versions,
             env.docker_image_digest,
+            env.pricing_version,
             env.captured_at.isoformat(),
         ),
     )
