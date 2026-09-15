@@ -169,7 +169,9 @@ supply-chain incident, a required new symbol, a moved import path).
 
 ### 1.6 Register a model
 
-Add an entry to `MODELS` in `src/maestro/experiment_config.py`:
+Add an entry to the active pricing snapshot in
+`src/maestro/pricing/snapshot_YYYY_MM.py` (the one `DEFAULT_VERSION` in
+`src/maestro/pricing/__init__.py` points at):
 
 ```python
 ModelPricing(
@@ -180,8 +182,17 @@ ModelPricing(
 ```
 
 Pricing is USD per 1M tokens, sourced from the provider's public pricing
-page on the date of the run. `cost_usd` is computed at write time from
-this rate, so a later pricing change does not alter historical rows.
+page on the date the snapshot represents. `cost_usd` is computed at write
+time from this rate, so a later repricing does not alter historical rows.
+
+**Repricing an existing model.** Do not edit the existing snapshot. Copy
+it to a new dated file (`snapshot_2026_10.py`, `snapshot_2027_01.py`, ...),
+update its top-level `VERSION` to the new `YYYY-MM` string and its
+`PRICING` list to the new rates, register it in `_VERSIONS`, and bump
+`DEFAULT_VERSION` to point at the new file. Historical runs stay pinned
+to whichever snapshot was default when they ran; every new run records
+its snapshot id in `run_environments.pricing_version` so a cross-snapshot
+analysis is an explicit research choice, never a silent side effect.
 
 ### 1.7 Smoke test
 
@@ -365,9 +376,12 @@ pre-change and post-change runs are never mixed. In particular:
 - A new provider or strategy is additive and does not require a bump on
   its own; the new rows are recognisably from the new configuration.
 
-A pricing change on an existing model is not a bump: `cost_usd` is
-computed at write time and stored, so historical rows retain their
-original cost even after a repricing.
+A pricing change on an existing model is not a scoring bump: `cost_usd`
+is computed at write time and stored, so historical rows retain their
+original cost. It is, however, a pricing-snapshot bump: land the new
+rates in a fresh `snapshot_YYYY_MM.py`, bump `DEFAULT_VERSION`, and every
+subsequent run's `run_environments.pricing_version` records the new
+snapshot id so a cross-snapshot analysis is an explicit choice.
 
 See `CHANGELOG.md` and `.github/CONTRIBUTING.md` for the release-line
 conventions.

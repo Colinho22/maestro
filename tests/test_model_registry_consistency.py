@@ -27,8 +27,9 @@ from pathlib import Path
 
 import pytest
 
-from maestro.experiment_config import CONTROL_MODEL, MODELS
+from maestro.experiment_config import MODELS
 from maestro.models import MODEL_REGISTRY, all_internal_ids, get_model
+from maestro.pricing import CONTROL_MODEL
 from maestro.schemas import ReportedNumbers
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
