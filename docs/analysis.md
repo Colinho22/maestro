@@ -75,6 +75,10 @@ Every file has a top-level `status` string:
   A `reason` string explains which factor was underpopulated. Re-runs
   will populate the analysis automatically once the corpus grows; no
   code change is needed.
+- `"empty"`: there were no experimental rows to analyse at all, so the
+  analysis had nothing to run on rather than a factor too sparse to fit.
+  The distinction from `"skipped"` is deliberate: `"empty"` means no data,
+  `"skipped"` means data that will not support this particular test.
 
 ### 3.1 `descriptive.json`
 
@@ -343,8 +347,10 @@ NULL regardless of operating system.
 The corpus can under-populate a factor (only one input tier, only one
 model, only two strategies). Analyses that need at least two levels of
 that factor return `status="skipped"` with a `reason` string that names
-the underpopulated factor. Downstream code should check the status
-before reading terms:
+the underpopulated factor. An analysis with no experimental rows at all
+returns `status="empty"` instead, and carries no `reason`: nothing was
+too sparse to fit, there was simply nothing to fit. Downstream code
+should check the status before reading terms:
 
 ```python
 import json
@@ -353,7 +359,8 @@ payload = json.loads(open("output/analysis/.../anova_strategy_by_tier.json").rea
 if payload["status"] == "ok":
     interaction_p = payload["terms"]["strategy:tier"]["p"]
 else:
-    print(f"skipped: {payload['reason']}")
+    # "empty" carries no reason, so do not index it unconditionally.
+    print(f"{payload['status']}: {payload.get('reason', 'no experimental rows')}")
 ```
 
 Every consumer (the report builder, the dashboard) uses this pattern; a
