@@ -34,7 +34,7 @@ dependencies = [
     # explicitly so it doesn't silently disappear on a transitive bump.
     # >=8.1.0: that release introduced `wait_exponential_jitter`, which
     # _retry.py imports directly. 8.0.x lacks the symbol.
-    "tenacity>=9.1.4",
+    "tenacity>=9.2.1",
     # Statistical analysis pipeline (src/maestro/analysis/statistics.py).
     # statsmodels provides the factorial ANOVA (ols + anova_lm) and Tukey
     # HSD used for the thesis-grade analysis; pandas is its tabular input
@@ -43,7 +43,7 @@ dependencies = [
     # transitively via statsmodels and is not declared here directly.
     "statsmodels>=0.15.0",
     # pandas 3.0.4 was yanked from PyPI; 3.0.3 is the latest non-yanked release.
-    "pandas>=3.0.5",
+    "pandas>=3.0.6",
     # scipy is a transitive dependency of statsmodels (it supplies the
     # underlying distributions for the F-test, Tukey HSD, etc.), so its
     # version materially affects the statistics output. Not declared as a
@@ -60,8 +60,8 @@ dependencies = [
     # publication-quality figures, and matplotlib gives one style system for
     # both the dashboard and the embedded thesis figures with no
     # browser-component fragility.
-    "streamlit>=1.63.0,<2.0",
-    "matplotlib>=3.11.1,<4",
+    "streamlit>=1.66.0,<2.0",
+    "matplotlib>=3.11.2,<4",
     # Windows-only: provides the IANA timezone database that zoneinfo
     # (used by analysis/timestamps.py) needs at runtime. macOS and most
     # Linux distros ship the DB with the OS, so this is a no-op there:
@@ -81,7 +81,7 @@ dev = [
     # misreads illustrative fragments, e.g. a trailing-comma snippet as a
     # tuple). Adopt it deliberately later with an explicit config, not via a
     # floating CI install. The pre-commit rev tracks this bound in lockstep.
-    "ruff>=0.15.22,<0.16",
+    "ruff>=0.17.1,<0.18",
     # Strips notebook outputs/exec-counts/metadata; also wired as a pre-commit
     # hook. Here so the CLI is available to strip a notebook on demand.
     "nbstripout>=0.9.1",
